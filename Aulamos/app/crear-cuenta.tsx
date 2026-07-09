@@ -12,7 +12,7 @@ export default function CrearCuentaScreen() {
       <Text style={styles.text}>Selecciona una opción para continuar</Text>
 
       <View style={styles.cards}>
-        <Link href={"/crear-alumno" as any} asChild>
+        <Link href={"/crear-cuenta-alumno" as any} asChild>
           <TouchableOpacity style={styles.card}>
             <Ionicons name="school" size={48} color="#2563EB" />
             <Text style={styles.alumno}>Alumno</Text>
@@ -21,7 +21,7 @@ export default function CrearCuentaScreen() {
           </TouchableOpacity>
         </Link>
 
-        <Link href={"/crear-docente" as any} asChild>
+        <Link href={"/crear-cuenta-docente" as any} asChild>
           <TouchableOpacity style={styles.card}>
             <Ionicons name="id-card-outline" size={48} color="#16A34A" />
             <Text style={styles.docente}>Docente</Text>
