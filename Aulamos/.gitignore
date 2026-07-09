@@ -1,0 +1,12 @@
+# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
+node_modules/
+.env
+.expo/
+dist/
+build/
+
+Aulamos/node_modules/
+Aulamos/.expo/
+
+aulamos-api/node_modules/
+aulamos-api/.env
