@@ -5,6 +5,9 @@ import { Ionicons } from '@expo/vector-icons';
 export default function CrearCuentaScreen() {
   return (
     <View style={styles.container}>
+      <Ionicons name="arrow-back" size={18} color="#111827" style={styles.back} />
+      <Ionicons name="accessibility" size={22} color="#7C4DFF" style={styles.accessIcon} />
+
       <Text style={styles.title}>Crear cuenta</Text>
       <Text style={styles.subtitle}>Comienza tu aprendizaje</Text>
 
@@ -14,19 +17,19 @@ export default function CrearCuentaScreen() {
       <View style={styles.cards}>
         <Link href={"/crear-alumno" as any} asChild>
           <TouchableOpacity style={styles.card}>
-            <Ionicons name="school" size={48} color="#2563EB" />
+            <Ionicons name="school" size={42} color="#2563EB" />
             <Text style={styles.alumno}>Alumno</Text>
-            <Text style={styles.cardText}>Accede a tus clases, tareas y recursos.</Text>
-            <Ionicons name="chevron-forward" size={22} color="#2965e6" />
+            <Text style={styles.cardText}>Accede a tus clases,{'\n'}tareas y recursos.</Text>
+            <Ionicons name="chevron-forward" size={19} color="#2563EB" />
           </TouchableOpacity>
         </Link>
 
         <Link href={"/crear-docente" as any} asChild>
           <TouchableOpacity style={styles.card}>
-            <Ionicons name="id-card-outline" size={48} color="#16A34A" />
+            <Ionicons name="id-card-outline" size={42} color="#16A34A" />
             <Text style={styles.docente}>Docente</Text>
-            <Text style={styles.cardText}>Crea y gestiona tus clases, recursos y evaluaciones.</Text>
-            <Ionicons name="chevron-forward" size={22} color="#16A34A" />
+            <Text style={styles.cardText}>Crea y gestiona tus{'\n'}clases, recursos y{'\n'}evaluaciones.</Text>
+            <Ionicons name="chevron-forward" size={19} color="#16A34A" />
           </TouchableOpacity>
         </Link>
       </View>
@@ -37,65 +40,77 @@ export default function CrearCuentaScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 28,
+    paddingHorizontal: 32,
     backgroundColor: '#FFFFFF',
     justifyContent: 'center',
   },
+  back: {
+    position: 'absolute',
+    top: 55,
+    left: 32,
+  },
+  accessIcon: {
+    position: 'absolute',
+    top: 55,
+    right: 32,
+  },
   title: {
-    fontSize: 26,
-    fontWeight: 'bold',
-    color: '#1F2937',
-    marginBottom: 35,
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#111827',
+    marginBottom: 48,
   },
   subtitle: {
+    fontSize: 10,
     color: '#64748B',
-    marginBottom: 35,
+    marginBottom: 38,
   },
   question: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#1F2937',
-    marginBottom: 20,
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#111827',
+    marginBottom: 30,
   },
   text: {
+    fontSize: 10,
     color: '#64748B',
     marginBottom: 45,
   },
   cards: {
     flexDirection: 'row',
-    gap: 14,
+    gap: 12,
   },
   card: {
     flex: 1,
-    height: 190,
+    height: 165,
     borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 14,
+    borderColor: '#CBD5E1',
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 12,
+    paddingHorizontal: 8,
+    backgroundColor: '#FFFFFF',
     shadowColor: '#000',
     shadowOpacity: 0.15,
-    shadowRadius: 4,
+    shadowRadius: 5,
     elevation: 4,
-    backgroundColor: '#FFFFFF',
   },
   alumno: {
     color: '#2563EB',
-    fontWeight: 'bold',
-    fontSize: 18,
-    marginTop: 10,
+    fontWeight: '800',
+    fontSize: 16,
+    marginTop: 8,
   },
   docente: {
     color: '#16A34A',
-    fontWeight: 'bold',
-    fontSize: 18,
-    marginTop: 10,
+    fontWeight: '800',
+    fontSize: 16,
+    marginTop: 8,
   },
   cardText: {
     textAlign: 'center',
     color: '#64748B',
-    fontSize: 12,
-    marginVertical: 10,
+    fontSize: 10,
+    marginVertical: 9,
   },
 });

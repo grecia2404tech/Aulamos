@@ -5,25 +5,25 @@ import { Ionicons } from '@expo/vector-icons';
 export default function LoginScreen() {
   return (
     <View style={styles.container}>
-      <Ionicons name="accessibility" size={26} color="#6C4DFF" style={styles.iconTop} />
+      <Ionicons name="accessibility" size={22} color="#7C4DFF" style={styles.accessIcon} />
 
       <Text style={styles.logo}>AULAMOS</Text>
-      <Text style={styles.subtitle}>Aprendemos juntos</Text>
+      <Text style={styles.logoSub}>Aprendemos juntos</Text>
 
       <Text style={styles.title}>¡Bienvenido de nuevo!</Text>
-      <Text style={styles.text}>Inicia sesión para continuar aprendiendo.</Text>
+      <Text style={styles.subtitle}>Inicia sesión para continuar{'\n'}aprendiendo.</Text>
 
       <Text style={styles.label}>Correo electrónico</Text>
       <View style={styles.inputBox}>
-        <Ionicons name="mail-outline" size={18} color="#7A8794" />
-        <TextInput placeholder="correo.com" style={styles.input} />
+        <Ionicons name="mail-outline" size={15} color="#64748B" />
+        <TextInput placeholder="correo.com" placeholderTextColor="#94A3B8" style={styles.input} />
       </View>
 
       <Text style={styles.label}>Contraseña</Text>
       <View style={styles.inputBox}>
-        <Ionicons name="lock-closed-outline" size={18} color="#7A8794" />
-        <TextInput placeholder="Tu contraseña" secureTextEntry style={styles.input} />
-        <Ionicons name="eye-outline" size={18} color="#7A8794" />
+        <Ionicons name="lock-closed-outline" size={15} color="#64748B" />
+        <TextInput placeholder="Tu contraseña" placeholderTextColor="#94A3B8" secureTextEntry style={styles.input} />
+        <Ionicons name="eye-outline" size={15} color="#94A3B8" />
       </View>
 
       <Text style={styles.forgot}>¿Olvidaste tu contraseña?</Text>
@@ -33,9 +33,11 @@ export default function LoginScreen() {
       </TouchableOpacity>
 
       <View style={styles.footer}>
-        <Text>¿No tienes cuenta?</Text>
+        <Text style={styles.footerText}>¿No tienes cuenta?</Text>
         <Link href={"/crear-cuenta" as any} style={styles.link}> Crear cuenta</Link>
       </View>
+
+      <Text style={styles.dot}>o</Text>
     </View>
   );
 }
@@ -43,77 +45,102 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 28,
+    paddingHorizontal: 34,
     backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  iconTop: {
-    marginBottom: 25,
+  accessIcon: {
+    position: 'absolute',
+    top: 55,
+    right: 38,
   },
   logo: {
-    fontSize: 30,
-    fontWeight: 'bold',
+    fontSize: 26,
+    fontWeight: '800',
     color: '#4A7CFF',
+    marginTop: 10,
   },
-  subtitle: {
-    fontSize: 12,
-    marginBottom: 30,
+  logoSub: {
+    fontSize: 9,
+    color: '#111827',
+    marginBottom: 28,
   },
   title: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#1F2937',
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#111827',
   },
-  text: {
+  subtitle: {
+    fontSize: 10,
+    color: '#111827',
     textAlign: 'center',
-    fontSize: 13,
-    marginBottom: 35,
-    color: '#374151',
+    marginBottom: 60,
   },
   label: {
     width: '100%',
-    fontWeight: 'bold',
-    marginBottom: 6,
-    color: '#374151',
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#1F2937',
+    marginBottom: 5,
   },
   inputBox: {
     width: '100%',
-    height: 48,
+    height: 42,
     borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 8,
+    borderColor: '#CBD5E1',
+    borderRadius: 7,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
+    paddingHorizontal: 10,
     marginBottom: 18,
   },
   input: {
     flex: 1,
-    marginLeft: 8,
+    fontSize: 11,
+    marginLeft: 7,
+    color: '#111827',
   },
   forgot: {
-    color: '#2563EB',
-    fontWeight: 'bold',
     alignSelf: 'flex-end',
-    marginBottom: 25,
+    fontSize: 10,
+    color: '#2563EB',
+    fontWeight: '800',
+    marginTop: 6,
+    marginBottom: 26,
   },
   button: {
     backgroundColor: '#4A7CFF',
-    paddingVertical: 13,
-    paddingHorizontal: 35,
-    borderRadius: 8,
-    marginBottom: 35,
+    width: 118,
+    height: 39,
+    borderRadius: 7,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 50,
   },
   buttonText: {
     color: '#FFFFFF',
-    fontWeight: 'bold',
+    fontSize: 12,
+    fontWeight: '600',
   },
   footer: {
     flexDirection: 'row',
+    alignItems: 'center',
+  },
+  footerText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#111827',
   },
   link: {
+    fontSize: 10,
     color: '#2563EB',
-    fontWeight: 'bold',
+    fontWeight: '800',
+  },
+  dot: {
+    position: 'absolute',
+    bottom: 45,
+    fontSize: 12,
+    color: '#94A3B8',
   },
 });
