@@ -12,15 +12,18 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { API_URL } from '../services/api';
 
 export default function CrearCuentaAlumnoScreen() {
   const [nombre, setNombre] = useState('');
+  const [apellidoPaterno, setApellidoPaterno] = useState('');
+  const [apellidoMaterno, setApellidoMaterno] = useState('');
   const [correo, setCorreo] = useState('');
   const [password, setPassword] = useState('');
   const [confirmarPassword, setConfirmarPassword] = useState('');
 
-  const crearCuenta = () => {
-    if (!nombre || !correo || !password || !confirmarPassword) {
+  const crearCuenta = async () => {
+    if (!nombre || !apellidoPaterno || !apellidoMaterno || !correo || !password || !confirmarPassword) {
       Alert.alert('Error', 'Completa todos los campos');
       return;
     }
@@ -35,8 +38,36 @@ export default function CrearCuentaAlumnoScreen() {
       return;
     }
 
-    Alert.alert('Éxito', 'Cuenta de alumno creada correctamente');
-    router.push('/');
+    try {
+      const response = await fetch(`${API_URL}/auth/registro`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          nombre,
+          apellido_paterno: apellidoPaterno,
+          apellido_materno: apellidoMaterno,
+          correo,
+          password,
+          rol: 'Alumno',
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        Alert.alert('Error', data.mensaje || 'No se pudo registrar el alumno');
+        return;
+      }
+
+      Alert.alert('Éxito', 'Cuenta de alumno creada correctamente');
+      router.push('/');
+
+    } catch (error) {
+      console.log(error);
+      Alert.alert('Error', 'No se pudo conectar con la API');
+    }
   };
 
   return (
@@ -68,15 +99,39 @@ export default function CrearCuentaAlumnoScreen() {
         </View>
 
         <View style={styles.form}>
-          <Text style={styles.label}>Nombre completo</Text>
+          <Text style={styles.label}>Nombre</Text>
           <View style={styles.inputBox}>
             <Ionicons name="person-outline" size={20} color="#64748B" />
             <TextInput
               style={styles.input}
-              placeholder="Ej. Juan Vázquez"
+              placeholder="Ej. Juan"
               placeholderTextColor="#94A3B8"
               value={nombre}
               onChangeText={setNombre}
+            />
+          </View>
+
+          <Text style={styles.label}>Apellido paterno</Text>
+          <View style={styles.inputBox}>
+            <Ionicons name="person-outline" size={20} color="#64748B" />
+            <TextInput
+              style={styles.input}
+              placeholder="Ej. Vázquez"
+              placeholderTextColor="#94A3B8"
+              value={apellidoPaterno}
+              onChangeText={setApellidoPaterno}
+            />
+          </View>
+
+          <Text style={styles.label}>Apellido materno</Text>
+          <View style={styles.inputBox}>
+            <Ionicons name="person-outline" size={20} color="#64748B" />
+            <TextInput
+              style={styles.input}
+              placeholder="Ej. López"
+              placeholderTextColor="#94A3B8"
+              value={apellidoMaterno}
+              onChangeText={setApellidoMaterno}
             />
           </View>
 
@@ -105,7 +160,6 @@ export default function CrearCuentaAlumnoScreen() {
               onChangeText={setPassword}
               secureTextEntry
             />
-            <Ionicons name="eye-outline" size={20} color="#94A3B8" />
           </View>
 
           <Text style={styles.label}>Confirmar contraseña</Text>
@@ -119,7 +173,6 @@ export default function CrearCuentaAlumnoScreen() {
               onChangeText={setConfirmarPassword}
               secureTextEntry
             />
-            <Ionicons name="eye-outline" size={20} color="#94A3B8" />
           </View>
 
           <View style={styles.infoBox}>

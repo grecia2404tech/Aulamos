@@ -13,14 +13,25 @@ import {
   View,
 } from 'react-native';
 
+import { API_URL } from '../services/api';
+
 export default function CrearDocenteScreen() {
   const [nombre, setNombre] = useState('');
+  const [apellidoPaterno, setApellidoPaterno] = useState('');
+  const [apellidoMaterno, setApellidoMaterno] = useState('');
   const [correo, setCorreo] = useState('');
   const [password, setPassword] = useState('');
   const [confirmarPassword, setConfirmarPassword] = useState('');
 
-  const crearCuenta = () => {
-    if (!nombre || !correo || !password || !confirmarPassword) {
+  const crearCuenta = async () => {
+    if (
+      !nombre ||
+      !apellidoPaterno ||
+      !apellidoMaterno ||
+      !correo ||
+      !password ||
+      !confirmarPassword
+    ) {
       Alert.alert('Error', 'Completa todos los campos');
       return;
     }
@@ -35,8 +46,35 @@ export default function CrearDocenteScreen() {
       return;
     }
 
-    Alert.alert('Éxito', 'Cuenta de docente creada correctamente');
-    router.push('/');
+    try {
+      const response = await fetch(`${API_URL}/auth/registro`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          nombre,
+          apellido_paterno: apellidoPaterno,
+          apellido_materno: apellidoMaterno,
+          correo,
+          password,
+          rol: 'Docente',
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        Alert.alert('Error', data.mensaje || 'No se pudo crear la cuenta');
+        return;
+      }
+
+      Alert.alert('Éxito', 'Cuenta de docente creada correctamente');
+      router.push('/');
+    } catch (error) {
+      console.log(error);
+      Alert.alert('Error', 'No se pudo conectar con el servidor');
+    }
   };
 
   return (
@@ -68,15 +106,39 @@ export default function CrearDocenteScreen() {
         </View>
 
         <View style={styles.form}>
-          <Text style={styles.label}>Nombre completo</Text>
+          <Text style={styles.label}>Nombre</Text>
           <View style={styles.inputBox}>
             <Ionicons name="person-outline" size={20} color="#64748B" />
             <TextInput
               style={styles.input}
-              placeholder="Ej. Ana María López"
+              placeholder="Ej. Ana María"
               placeholderTextColor="#94A3B8"
               value={nombre}
               onChangeText={setNombre}
+            />
+          </View>
+
+          <Text style={styles.label}>Apellido paterno</Text>
+          <View style={styles.inputBox}>
+            <Ionicons name="person-outline" size={20} color="#64748B" />
+            <TextInput
+              style={styles.input}
+              placeholder="Ej. López"
+              placeholderTextColor="#94A3B8"
+              value={apellidoPaterno}
+              onChangeText={setApellidoPaterno}
+            />
+          </View>
+
+          <Text style={styles.label}>Apellido materno</Text>
+          <View style={styles.inputBox}>
+            <Ionicons name="person-outline" size={20} color="#64748B" />
+            <TextInput
+              style={styles.input}
+              placeholder="Ej. Hernández"
+              placeholderTextColor="#94A3B8"
+              value={apellidoMaterno}
+              onChangeText={setApellidoMaterno}
             />
           </View>
 
