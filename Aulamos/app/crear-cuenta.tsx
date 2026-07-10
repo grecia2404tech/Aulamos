@@ -1,116 +1,203 @@
 import { Link } from 'expo-router';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import {
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+  ScrollView,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 export default function CrearCuentaScreen() {
   return (
-    <View style={styles.container}>
-      <Ionicons name="arrow-back" size={18} color="#111827" style={styles.back} />
-      <Ionicons name="accessibility" size={22} color="#7C4DFF" style={styles.accessIcon} />
+    <ScrollView contentContainerStyle={styles.container}>
+      <View style={styles.topBar}>
+        <TouchableOpacity>
+          <Ionicons name="arrow-back" size={24} color="#111827" />
+        </TouchableOpacity>
 
-      <Text style={styles.title}>Crear cuenta</Text>
-      <Text style={styles.subtitle}>Comienza tu aprendizaje</Text>
-
-      <Text style={styles.question}>¿Cuál es tu rol?</Text>
-      <Text style={styles.text}>Selecciona una opción para continuar</Text>
-
-      <View style={styles.cards}>
-        <Link href={"/crear-cuenta-alumno" as any} asChild>
-          <TouchableOpacity style={styles.card}>
-            <Ionicons name="school" size={42} color="#2563EB" />
-            <Text style={styles.alumno}>Alumno</Text>
-            <Text style={styles.cardText}>Accede a tus clases,{'\n'}tareas y recursos.</Text>
-            <Ionicons name="chevron-forward" size={19} color="#2563EB" />
-          </TouchableOpacity>
-        </Link>
-
-        <Link href={"/crear-cuenta-docente" as any} asChild>
-          <TouchableOpacity style={styles.card}>
-            <Ionicons name="id-card-outline" size={42} color="#16A34A" />
-            <Text style={styles.docente}>Docente</Text>
-            <Text style={styles.cardText}>Crea y gestiona tus{'\n'}clases, recursos y{'\n'}evaluaciones.</Text>
-            <Ionicons name="chevron-forward" size={19} color="#16A34A" />
-          </TouchableOpacity>
-        </Link>
+        <View style={styles.accessButton}>
+          <Ionicons name="accessibility" size={24} color="#7C4DFF" />
+        </View>
       </View>
-    </View>
+
+      <View style={styles.header}>
+        <Text style={styles.title}>Crear cuenta</Text>
+        <Text style={styles.subtitle}>Comienza tu aprendizaje en AULAMOS</Text>
+      </View>
+
+      <View style={styles.content}>
+        <Text style={styles.question}>¿Cuál es tu rol?</Text>
+        <Text style={styles.text}>Selecciona una opción para continuar</Text>
+
+        <View style={styles.cards}>
+          <Link href={"/crear-cuenta-alumno" as any} asChild>
+            <TouchableOpacity activeOpacity={0.85} style={styles.card}>
+              <View style={styles.iconBoxAlumno}>
+                <Ionicons name="school" size={42} color="#2563EB" />
+              </View>
+
+              <Text style={styles.alumno}>Alumno</Text>
+              <Text style={styles.cardText}>
+                Accede a tus clases, tareas y recursos educativos.
+              </Text>
+
+              <View style={styles.nextAlumno}>
+                <Ionicons name="chevron-forward" size={22} color="#2563EB" />
+              </View>
+            </TouchableOpacity>
+          </Link>
+
+          <Link href={"/crear-cuenta-docente" as any} asChild>
+            <TouchableOpacity activeOpacity={0.85} style={styles.card}>
+              <View style={styles.iconBoxDocente}>
+                <Ionicons name="id-card-outline" size={42} color="#16A34A" />
+              </View>
+
+              <Text style={styles.docente}>Docente</Text>
+              <Text style={styles.cardText}>
+                Crea clases, recursos y evaluaciones para tus alumnos.
+              </Text>
+
+              <View style={styles.nextDocente}>
+                <Ionicons name="chevron-forward" size={22} color="#16A34A" />
+              </View>
+            </TouchableOpacity>
+          </Link>
+        </View>
+      </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-    paddingHorizontal: 32,
-    backgroundColor: '#FFFFFF',
-    justifyContent: 'center',
+    flexGrow: 1,
+    paddingHorizontal: 28,
+    paddingTop: 55,
+    paddingBottom: 35,
+    backgroundColor: '#F8FAFC',
   },
-  back: {
-    position: 'absolute',
-    top: 55,
-    left: 32,
-  },
-  accessIcon: {
-    position: 'absolute',
-    top: 55,
-    right: 32,
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: '#111827',
-    marginBottom: 48,
-  },
-  subtitle: {
-    fontSize: 10,
-    color: '#64748B',
-    marginBottom: 38,
-  },
-  question: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: '#111827',
-    marginBottom: 30,
-  },
-  text: {
-    fontSize: 10,
-    color: '#64748B',
-    marginBottom: 45,
-  },
-  cards: {
+
+  topBar: {
     flexDirection: 'row',
-    gap: 12,
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
-  card: {
-    flex: 1,
-    height: 165,
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
-    borderRadius: 12,
+
+  accessButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#F3E8FF',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 8,
+  },
+
+  header: {
+    marginTop: 45,
+    marginBottom: 45,
+  },
+
+  title: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: '#111827',
+    marginBottom: 8,
+  },
+
+  subtitle: {
+    fontSize: 16,
+    color: '#64748B',
+    fontWeight: '500',
+  },
+
+  content: {
+    flex: 1,
+  },
+
+  question: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: '#111827',
+    marginBottom: 8,
+  },
+
+  text: {
+    fontSize: 16,
+    color: '#64748B',
+    marginBottom: 28,
+  },
+
+  cards: {
+    gap: 18,
+  },
+
+  card: {
+    width: '100%',
+    minHeight: 160,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 18,
+    padding: 20,
     backgroundColor: '#FFFFFF',
     shadowColor: '#000',
-    shadowOpacity: 0.15,
-    shadowRadius: 5,
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
     elevation: 4,
   },
+
+  iconBoxAlumno: {
+    width: 64,
+    height: 64,
+    borderRadius: 18,
+    backgroundColor: '#DBEAFE',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 14,
+  },
+
+  iconBoxDocente: {
+    width: 64,
+    height: 64,
+    borderRadius: 18,
+    backgroundColor: '#DCFCE7',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 14,
+  },
+
   alumno: {
     color: '#2563EB',
     fontWeight: '800',
-    fontSize: 16,
-    marginTop: 8,
+    fontSize: 20,
+    marginBottom: 6,
   },
+
   docente: {
     color: '#16A34A',
     fontWeight: '800',
-    fontSize: 16,
-    marginTop: 8,
+    fontSize: 20,
+    marginBottom: 6,
   },
+
   cardText: {
-    textAlign: 'center',
     color: '#64748B',
-    fontSize: 10,
-    marginVertical: 9,
+    fontSize: 15,
+    lineHeight: 21,
+    paddingRight: 30,
+  },
+
+  nextAlumno: {
+    position: 'absolute',
+    right: 18,
+    top: '50%',
+  },
+
+  nextDocente: {
+    position: 'absolute',
+    right: 18,
+    top: '50%',
   },
 });

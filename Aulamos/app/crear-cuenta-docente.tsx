@@ -1,9 +1,11 @@
-// Interfaz de creación de cuenta para docentes
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import {
   Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -38,167 +40,240 @@ export default function CrearDocenteScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <TouchableOpacity style={styles.back} onPress={() => router.back()}>
-        <Ionicons name="arrow-back" size={24} color="#111827" />
-      </TouchableOpacity>
+    <KeyboardAvoidingView
+      style={styles.keyboard}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
+      <ScrollView
+        contentContainerStyle={styles.container}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View style={styles.topBar}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.iconButton}>
+            <Ionicons name="arrow-back" size={24} color="#111827" />
+          </TouchableOpacity>
 
-      <Ionicons name="accessibility" size={26} color="#6D5DFB" style={styles.accessibility} />
+          <View style={styles.accessButton}>
+            <Ionicons name="accessibility" size={24} color="#6D5DFB" />
+          </View>
+        </View>
 
-      <Text style={styles.title}>Crear cuenta docente</Text>
-      <Text style={styles.subtitle}>Completa tus datos</Text>
+        <View style={styles.header}>
+          <View style={styles.logoBox}>
+            <Ionicons name="id-card-outline" size={58} color="#16A34A" />
+          </View>
 
-      <Ionicons name="id-card-outline" size={82} color="#5FCB72" style={styles.logo} />
+          <Text style={styles.title}>Crear cuenta docente</Text>
+          <Text style={styles.subtitle}>Completa tus datos para acceder a AULAMOS</Text>
+        </View>
 
-      <Text style={styles.label}>Nombre Completo</Text>
-      <View style={styles.inputBox}>
-        <Ionicons name="person-outline" size={18} color="#64748B" />
-        <TextInput
-          style={styles.input}
-          placeholder="Ej. Ana María López"
-          value={nombre}
-          onChangeText={setNombre}
-        />
-      </View>
+        <View style={styles.form}>
+          <Text style={styles.label}>Nombre completo</Text>
+          <View style={styles.inputBox}>
+            <Ionicons name="person-outline" size={20} color="#64748B" />
+            <TextInput
+              style={styles.input}
+              placeholder="Ej. Ana María López"
+              placeholderTextColor="#94A3B8"
+              value={nombre}
+              onChangeText={setNombre}
+            />
+          </View>
 
-      <Text style={styles.label}>Correo electrónico</Text>
-      <View style={styles.inputBox}>
-        <Ionicons name="mail-outline" size={18} color="#64748B" />
-        <TextInput
-          style={styles.input}
-          placeholder="correo.com"
-          value={correo}
-          onChangeText={setCorreo}
-          keyboardType="email-address"
-          autoCapitalize="none"
-        />
-      </View>
+          <Text style={styles.label}>Correo electrónico</Text>
+          <View style={styles.inputBox}>
+            <Ionicons name="mail-outline" size={20} color="#64748B" />
+            <TextInput
+              style={styles.input}
+              placeholder="correo@gmail.com"
+              placeholderTextColor="#94A3B8"
+              value={correo}
+              onChangeText={setCorreo}
+              keyboardType="email-address"
+              autoCapitalize="none"
+            />
+          </View>
 
-      <Text style={styles.label}>Contraseña</Text>
-      <View style={styles.inputBox}>
-        <Ionicons name="lock-closed-outline" size={18} color="#64748B" />
-        <TextInput
-          style={styles.input}
-          placeholder="********"
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-        />
-        <Ionicons name="eye-outline" size={18} color="#94A3B8" />
-      </View>
+          <Text style={styles.label}>Contraseña</Text>
+          <View style={styles.inputBox}>
+            <Ionicons name="lock-closed-outline" size={20} color="#64748B" />
+            <TextInput
+              style={styles.input}
+              placeholder="Mínimo 8 caracteres"
+              placeholderTextColor="#94A3B8"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+            />
+            <Ionicons name="eye-outline" size={20} color="#94A3B8" />
+          </View>
 
-      <Text style={styles.label}>Confirmar contraseña</Text>
-      <View style={styles.inputBox}>
-        <Ionicons name="lock-closed-outline" size={18} color="#64748B" />
-        <TextInput
-          style={styles.input}
-          placeholder="********"
-          value={confirmarPassword}
-          onChangeText={setConfirmarPassword}
-          secureTextEntry
-        />
-        <Ionicons name="eye-outline" size={18} color="#94A3B8" />
-      </View>
+          <Text style={styles.label}>Confirmar contraseña</Text>
+          <View style={styles.inputBox}>
+            <Ionicons name="lock-closed-outline" size={20} color="#64748B" />
+            <TextInput
+              style={styles.input}
+              placeholder="Repite tu contraseña"
+              placeholderTextColor="#94A3B8"
+              value={confirmarPassword}
+              onChangeText={setConfirmarPassword}
+              secureTextEntry
+            />
+            <Ionicons name="eye-outline" size={20} color="#94A3B8" />
+          </View>
 
-      <View style={styles.infoBox}>
-        <Ionicons name="shield" size={30} color="#2563EB" />
-        <Text style={styles.infoText}>
-          Usa al menos 8 caracteres con letras y números.
-        </Text>
-      </View>
+          <View style={styles.infoBox}>
+            <Ionicons name="shield-checkmark" size={26} color="#2563EB" />
+            <Text style={styles.infoText}>
+              Usa al menos 8 caracteres con letras y números.
+            </Text>
+          </View>
 
-      <TouchableOpacity style={styles.button} onPress={crearCuenta}>
-        <Text style={styles.buttonText}>Crear cuenta</Text>
-      </TouchableOpacity>
-    </View>
+          <TouchableOpacity activeOpacity={0.85} style={styles.button} onPress={crearCuenta}>
+            <Text style={styles.buttonText}>Crear cuenta</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  keyboard: {
     flex: 1,
-    paddingHorizontal: 26,
-    paddingTop: 42,
+    backgroundColor: '#F8FAFC',
+  },
+
+  container: {
+    flexGrow: 1,
+    paddingHorizontal: 28,
+    paddingTop: 50,
+    paddingBottom: 35,
+    backgroundColor: '#F8FAFC',
+  },
+
+  topBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+
+  iconButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  back: {
-    position: 'absolute',
-    top: 42,
-    left: 18,
-    zIndex: 10,
+
+  accessButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#F3E8FF',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  accessibility: {
-    position: 'absolute',
-    top: 38,
-    right: 18,
-  },
-  title: {
+
+  header: {
+    alignItems: 'center',
     marginTop: 28,
+    marginBottom: 28,
+  },
+
+  logoBox: {
+    width: 96,
+    height: 96,
+    borderRadius: 28,
+    backgroundColor: '#DCFCE7',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 18,
+  },
+
+  title: {
     textAlign: 'center',
-    fontSize: 22,
-    fontWeight: 'bold',
+    fontSize: 25,
+    fontWeight: '800',
     color: '#111827',
   },
+
   subtitle: {
-    marginTop: 16,
+    marginTop: 8,
     textAlign: 'center',
-    fontSize: 12,
+    fontSize: 15,
     color: '#64748B',
+    lineHeight: 21,
   },
-  logo: {
-    alignSelf: 'center',
-    marginTop: 24,
-    marginBottom: 34,
+
+  form: {
+    width: '100%',
   },
+
   label: {
-    fontSize: 12,
-    fontWeight: '600',
+    fontSize: 15,
+    fontWeight: '700',
     color: '#1F2937',
-    marginBottom: 7,
+    marginBottom: 8,
   },
+
   inputBox: {
-    height: 50,
+    height: 54,
     borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 8,
+    borderColor: '#CBD5E1',
+    borderRadius: 14,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 13,
-    marginBottom: 14,
+    paddingHorizontal: 14,
+    marginBottom: 17,
+    backgroundColor: '#FFFFFF',
   },
+
   input: {
     flex: 1,
     marginLeft: 10,
-    fontSize: 13,
+    fontSize: 15,
     color: '#1F2937',
   },
+
   infoBox: {
-    height: 52,
+    minHeight: 58,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#EFF6FF',
-    borderRadius: 8,
+    borderRadius: 14,
     paddingHorizontal: 16,
-    marginTop: 2,
-    marginBottom: 54,
+    paddingVertical: 12,
+    marginTop: 4,
+    marginBottom: 24,
   },
+
   infoText: {
-    marginLeft: 18,
-    fontSize: 10,
+    marginLeft: 12,
+    fontSize: 14,
     fontWeight: '600',
     color: '#2563EB',
     flex: 1,
+    lineHeight: 19,
   },
+
   button: {
     height: 56,
     backgroundColor: '#4A7CFF',
-    borderRadius: 9,
+    borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
+    shadowColor: '#4A7CFF',
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.22,
+    shadowRadius: 8,
+    elevation: 5,
   },
+
   buttonText: {
     color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: 'bold',
+    fontSize: 16,
+    fontWeight: '800',
   },
 });
