@@ -14,17 +14,16 @@ const verificarToken = (req, res, next) => {
 
     if (
       partes.length !== 2 ||
-      partes[0] !== 'Bearer'
+      partes[0] !== 'Bearer' ||
+      !partes[1]
     ) {
       return res.status(401).json({
         mensaje: 'Formato de token inválido',
       });
     }
 
-    const token = partes[1];
-
     const datosToken = jwt.verify(
-      token,
+      partes[1],
       process.env.JWT_SECRET
     );
 
@@ -34,9 +33,35 @@ const verificarToken = (req, res, next) => {
   } catch (error) {
     return res.status(401).json({
       mensaje: 'Token inválido o expirado',
-      error: error.message,
     });
   }
 };
 
+const verificarRol = (...rolesPermitidos) => {
+  return (req, res, next) => {
+    if (!req.usuario) {
+      return res.status(401).json({
+        mensaje: 'Usuario no autenticado',
+      });
+    }
+
+    if (!rolesPermitidos.includes(req.usuario.rol)) {
+      return res.status(403).json({
+        mensaje:
+          'No tienes permiso para acceder a esta función',
+      });
+    }
+
+    next();
+  };
+};
+
+/*
+ * Conserva la exportación principal para no romper
+ * las rutas que ya utilizan:
+ * const verificarToken = require(...)
+ */
 module.exports = verificarToken;
+
+module.exports.verificarToken = verificarToken;
+module.exports.verificarRol = verificarRol;
