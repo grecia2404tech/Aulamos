@@ -1,3 +1,4 @@
+
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { Link, router } from 'expo-router';
@@ -13,9 +14,7 @@ import {
   View,
 } from 'react-native';
 
-// Cambia esta IP por la dirección IPv4 real de tu computadora.
-const API_URL =
-  'http://192.168.6.192:3000/api/auth/login'; 
+import { API_URL } from '../services/api';
 
 export default function LoginScreen() {
   const [correo, setCorreo] = useState('');
@@ -24,24 +23,23 @@ export default function LoginScreen() {
     useState(false);
   const [cargando, setCargando] = useState(false);
 
-  const iniciarSesion = async () => {
-    const correoLimpio = correo
-      .trim()
-      .toLowerCase();
+const iniciarSesion = async () => {
+  const correoLimpio = correo.trim().toLowerCase();
 
-    if (!correoLimpio || !password) {
-      Alert.alert(
-        'Campos incompletos',
-        'Ingresa tu correo y contraseña.'
-      );
+  if (!correoLimpio || !password) {
+    Alert.alert(
+      'Campos incompletos',
+      'Ingresa tu correo y contraseña.'
+    );
+    return;
+  }
 
-      return;
-    }
+  try {
+    setCargando(true);
 
-    try {
-      setCargando(true);
-
-      const respuesta = await fetch(API_URL, {
+    const respuesta = await fetch(
+      `${API_URL}/auth/login`,
+      {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -50,76 +48,82 @@ export default function LoginScreen() {
           correo: correoLimpio,
           password,
         }),
-      });
-
-      const datos = await respuesta.json();
-
-      if (!respuesta.ok) {
-        Alert.alert(
-          'No se pudo iniciar sesión',
-          datos.mensaje || 'Verifica tus datos.'
-        );
-
-        return;
       }
+    );
 
-      /*
-       * Aquí guardamos el token que manda la API.
-       * Después se utilizará para consultar rutas protegidas,
-       * como /api/docente/inicio.
-       */
-      await AsyncStorage.setItem(
-        'token',
-        datos.token
-      );
+    const datos = await respuesta.json();
 
-      /*
-       * También guardamos los datos básicos del usuario.
-       * JSON.stringify convierte el objeto en texto.
-       */
-      await AsyncStorage.setItem(
-        'usuario',
-        JSON.stringify(datos.usuario)
-      );
-
-      console.log(
-        'Token guardado:',
-        datos.token
-      );
-
-      console.log(
-        'Usuario guardado:',
-        datos.usuario
-      );
-
+    if (!respuesta.ok) {
       Alert.alert(
-        'Inicio de sesión correcto',
-        `Bienvenida, ${datos.usuario.nombre}`,
-        [
-          {
-            text: 'Continuar',
-            onPress: () => {
-              router.replace(
-                '/inicio-docente'
-              );
-            },
-          },
-        ]
+        'No se pudo iniciar sesión',
+        datos.mensaje || 'Verifica tus datos.'
       );
-    } catch (error) {
-      console.error(
-        'Error de conexión:',
-        error
-      );
-
-      Alert.alert(
-        'Error de conexión',
-        'No fue posible conectarse con la API. Verifica que el servidor esté encendido, que la IP sea correcta y que ambos dispositivos estén conectados a la misma red Wi-Fi.'
-      );
-    } finally {
-      setCargando(false);
+      return;
     }
-  };
+
+    if (
+      !datos.token ||
+      !datos.usuario ||
+      !datos.usuario.rol
+    ) {
+      Alert.alert(
+        'Respuesta incorrecta',
+        'La API no devolvió el token o el rol del usuario.'
+      );
+      return;
+    }
+
+    let rutaInicio:
+      | '/inicio-alumno'
+      | '/inicio-docente'
+      | null = null;
+
+    if (datos.usuario.rol === 'Alumno') {
+      rutaInicio = '/inicio-alumno';
+    } else if (datos.usuario.rol === 'Docente') {
+      rutaInicio = '/inicio-docente';
+    }
+
+    if (!rutaInicio) {
+      Alert.alert(
+        'Panel no disponible',
+        `El panel para el rol ${datos.usuario.rol} todavía no está disponible.`
+      );
+      return;
+    }
+
+    await AsyncStorage.multiSet([
+      ['token', datos.token],
+      ['usuario', JSON.stringify(datos.usuario)],
+    ]);
+
+    Alert.alert(
+      'Inicio de sesión correcto',
+      `¡Hola, ${datos.usuario.nombre}!`,
+      [
+        {
+          text: 'Continuar',
+          onPress: () => {
+            if (rutaInicio === '/inicio-alumno') {
+              router.replace('/inicio-alumno');
+            } else {
+              router.replace('/inicio-docente');
+            }
+          },
+        },
+      ]
+    );
+  } catch (error) {
+    console.error('Error de conexión:', error);
+
+    Alert.alert(
+      'Error de conexión',
+      'No fue posible conectarse con la API. Verifica el servidor, la IP y la conexión Wi-Fi.'
+    );
+  } finally {
+    setCargando(false);
+  }
+};
 
   return (
     <View style={styles.container}>
