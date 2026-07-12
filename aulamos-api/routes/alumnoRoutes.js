@@ -1,8 +1,8 @@
 const express = require('express');
 
 const {
-  obtenerInicioDocente,
-} = require('../controllers/docenteController');
+  obtenerInicioAlumno,
+} = require('../controllers/alumnoController');
 
 const verificarToken = require(
   '../middleware/authMiddleware'
@@ -17,8 +17,8 @@ const router = express.Router();
 router.get(
   '/inicio',
   verificarToken,
-  verificarRol('Docente'),
-  obtenerInicioDocente
+  verificarRol('Alumno'),
+  obtenerInicioAlumno
 );
 
 module.exports = router;

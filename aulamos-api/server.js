@@ -1,11 +1,21 @@
 const express = require('express');
 const cors = require('cors');
+
 require('dotenv').config();
 
 const pool = require('./config/database');
 
-const authRoutes = require('./routes/authRoutes');
-const docenteRoutes = require('./routes/docenteRoutes');
+const authRoutes = require(
+  './routes/authRoutes'
+);
+
+const docenteRoutes = require(
+  './routes/docenteRoutes'
+);
+
+const alumnoRoutes = require(
+  './routes/alumnoRoutes'
+);
 
 const app = express();
 
@@ -14,6 +24,7 @@ app.use(express.json());
 
 app.use('/api/auth', authRoutes);
 app.use('/api/docente', docenteRoutes);
+app.use('/api/alumno', alumnoRoutes);
 
 app.get('/', async (req, res) => {
   try {
@@ -21,17 +32,21 @@ app.get('/', async (req, res) => {
       'SELECT NOW() AS fecha_actual'
     );
 
-    res.json({
+    return res.status(200).json({
       mensaje:
         'API Aulamos funcionando correctamente',
       base_datos: 'Conectada',
       fecha: rows[0].fecha_actual,
     });
   } catch (error) {
-    res.status(500).json({
+    console.error(
+      'Error de conexión con MySQL:',
+      error
+    );
+
+    return res.status(500).json({
       mensaje:
         'Error al conectar con la base de datos',
-      error: error.message,
     });
   }
 });
