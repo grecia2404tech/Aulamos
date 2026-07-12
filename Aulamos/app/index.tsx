@@ -224,12 +224,17 @@ const iniciarSesion = async () => {
         </TouchableOpacity>
       </View>
 
-      <TouchableOpacity>
-        <Text style={styles.forgot}>
-          ¿Olvidaste tu contraseña?
-        </Text>
-      </TouchableOpacity>
-
+     <TouchableOpacity
+  onPress={() =>
+    router.push('/recuperar-password')
+  }
+  accessibilityRole="button"
+  accessibilityLabel="Recuperar contraseña"
+>
+  <Text style={styles.forgot}>
+    ¿Olvidaste tu contraseña?
+  </Text>
+</TouchableOpacity>
       <TouchableOpacity
         activeOpacity={0.8}
         style={[

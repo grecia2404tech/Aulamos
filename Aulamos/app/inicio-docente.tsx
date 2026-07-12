@@ -20,7 +20,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // Cambia esta IP si cambia la red de tu computadora.
 const API_URL =
-  'http://192.168.6.192:3000/api/docente/inicio';
+  'http://192.168.6.193:3000/api/docente/inicio';
 
 type InicioDocenteResponse = {
   docente: {
@@ -162,21 +162,27 @@ export default function InicioDocenteScreen() {
 
       const resultado = await respuesta.json();
 
-      if (respuesta.status === 401) {
-        await AsyncStorage.multiRemove([
-          'token',
-          'usuario',
-        ]);
+     if (
+  respuesta.status === 401 ||
+  respuesta.status === 403
+) {
+  await AsyncStorage.multiRemove([
+    'token',
+    'usuario',
+  ]);
 
-        Alert.alert(
-          'Sesión vencida',
-          'Inicia sesión nuevamente.'
-        );
+  Alert.alert(
+    respuesta.status === 403
+      ? 'Acceso no permitido'
+      : 'Sesión vencida',
+    respuesta.status === 403
+      ? 'Tu usuario no tiene permiso para acceder al panel docente.'
+      : 'Inicia sesión nuevamente.'
+  );
 
-        router.replace('/');
-        return;
-      }
-
+  router.replace('/');
+  return;
+}
       if (!respuesta.ok) {
         Alert.alert(
           'No se pudo cargar la información',

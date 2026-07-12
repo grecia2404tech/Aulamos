@@ -11,6 +11,10 @@ export default function RootLayout() {
       <Stack.Screen name="crear-cuenta" />
       <Stack.Screen name="crear-cuenta-alumno" />
       <Stack.Screen name="crear-cuenta-docente" />
+
+      <Stack.Screen name="recuperar-password" />
+      <Stack.Screen name="restablecer-password" />
+
       <Stack.Screen name="inicio-alumno" />
       <Stack.Screen name="inicio-docente" />
     </Stack>
