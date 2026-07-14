@@ -7,6 +7,9 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -14,279 +17,525 @@ import {
   View,
 } from 'react-native';
 
+import { useAccessibility } from '../contexts/AccessibilityContext';
 import { API_URL } from '../services/api';
 
 export default function LoginScreen() {
   const [correo, setCorreo] = useState('');
-  const [password, setPassword] = useState('');
-  const [mostrarPassword, setMostrarPassword] =
+  const [password, setPassword] =
+    useState('');
+  const [
+    mostrarPassword,
+    setMostrarPassword,
+  ] = useState(false);
+  const [cargando, setCargando] =
     useState(false);
-  const [cargando, setCargando] = useState(false);
 
-const iniciarSesion = async () => {
-  const correoLimpio = correo.trim().toLowerCase();
+  const {
+    colores,
+    escalaTexto,
+  } = useAccessibility();
 
-  if (!correoLimpio || !password) {
-    Alert.alert(
-      'Campos incompletos',
-      'Ingresa tu correo y contraseña.'
-    );
-    return;
-  }
+  const iniciarSesion = async () => {
+    const correoLimpio = correo
+      .trim()
+      .toLowerCase();
 
-  try {
-    setCargando(true);
-
-    const respuesta = await fetch(
-      `${API_URL}/auth/login`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          correo: correoLimpio,
-          password,
-        }),
-      }
-    );
-
-    const datos = await respuesta.json();
-
-    if (!respuesta.ok) {
+    if (!correoLimpio || !password) {
       Alert.alert(
-        'No se pudo iniciar sesión',
-        datos.mensaje || 'Verifica tus datos.'
+        'Campos incompletos',
+        'Ingresa tu correo y contraseña.'
       );
+
       return;
     }
 
-    if (
-      !datos.token ||
-      !datos.usuario ||
-      !datos.usuario.rol
-    ) {
-      Alert.alert(
-        'Respuesta incorrecta',
-        'La API no devolvió el token o el rol del usuario.'
-      );
-      return;
-    }
+    try {
+      setCargando(true);
 
-    let rutaInicio:
-      | '/inicio-alumno'
-      | '/inicio-docente'
-      | null = null;
-
-    if (datos.usuario.rol === 'Alumno') {
-      rutaInicio = '/inicio-alumno';
-    } else if (datos.usuario.rol === 'Docente') {
-      rutaInicio = '/inicio-docente';
-    }
-
-    if (!rutaInicio) {
-      Alert.alert(
-        'Panel no disponible',
-        `El panel para el rol ${datos.usuario.rol} todavía no está disponible.`
-      );
-      return;
-    }
-
-    await AsyncStorage.multiSet([
-      ['token', datos.token],
-      ['usuario', JSON.stringify(datos.usuario)],
-    ]);
-
-    Alert.alert(
-      'Inicio de sesión correcto',
-      `¡Hola, ${datos.usuario.nombre}!`,
-      [
+      const respuesta = await fetch(
+        `${API_URL}/auth/login`,
         {
-          text: 'Continuar',
-          onPress: () => {
-            if (rutaInicio === '/inicio-alumno') {
-              router.replace('/inicio-alumno');
-            } else {
-              router.replace('/inicio-docente');
-            }
+          method: 'POST',
+          headers: {
+            'Content-Type':
+              'application/json',
           },
-        },
-      ]
-    );
-  } catch (error) {
-    console.error('Error de conexión:', error);
+          body: JSON.stringify({
+            correo: correoLimpio,
+            password,
+          }),
+        }
+      );
 
-    Alert.alert(
-      'Error de conexión',
-      'No fue posible conectarse con la API. Verifica el servidor, la IP y la conexión Wi-Fi.'
-    );
-  } finally {
-    setCargando(false);
-  }
-};
+      const datos = await respuesta.json();
+
+      if (!respuesta.ok) {
+        Alert.alert(
+          'No se pudo iniciar sesión',
+          datos.mensaje ||
+            'Verifica tus datos.'
+        );
+
+        return;
+      }
+
+      if (
+        !datos.token ||
+        !datos.usuario ||
+        !datos.usuario.rol
+      ) {
+        Alert.alert(
+          'Respuesta incorrecta',
+          'La API no devolvió el token o el rol del usuario.'
+        );
+
+        return;
+      }
+
+      let rutaInicio:
+        | '/inicio-alumno'
+        | '/inicio-docente'
+        | null = null;
+
+      if (
+        datos.usuario.rol === 'Alumno'
+      ) {
+        rutaInicio = '/inicio-alumno';
+      } else if (
+        datos.usuario.rol === 'Docente'
+      ) {
+        rutaInicio = '/inicio-docente';
+      }
+
+      if (!rutaInicio) {
+        Alert.alert(
+          'Panel no disponible',
+          `El panel para el rol ${datos.usuario.rol} todavía no está disponible.`
+        );
+
+        return;
+      }
+
+      await AsyncStorage.multiSet([
+        ['token', datos.token],
+        [
+          'usuario',
+          JSON.stringify(datos.usuario),
+        ],
+      ]);
+
+      Alert.alert(
+        'Inicio de sesión correcto',
+        `¡Hola, ${datos.usuario.nombre}!`,
+        [
+          {
+            text: 'Continuar',
+            onPress: () => {
+              if (
+                rutaInicio ===
+                '/inicio-alumno'
+              ) {
+                router.replace(
+                  '/inicio-alumno'
+                );
+              } else {
+                router.replace(
+                  '/inicio-docente'
+                );
+              }
+            },
+          },
+        ]
+      );
+    } catch (error) {
+      console.error(
+        'Error de conexión:',
+        error
+      );
+
+      Alert.alert(
+        'Error de conexión',
+        'No fue posible conectarse con la API. Verifica el servidor, la IP y la conexión Wi-Fi.'
+      );
+    } finally {
+      setCargando(false);
+    }
+  };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.accessButton}>
-        <Ionicons
-          name="accessibility"
-          size={24}
-          color="#7C4DFF"
-        />
-      </View>
-
-      <Image
-        source={require(
-          '../assets/images/logo-aulamos.png'
-        )}
-        style={styles.logoImage}
-      />
-
-      <Text style={styles.title}>
-        ¡Bienvenido de nuevo!
-      </Text>
-
-      <Text style={styles.subtitle}>
-        Inicia sesión para continuar aprendiendo
-      </Text>
-
-      <Text style={styles.label}>
-        Correo electrónico
-      </Text>
-
-      <View style={styles.inputBox}>
-        <Ionicons
-          name="mail-outline"
-          size={20}
-          color="#64748B"
-        />
-
-        <TextInput
-          placeholder="correo@gmail.com"
-          placeholderTextColor="#94A3B8"
-          style={styles.input}
-          value={correo}
-          onChangeText={setCorreo}
-          keyboardType="email-address"
-          autoCapitalize="none"
-          autoCorrect={false}
-          editable={!cargando}
-          returnKeyType="next"
-        />
-      </View>
-
-      <Text style={styles.label}>
-        Contraseña
-      </Text>
-
-      <View style={styles.inputBox}>
-        <Ionicons
-          name="lock-closed-outline"
-          size={20}
-          color="#64748B"
-        />
-
-        <TextInput
-          placeholder="Tu contraseña"
-          placeholderTextColor="#94A3B8"
-          secureTextEntry={!mostrarPassword}
-          style={styles.input}
-          value={password}
-          onChangeText={setPassword}
-          autoCapitalize="none"
-          autoCorrect={false}
-          editable={!cargando}
-          returnKeyType="done"
-          onSubmitEditing={iniciarSesion}
-        />
-
+    <KeyboardAvoidingView
+      style={[
+        styles.keyboard,
+        {
+          backgroundColor:
+            colores.fondo,
+        },
+      ]}
+      behavior={
+        Platform.OS === 'ios'
+          ? 'padding'
+          : 'height'
+      }
+    >
+      <ScrollView
+        contentContainerStyle={[
+          styles.container,
+          {
+            backgroundColor:
+              colores.fondo,
+          },
+        ]}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
         <TouchableOpacity
-          onPress={() =>
-            setMostrarPassword(
-              !mostrarPassword
-            )
+          style={[
+            styles.accessButton,
+            {
+              backgroundColor:
+                colores.fondoPrimario,
+              borderColor: colores.borde,
+            },
+          ]}
+         onPress={() =>
+         router.push('/accesibilidad' as any)
           }
-          accessibilityLabel={
-            mostrarPassword
-              ? 'Ocultar contraseña'
-              : 'Mostrar contraseña'
-          }
+          accessibilityRole="button"
+          accessibilityLabel="Abrir configuración de accesibilidad"
+          accessibilityHint="Permite cambiar el contraste, el tamaño del texto y otras preferencias"
         >
           <Ionicons
-            name={
-              mostrarPassword
-                ? 'eye-off-outline'
-                : 'eye-outline'
-            }
-            size={20}
-            color="#94A3B8"
+            name="accessibility"
+            size={24}
+            color={colores.primario}
           />
         </TouchableOpacity>
-      </View>
 
-     <TouchableOpacity
-  onPress={() =>
-    router.push('/recuperar-password')
-  }
-  accessibilityRole="button"
-  accessibilityLabel="Recuperar contraseña"
->
-  <Text style={styles.forgot}>
-    ¿Olvidaste tu contraseña?
-  </Text>
-</TouchableOpacity>
-      <TouchableOpacity
-        activeOpacity={0.8}
-        style={[
-          styles.button,
-          cargando &&
-            styles.buttonDisabled,
-        ]}
-        onPress={iniciarSesion}
-        disabled={cargando}
-      >
-        {cargando ? (
-          <ActivityIndicator
-            color="#FFFFFF"
-          />
-        ) : (
-          <Text style={styles.buttonText}>
-            Iniciar sesión
-          </Text>
-        )}
-      </TouchableOpacity>
+        <Image
+          source={require(
+            '../assets/images/logo-aulamos.png'
+          )}
+          style={styles.logoImage}
+          accessibilityLabel="Logotipo de Aulamos"
+        />
 
-      <View style={styles.separator}>
-        <View style={styles.line} />
-
-        <Text style={styles.or}>
-          o
-        </Text>
-
-        <View style={styles.line} />
-      </View>
-
-      <View style={styles.footer}>
-        <Text style={styles.footerText}>
-          ¿No tienes cuenta?
-        </Text>
-
-        <Link
-          href="/crear-cuenta"
-          style={styles.link}
+        <Text
+          style={[
+            styles.title,
+            {
+              color: colores.texto,
+              fontSize:
+                22 * escalaTexto,
+            },
+          ]}
+          accessibilityRole="header"
         >
-          Crear cuenta
-        </Link>
-      </View>
-    </View>
+          ¡Bienvenido de nuevo!
+        </Text>
+
+        <Text
+          style={[
+            styles.subtitle,
+            {
+              color:
+                colores.textoSecundario,
+              fontSize:
+                15 * escalaTexto,
+            },
+          ]}
+        >
+          Inicia sesión para continuar
+          aprendiendo
+        </Text>
+
+        <Text
+          style={[
+            styles.label,
+            {
+              color: colores.texto,
+              fontSize:
+                15 * escalaTexto,
+            },
+          ]}
+        >
+          Correo electrónico
+        </Text>
+
+        <View
+          style={[
+            styles.inputBox,
+            {
+              backgroundColor:
+                colores.tarjeta,
+              borderColor: colores.borde,
+            },
+          ]}
+        >
+          <Ionicons
+            name="mail-outline"
+            size={20}
+            color={
+              colores.textoSecundario
+            }
+          />
+
+          <TextInput
+            placeholder="correo@gmail.com"
+            placeholderTextColor={
+              colores.textoSecundario
+            }
+            style={[
+              styles.input,
+              {
+                color: colores.texto,
+                fontSize:
+                  15 * escalaTexto,
+              },
+            ]}
+            value={correo}
+            onChangeText={setCorreo}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoCorrect={false}
+            editable={!cargando}
+            returnKeyType="next"
+            accessibilityLabel="Correo electrónico"
+          />
+        </View>
+
+        <Text
+          style={[
+            styles.label,
+            {
+              color: colores.texto,
+              fontSize:
+                15 * escalaTexto,
+            },
+          ]}
+        >
+          Contraseña
+        </Text>
+
+        <View
+          style={[
+            styles.inputBox,
+            {
+              backgroundColor:
+                colores.tarjeta,
+              borderColor: colores.borde,
+            },
+          ]}
+        >
+          <Ionicons
+            name="lock-closed-outline"
+            size={20}
+            color={
+              colores.textoSecundario
+            }
+          />
+
+          <TextInput
+            placeholder="Tu contraseña"
+            placeholderTextColor={
+              colores.textoSecundario
+            }
+            secureTextEntry={
+              !mostrarPassword
+            }
+            style={[
+              styles.input,
+              {
+                color: colores.texto,
+                fontSize:
+                  15 * escalaTexto,
+              },
+            ]}
+            value={password}
+            onChangeText={setPassword}
+            autoCapitalize="none"
+            autoCorrect={false}
+            editable={!cargando}
+            returnKeyType="done"
+            onSubmitEditing={
+              iniciarSesion
+            }
+            accessibilityLabel="Contraseña"
+          />
+
+          <TouchableOpacity
+            style={styles.eyeButton}
+            onPress={() =>
+              setMostrarPassword(
+                !mostrarPassword
+              )
+            }
+            accessibilityRole="button"
+            accessibilityLabel={
+              mostrarPassword
+                ? 'Ocultar contraseña'
+                : 'Mostrar contraseña'
+            }
+          >
+            <Ionicons
+              name={
+                mostrarPassword
+                  ? 'eye-off-outline'
+                  : 'eye-outline'
+              }
+              size={22}
+              color={
+                colores.textoSecundario
+              }
+            />
+          </TouchableOpacity>
+        </View>
+
+        <TouchableOpacity
+          style={styles.forgotButton}
+          onPress={() =>
+            router.push(
+              '/recuperar-password'
+            )
+          }
+          accessibilityRole="button"
+          accessibilityLabel="Recuperar contraseña"
+        >
+          <Text
+            style={[
+              styles.forgot,
+              {
+                color:
+                  colores.primario,
+                fontSize:
+                  14 * escalaTexto,
+              },
+            ]}
+          >
+            ¿Olvidaste tu contraseña?
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          activeOpacity={0.8}
+          style={[
+            styles.button,
+            {
+              backgroundColor:
+                colores.primario,
+            },
+            cargando &&
+              styles.buttonDisabled,
+          ]}
+          onPress={iniciarSesion}
+          disabled={cargando}
+          accessibilityRole="button"
+          accessibilityLabel="Iniciar sesión"
+          accessibilityState={{
+            disabled: cargando,
+            busy: cargando,
+          }}
+        >
+          {cargando ? (
+            <ActivityIndicator
+              color="#FFFFFF"
+            />
+          ) : (
+            <Text
+              style={[
+                styles.buttonText,
+                {
+                  fontSize:
+                    16 * escalaTexto,
+                },
+              ]}
+            >
+              Iniciar sesión
+            </Text>
+          )}
+        </TouchableOpacity>
+
+        <View style={styles.separator}>
+          <View
+            style={[
+              styles.line,
+              {
+                backgroundColor:
+                  colores.borde,
+              },
+            ]}
+          />
+
+          <Text
+            style={[
+              styles.or,
+              {
+                color:
+                  colores.textoSecundario,
+                fontSize:
+                  14 * escalaTexto,
+              },
+            ]}
+          >
+            o
+          </Text>
+
+          <View
+            style={[
+              styles.line,
+              {
+                backgroundColor:
+                  colores.borde,
+              },
+            ]}
+          />
+        </View>
+
+        <View style={styles.footer}>
+          <Text
+            style={[
+              styles.footerText,
+              {
+                color: colores.texto,
+                fontSize:
+                  15 * escalaTexto,
+              },
+            ]}
+          >
+            ¿No tienes cuenta?
+          </Text>
+
+          <Link
+            href="/crear-cuenta"
+            style={[
+              styles.link,
+              {
+                color:
+                  colores.primario,
+                fontSize:
+                  15 * escalaTexto,
+              },
+            ]}
+            accessibilityLabel="Crear una cuenta"
+          >
+            Crear cuenta
+          </Link>
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  keyboard: {
     flex: 1,
+  },
+
+  container: {
+    flexGrow: 1,
     paddingHorizontal: 30,
-    backgroundColor: '#F8FAFC',
+    paddingTop: 115,
+    paddingBottom: 35,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -298,7 +547,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#F3E8FF',
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -311,53 +560,55 @@ const styles = StyleSheet.create({
   },
 
   title: {
-    fontSize: 22,
     fontWeight: '800',
-    color: '#111827',
+    textAlign: 'center',
     marginBottom: 8,
   },
 
   subtitle: {
-    fontSize: 15,
-    color: '#475569',
     textAlign: 'center',
     marginBottom: 35,
+    lineHeight: 22,
   },
 
   label: {
     width: '100%',
-    fontSize: 15,
     fontWeight: '700',
-    color: '#1F2937',
     marginBottom: 8,
   },
 
   inputBox: {
     width: '100%',
-    height: 54,
+    minHeight: 54,
     borderWidth: 1,
-    borderColor: '#CBD5E1',
     borderRadius: 14,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 14,
+    paddingVertical: 4,
     marginBottom: 18,
-    backgroundColor: '#FFFFFF',
   },
 
   input: {
     flex: 1,
-    fontSize: 15,
+    minHeight: 48,
     marginLeft: 10,
-    color: '#111827',
+  },
+
+  eyeButton: {
+    width: 42,
+    minHeight: 42,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  forgotButton: {
+    alignSelf: 'stretch',
   },
 
   forgot: {
-    alignSelf: 'flex-end',
     width: '100%',
     textAlign: 'right',
-    fontSize: 14,
-    color: '#2563EB',
     fontWeight: '700',
     marginTop: 4,
     marginBottom: 25,
@@ -365,9 +616,10 @@ const styles = StyleSheet.create({
 
   button: {
     width: '100%',
-    height: 54,
-    backgroundColor: '#4A7CFF',
+    minHeight: 54,
     borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#4A7CFF',
@@ -386,8 +638,8 @@ const styles = StyleSheet.create({
 
   buttonText: {
     color: '#FFFFFF',
-    fontSize: 16,
     fontWeight: '800',
+    textAlign: 'center',
   },
 
   separator: {
@@ -400,31 +652,26 @@ const styles = StyleSheet.create({
   line: {
     flex: 1,
     height: 1,
-    backgroundColor: '#CBD5E1',
   },
 
   or: {
     marginHorizontal: 12,
-    fontSize: 14,
-    color: '#64748B',
     fontWeight: '600',
   },
 
   footer: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 5,
   },
 
   footerText: {
-    fontSize: 15,
-    color: '#111827',
     fontWeight: '600',
   },
 
   link: {
-    fontSize: 15,
-    color: '#2563EB',
     fontWeight: '800',
   },
 });

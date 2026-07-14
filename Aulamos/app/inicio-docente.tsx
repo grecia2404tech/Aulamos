@@ -1,3 +1,4 @@
+import BotonAccesibilidad from '../components/BotonAccesibilidad';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';

@@ -1,9 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
 import {
   router,
+  useFocusEffect,
   useLocalSearchParams,
 } from 'expo-router';
 import {
+  useCallback,
   useEffect,
   useRef,
   useState,
@@ -21,6 +23,8 @@ import {
   View,
 } from 'react-native';
 
+import BotonAccesibilidad from '../components/BotonAccesibilidad';
+import { useAccessibility } from '../contexts/AccessibilityContext';
 import { API_URL } from '../services/api';
 
 type CampoError =
@@ -47,22 +51,14 @@ export default function RestablecerPasswordScreen() {
   const scrollRef =
     useRef<ScrollView>(null);
 
-  /*
-   * Sirve para evitar que una validación
-   * anterior modifique el estado cuando
-   * el usuario ya cambió el código.
-   */
   const validacionActual = useRef(0);
 
   const [correo, setCorreo] =
     useState(correoInicial);
-
   const [codigo, setCodigo] =
     useState('');
-
   const [password, setPassword] =
     useState('');
-
   const [
     confirmarPassword,
     setConfirmarPassword,
@@ -94,6 +90,83 @@ export default function RestablecerPasswordScreen() {
   const [cargando, setCargando] =
     useState(false);
 
+  const {
+    colores,
+    escalaTexto,
+    preferencias,
+    leerTexto,
+    detenerLectura,
+  } = useAccessibility();
+
+  const altoContraste =
+    preferencias.altoContraste;
+
+  const colorError = altoContraste
+    ? colores.peligro
+    : '#DC2626';
+
+  const colorExito = altoContraste
+    ? colores.exito
+    : preferencias.modoOscuro
+      ? '#4ADE80'
+      : '#16A34A';
+
+  const colorValidacion =
+    altoContraste
+      ? colores.primario
+      : preferencias.modoOscuro
+        ? '#93C5FD'
+        : '#2563EB';
+
+  const fondoExito =
+    altoContraste ||
+    preferencias.modoOscuro
+      ? colores.fondoPrimario
+      : '#F0FDF4';
+
+  const fondoDeshabilitado =
+    altoContraste ||
+    preferencias.modoOscuro
+      ? colores.fondoPrimario
+      : '#F1F5F9';
+
+  const fondoInformacion =
+    altoContraste ||
+    preferencias.modoOscuro
+      ? colores.fondoPrimario
+      : '#EFF6FF';
+
+  const colorInformacion =
+    altoContraste
+      ? colores.texto
+      : preferencias.modoOscuro
+        ? '#93C5FD'
+        : '#1D4ED8';
+
+  const textoBoton = altoContraste
+    ? '#000000'
+    : '#FFFFFF';
+
+  useFocusEffect(
+    useCallback(() => {
+      if (
+        preferencias.lectorPantalla
+      ) {
+        leerTexto(
+          'Nueva contraseña. Ingresa el código enviado a tu correo. El código se validará automáticamente cuando escribas los 6 dígitos.'
+        );
+      }
+
+      return () => {
+        detenerLectura();
+      };
+    }, [
+      preferencias.lectorPantalla,
+      leerTexto,
+      detenerLectura,
+    ])
+  );
+
   const limpiarError = (
     campo: CampoError
   ) => {
@@ -112,8 +185,9 @@ export default function RestablecerPasswordScreen() {
   };
 
   /*
-   * Validación automática del código.
-   * Se ejecuta cuando correo o código cambian.
+   * Validación automática.
+   * Comienza cuando existen exactamente
+   * seis dígitos.
    */
   useEffect(() => {
     const numeroValidacion =
@@ -124,17 +198,14 @@ export default function RestablecerPasswordScreen() {
 
     setCodigoValidado(false);
 
-    /*
-     * Esperamos hasta tener exactamente
-     * seis dígitos.
-     */
     if (codigo.length !== 6) {
       setValidandoCodigo(false);
       return;
     }
 
-    const correoLimpio =
-      correo.trim().toLowerCase();
+    const correoLimpio = correo
+      .trim()
+      .toLowerCase();
 
     const expresionCorreo =
       /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
@@ -164,10 +235,6 @@ export default function RestablecerPasswordScreen() {
       codigo: undefined,
     }));
 
-    /*
-     * Esperamos medio segundo antes
-     * de consultar el backend.
-     */
     const temporizador = setTimeout(
       async () => {
         try {
@@ -189,10 +256,6 @@ export default function RestablecerPasswordScreen() {
           const texto =
             await respuesta.text();
 
-          /*
-           * Ignoramos esta respuesta si el
-           * usuario ya cambió el código.
-           */
           if (
             numeroValidacion !==
             validacionActual.current
@@ -287,7 +350,6 @@ export default function RestablecerPasswordScreen() {
 
     const contieneLetra =
       /[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]/;
-
     const contieneNumero = /\d/;
 
     if (!codigoValidado) {
@@ -360,11 +422,8 @@ export default function RestablecerPasswordScreen() {
             correo: correo
               .trim()
               .toLowerCase(),
-
             codigo,
-
             nueva_password: password,
-
             confirmar_password:
               confirmarPassword,
           }),
@@ -448,6 +507,14 @@ export default function RestablecerPasswordScreen() {
         return;
       }
 
+      if (
+        preferencias.lectorPantalla
+      ) {
+        leerTexto(
+          'Contraseña actualizada correctamente.'
+        );
+      }
+
       Alert.alert(
         'Contraseña actualizada',
         datos.mensaje ||
@@ -456,7 +523,9 @@ export default function RestablecerPasswordScreen() {
           {
             text: 'Iniciar sesión',
             onPress: () =>
-              router.replace('/'),
+              router.replace(
+                '/' as any
+              ),
           },
         ]
       );
@@ -475,9 +544,51 @@ export default function RestablecerPasswordScreen() {
     }
   };
 
+  const estiloCaja = (
+    error?: string,
+    exito = false,
+    deshabilitada = false
+  ) => {
+    let backgroundColor =
+      colores.tarjeta;
+
+    let borderColor =
+      colores.borde;
+
+    let borderWidth = 1;
+
+    if (deshabilitada) {
+      backgroundColor =
+        fondoDeshabilitado;
+    }
+
+    if (exito) {
+      backgroundColor = fondoExito;
+      borderColor = colorExito;
+      borderWidth = 1.5;
+    }
+
+    if (error) {
+      borderColor = colorError;
+      borderWidth = 1.5;
+    }
+
+    return {
+      backgroundColor,
+      borderColor,
+      borderWidth,
+    };
+  };
+
   return (
     <KeyboardAvoidingView
-      style={styles.keyboard}
+      style={[
+        styles.keyboard,
+        {
+          backgroundColor:
+            colores.fondo,
+        },
+      ]}
       behavior={
         Platform.OS === 'ios'
           ? 'padding'
@@ -486,19 +597,35 @@ export default function RestablecerPasswordScreen() {
     >
       <ScrollView
         ref={scrollRef}
-        style={styles.scroll}
-        contentContainerStyle={
-          styles.container
-        }
+        style={[
+          styles.scroll,
+          {
+            backgroundColor:
+              colores.fondo,
+          },
+        ]}
+        contentContainerStyle={[
+          styles.container,
+          {
+            backgroundColor:
+              colores.fondo,
+          },
+        ]}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
-        showsVerticalScrollIndicator={
-          false
-        }
+        showsVerticalScrollIndicator={false}
       >
         <View style={styles.topBar}>
           <TouchableOpacity
-            style={styles.iconButton}
+            style={[
+              styles.iconButton,
+              {
+                backgroundColor:
+                  colores.tarjeta,
+                borderColor:
+                  colores.borde,
+              },
+            ]}
             onPress={() =>
               router.back()
             }
@@ -508,35 +635,63 @@ export default function RestablecerPasswordScreen() {
             <Ionicons
               name="arrow-back"
               size={24}
-              color="#111827"
+              color={colores.texto}
             />
           </TouchableOpacity>
 
-          <View
-            style={styles.accessButton}
-          >
-            <Ionicons
-              name="accessibility"
-              size={24}
-              color="#7C4DFF"
-            />
-          </View>
+          <BotonAccesibilidad />
         </View>
 
         <View style={styles.header}>
-          <View style={styles.logoBox}>
+          <View
+            style={[
+              styles.logoBox,
+              {
+                backgroundColor:
+                  colores.fondoPrimario,
+                borderColor:
+                  altoContraste
+                    ? colores.borde
+                    : 'transparent',
+              },
+            ]}
+          >
             <Ionicons
               name="shield-checkmark-outline"
               size={55}
-              color="#16A34A"
+              color={colorExito}
             />
           </View>
 
-          <Text style={styles.title}>
+          <Text
+            style={[
+              styles.title,
+              {
+                color: colores.texto,
+                fontSize:
+                  25 * escalaTexto,
+                lineHeight:
+                  31 * escalaTexto,
+              },
+            ]}
+            accessibilityRole="header"
+          >
             Nueva contraseña
           </Text>
 
-          <Text style={styles.subtitle}>
+          <Text
+            style={[
+              styles.subtitle,
+              {
+                color:
+                  colores.textoSecundario,
+                fontSize:
+                  15 * escalaTexto,
+                lineHeight:
+                  21 * escalaTexto,
+              },
+            ]}
+          >
             Ingresa el código enviado a
             tu correo y crea una
             contraseña nueva.
@@ -544,18 +699,25 @@ export default function RestablecerPasswordScreen() {
         </View>
 
         <View style={styles.form}>
-          {/* Correo */}
-
-          <Text style={styles.label}>
+          <Text
+            style={[
+              styles.label,
+              {
+                color: colores.texto,
+                fontSize:
+                  15 * escalaTexto,
+              },
+            ]}
+          >
             Correo electrónico
           </Text>
 
           <View
             style={[
               styles.inputBox,
-              errores.correo
-                ? styles.inputBoxError
-                : null,
+              estiloCaja(
+                errores.correo
+              ),
             ]}
           >
             <Ionicons
@@ -563,15 +725,24 @@ export default function RestablecerPasswordScreen() {
               size={20}
               color={
                 errores.correo
-                  ? '#DC2626'
-                  : '#64748B'
+                  ? colorError
+                  : colores.textoSecundario
               }
             />
 
             <TextInput
-              style={styles.input}
+              style={[
+                styles.input,
+                {
+                  color: colores.texto,
+                  fontSize:
+                    15 * escalaTexto,
+                },
+              ]}
               placeholder="correo@gmail.com"
-              placeholderTextColor="#94A3B8"
+              placeholderTextColor={
+                colores.textoSecundario
+              }
               value={correo}
               onChangeText={(texto) => {
                 setCorreo(texto);
@@ -590,30 +761,40 @@ export default function RestablecerPasswordScreen() {
 
           {errores.correo ? (
             <Text
-              style={styles.errorText}
+              style={[
+                styles.errorText,
+                {
+                  color: colorError,
+                  fontSize:
+                    13 * escalaTexto,
+                },
+              ]}
               accessibilityRole="alert"
             >
               {errores.correo}
             </Text>
           ) : null}
 
-          {/* Código */}
-
-          <Text style={styles.label}>
+          <Text
+            style={[
+              styles.label,
+              {
+                color: colores.texto,
+                fontSize:
+                  15 * escalaTexto,
+              },
+            ]}
+          >
             Código de recuperación
           </Text>
 
           <View
             style={[
               styles.inputBox,
-
-              codigoValidado
-                ? styles.inputBoxSuccess
-                : null,
-
-              errores.codigo
-                ? styles.inputBoxError
-                : null,
+              estiloCaja(
+                errores.codigo,
+                codigoValidado
+              ),
             ]}
           >
             <Ionicons
@@ -621,10 +802,10 @@ export default function RestablecerPasswordScreen() {
               size={20}
               color={
                 codigoValidado
-                  ? '#16A34A'
+                  ? colorExito
                   : errores.codigo
-                    ? '#DC2626'
-                    : '#64748B'
+                    ? colorError
+                    : colores.textoSecundario
               }
             />
 
@@ -632,9 +813,16 @@ export default function RestablecerPasswordScreen() {
               style={[
                 styles.input,
                 styles.codeInput,
+                {
+                  color: colores.texto,
+                  fontSize:
+                    20 * escalaTexto,
+                },
               ]}
               placeholder="000000"
-              placeholderTextColor="#94A3B8"
+              placeholderTextColor={
+                colores.textoSecundario
+              }
               value={codigo}
               onChangeText={(texto) => {
                 const codigoNumerico =
@@ -646,7 +834,6 @@ export default function RestablecerPasswordScreen() {
                 setCodigo(
                   codigoNumerico
                 );
-
                 setCodigoValidado(false);
                 limpiarError('codigo');
               }}
@@ -656,18 +843,19 @@ export default function RestablecerPasswordScreen() {
               textContentType="oneTimeCode"
               autoComplete="one-time-code"
               accessibilityLabel="Código de recuperación"
+              accessibilityHint="La validación será automática al escribir los seis dígitos"
             />
 
             {validandoCodigo ? (
               <ActivityIndicator
                 size="small"
-                color="#2563EB"
+                color={colorValidacion}
               />
             ) : codigoValidado ? (
               <Ionicons
                 name="checkmark-circle"
                 size={23}
-                color="#16A34A"
+                color={colorExito}
               />
             ) : null}
           </View>
@@ -677,16 +865,24 @@ export default function RestablecerPasswordScreen() {
               style={
                 styles.validationMessage
               }
+              accessibilityLiveRegion="polite"
             >
               <ActivityIndicator
                 size="small"
-                color="#2563EB"
+                color={colorValidacion}
               />
 
               <Text
-                style={
-                  styles.validatingText
-                }
+                style={[
+                  styles.messageText,
+                  {
+                    color:
+                      colorValidacion,
+                    fontSize:
+                      13 *
+                      escalaTexto,
+                  },
+                ]}
               >
                 Validando código...
               </Text>
@@ -696,15 +892,25 @@ export default function RestablecerPasswordScreen() {
               style={
                 styles.validationMessage
               }
+              accessibilityLiveRegion="assertive"
             >
               <Ionicons
                 name="close-circle"
                 size={18}
-                color="#DC2626"
+                color={colorError}
               />
 
               <Text
-                style={styles.invalidText}
+                style={[
+                  styles.messageText,
+                  styles.flexText,
+                  {
+                    color: colorError,
+                    fontSize:
+                      13 *
+                      escalaTexto,
+                  },
+                ]}
                 accessibilityRole="alert"
               >
                 {errores.codigo}
@@ -715,45 +921,67 @@ export default function RestablecerPasswordScreen() {
               style={
                 styles.validationMessage
               }
+              accessibilityLiveRegion="polite"
             >
               <Ionicons
                 name="checkmark-circle"
                 size={18}
-                color="#15803D"
+                color={colorExito}
               />
 
               <Text
-                style={styles.successText}
+                style={[
+                  styles.messageText,
+                  {
+                    color: colorExito,
+                    fontSize:
+                      13 *
+                      escalaTexto,
+                  },
+                ]}
               >
                 Código validado correctamente
               </Text>
             </View>
-          ) : codigo.length > 0 ? (
-            <Text style={styles.helperText}>
-              Escribe los 6 dígitos del
-              código
-            </Text>
           ) : (
-            <Text style={styles.helperText}>
-              La validación será automática
+            <Text
+              style={[
+                styles.helperText,
+                {
+                  color:
+                    colores.textoSecundario,
+                  fontSize:
+                    12 * escalaTexto,
+                },
+              ]}
+            >
+              {codigo.length > 0
+                ? 'Escribe los 6 dígitos del código'
+                : 'La validación será automática'}
             </Text>
           )}
 
-          {/* Nueva contraseña */}
-
-          <Text style={styles.label}>
+          <Text
+            style={[
+              styles.label,
+              {
+                color: colores.texto,
+                fontSize:
+                  15 * escalaTexto,
+              },
+            ]}
+          >
             Nueva contraseña
           </Text>
 
           <View
             style={[
               styles.inputBox,
-              errores.password
-                ? styles.inputBoxError
-                : null,
-              !codigoValidado
-                ? styles.inputBoxDisabled
-                : null,
+              estiloCaja(
+                errores.password,
+                false,
+                !codigoValidado
+              ),
             ]}
           >
             <Ionicons
@@ -761,20 +989,26 @@ export default function RestablecerPasswordScreen() {
               size={20}
               color={
                 codigoValidado
-                  ? '#64748B'
-                  : '#CBD5E1'
+                  ? colores.textoSecundario
+                  : colores.borde
               }
             />
 
             <TextInput
               style={[
                 styles.input,
-                !codigoValidado
-                  ? styles.inputDisabled
-                  : null,
+                {
+                  color: codigoValidado
+                    ? colores.texto
+                    : colores.textoSecundario,
+                  fontSize:
+                    15 * escalaTexto,
+                },
               ]}
               placeholder="Mínimo 8 caracteres"
-              placeholderTextColor="#94A3B8"
+              placeholderTextColor={
+                colores.textoSecundario
+              }
               value={password}
               onChangeText={(texto) => {
                 setPassword(texto);
@@ -811,6 +1045,10 @@ export default function RestablecerPasswordScreen() {
                   ? 'Ocultar contraseña'
                   : 'Mostrar contraseña'
               }
+              accessibilityState={{
+                disabled:
+                  !codigoValidado,
+              }}
             >
               <Ionicons
                 name={
@@ -821,8 +1059,8 @@ export default function RestablecerPasswordScreen() {
                 size={21}
                 color={
                   codigoValidado
-                    ? '#64748B'
-                    : '#CBD5E1'
+                    ? colores.textoSecundario
+                    : colores.borde
                 }
               />
             </TouchableOpacity>
@@ -830,28 +1068,41 @@ export default function RestablecerPasswordScreen() {
 
           {errores.password ? (
             <Text
-              style={styles.errorText}
+              style={[
+                styles.errorText,
+                {
+                  color: colorError,
+                  fontSize:
+                    13 * escalaTexto,
+                },
+              ]}
               accessibilityRole="alert"
             >
               {errores.password}
             </Text>
           ) : null}
 
-          {/* Confirmar contraseña */}
-
-          <Text style={styles.label}>
+          <Text
+            style={[
+              styles.label,
+              {
+                color: colores.texto,
+                fontSize:
+                  15 * escalaTexto,
+              },
+            ]}
+          >
             Confirmar contraseña
           </Text>
 
           <View
             style={[
               styles.inputBox,
-              errores.confirmarPassword
-                ? styles.inputBoxError
-                : null,
-              !codigoValidado
-                ? styles.inputBoxDisabled
-                : null,
+              estiloCaja(
+                errores.confirmarPassword,
+                false,
+                !codigoValidado
+              ),
             ]}
           >
             <Ionicons
@@ -859,26 +1110,31 @@ export default function RestablecerPasswordScreen() {
               size={20}
               color={
                 codigoValidado
-                  ? '#64748B'
-                  : '#CBD5E1'
+                  ? colores.textoSecundario
+                  : colores.borde
               }
             />
 
             <TextInput
               style={[
                 styles.input,
-                !codigoValidado
-                  ? styles.inputDisabled
-                  : null,
+                {
+                  color: codigoValidado
+                    ? colores.texto
+                    : colores.textoSecundario,
+                  fontSize:
+                    15 * escalaTexto,
+                },
               ]}
               placeholder="Repite tu contraseña"
-              placeholderTextColor="#94A3B8"
+              placeholderTextColor={
+                colores.textoSecundario
+              }
               value={confirmarPassword}
               onChangeText={(texto) => {
                 setConfirmarPassword(
                   texto
                 );
-
                 limpiarError(
                   'confirmarPassword'
                 );
@@ -914,6 +1170,10 @@ export default function RestablecerPasswordScreen() {
                   ? 'Ocultar contraseña'
                   : 'Mostrar contraseña'
               }
+              accessibilityState={{
+                disabled:
+                  !codigoValidado,
+              }}
             >
               <Ionicons
                 name={
@@ -924,8 +1184,8 @@ export default function RestablecerPasswordScreen() {
                 size={21}
                 color={
                   codigoValidado
-                    ? '#64748B'
-                    : '#CBD5E1'
+                    ? colores.textoSecundario
+                    : colores.borde
                 }
               />
             </TouchableOpacity>
@@ -933,7 +1193,14 @@ export default function RestablecerPasswordScreen() {
 
           {errores.confirmarPassword ? (
             <Text
-              style={styles.errorText}
+              style={[
+                styles.errorText,
+                {
+                  color: colorError,
+                  fontSize:
+                    13 * escalaTexto,
+                },
+              ]}
               accessibilityRole="alert"
             >
               {
@@ -942,14 +1209,42 @@ export default function RestablecerPasswordScreen() {
             </Text>
           ) : null}
 
-          <View style={styles.infoBox}>
+          <View
+            style={[
+              styles.infoBox,
+              {
+                backgroundColor:
+                  fondoInformacion,
+                borderColor:
+                  altoContraste
+                    ? colores.borde
+                    : 'transparent',
+              },
+            ]}
+          >
             <Ionicons
               name="shield-checkmark"
               size={24}
-              color="#2563EB"
+              color={
+                altoContraste
+                  ? colores.primario
+                  : colorInformacion
+              }
             />
 
-            <Text style={styles.infoText}>
+            <Text
+              style={[
+                styles.infoText,
+                {
+                  color:
+                    colorInformacion,
+                  fontSize:
+                    13 * escalaTexto,
+                  lineHeight:
+                    18 * escalaTexto,
+                },
+              ]}
+            >
               El código se valida
               automáticamente al escribir
               los 6 dígitos. Después podrás
@@ -960,13 +1255,15 @@ export default function RestablecerPasswordScreen() {
           <TouchableOpacity
             style={[
               styles.button,
-
+              {
+                backgroundColor:
+                  colores.primario,
+              },
               (
                 cargando ||
                 !codigoValidado
-              )
-                ? styles.buttonDisabled
-                : null,
+              ) &&
+                styles.buttonDisabled,
             ]}
             onPress={cambiarPassword}
             disabled={
@@ -979,17 +1276,24 @@ export default function RestablecerPasswordScreen() {
               disabled:
                 cargando ||
                 !codigoValidado,
+              busy: cargando,
             }}
           >
             {cargando ? (
               <ActivityIndicator
-                color="#FFFFFF"
+                color={textoBoton}
               />
             ) : (
               <Text
-                style={
-                  styles.buttonText
-                }
+                style={[
+                  styles.buttonText,
+                  {
+                    color: textoBoton,
+                    fontSize:
+                      16 *
+                      escalaTexto,
+                  },
+                ]}
               >
                 Cambiar contraseña
               </Text>
@@ -1004,7 +1308,6 @@ export default function RestablecerPasswordScreen() {
 const styles = StyleSheet.create({
   keyboard: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
   },
 
   scroll: {
@@ -1015,8 +1318,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     paddingHorizontal: 28,
     paddingTop: 50,
-    paddingBottom: 120,
-    backgroundColor: '#F8FAFC',
+    paddingBottom: 140,
   },
 
   topBar: {
@@ -1029,16 +1331,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  accessButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#F3E8FF',
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1053,23 +1346,18 @@ const styles = StyleSheet.create({
     width: 96,
     height: 96,
     borderRadius: 28,
-    backgroundColor: '#DCFCE7',
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 18,
   },
 
   title: {
-    color: '#111827',
-    fontSize: 25,
     fontWeight: '800',
     textAlign: 'center',
   },
 
   subtitle: {
-    color: '#64748B',
-    fontSize: 15,
-    lineHeight: 21,
     textAlign: 'center',
     marginTop: 9,
   },
@@ -1081,70 +1369,43 @@ const styles = StyleSheet.create({
   },
 
   label: {
-    color: '#1F2937',
-    fontSize: 15,
     fontWeight: '700',
     marginBottom: 8,
   },
 
   inputBox: {
     minHeight: 54,
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
     borderRadius: 14,
-    backgroundColor: '#FFFFFF',
     flexDirection: 'row',
     alignItems: 'center',
     paddingLeft: 14,
     paddingRight: 8,
+    paddingVertical: 3,
     marginBottom: 6,
-  },
-
-  inputBoxError: {
-    borderColor: '#DC2626',
-    borderWidth: 1.5,
-  },
-
-  inputBoxSuccess: {
-    borderColor: '#16A34A',
-    borderWidth: 1.5,
-    backgroundColor: '#F0FDF4',
-  },
-
-  inputBoxDisabled: {
-    backgroundColor: '#F1F5F9',
   },
 
   input: {
     flex: 1,
     minHeight: 52,
-    color: '#111827',
-    fontSize: 15,
     marginLeft: 10,
   },
 
-  inputDisabled: {
-    color: '#94A3B8',
-  },
-
   codeInput: {
-    fontSize: 20,
     fontWeight: '800',
     letterSpacing: 6,
   },
 
   eyeButton: {
     width: 44,
-    height: 44,
+    minHeight: 44,
     alignItems: 'center',
     justifyContent: 'center',
   },
 
   errorText: {
-    color: '#B91C1C',
-    fontSize: 13,
     fontWeight: '600',
     marginBottom: 14,
+    lineHeight: 18,
   },
 
   validationMessage: {
@@ -1154,38 +1415,24 @@ const styles = StyleSheet.create({
     marginBottom: 17,
   },
 
-  validatingText: {
-    color: '#2563EB',
-    fontSize: 13,
+  messageText: {
     fontWeight: '700',
     marginLeft: 7,
   },
 
-  invalidText: {
+  flexText: {
     flex: 1,
-    color: '#B91C1C',
-    fontSize: 13,
-    fontWeight: '700',
-    marginLeft: 7,
-  },
-
-  successText: {
-    color: '#15803D',
-    fontSize: 13,
-    fontWeight: '700',
-    marginLeft: 7,
   },
 
   helperText: {
-    color: '#64748B',
-    fontSize: 12,
     marginBottom: 17,
+    lineHeight: 18,
   },
 
   infoBox: {
     minHeight: 62,
     borderRadius: 14,
-    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
     flexDirection: 'row',
     alignItems: 'center',
     padding: 14,
@@ -1195,18 +1442,16 @@ const styles = StyleSheet.create({
 
   infoText: {
     flex: 1,
-    color: '#1D4ED8',
-    fontSize: 13,
-    lineHeight: 18,
     marginLeft: 10,
   },
 
   button: {
     minHeight: 56,
     borderRadius: 14,
-    backgroundColor: '#4A7CFF',
     alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
     elevation: 4,
   },
 
@@ -1215,8 +1460,7 @@ const styles = StyleSheet.create({
   },
 
   buttonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
     fontWeight: '800',
+    textAlign: 'center',
   },
 });

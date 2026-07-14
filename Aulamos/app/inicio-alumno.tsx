@@ -1,8 +1,15 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
-import { useEffect, useState } from 'react';
+import {
+  router,
+  useFocusEffect,
+} from 'expo-router';
 import type { ComponentProps } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useState,
+} from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -14,6 +21,9 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+
+import BotonAccesibilidad from '../components/BotonAccesibilidad';
+import { useAccessibility } from '../contexts/AccessibilityContext';
 
 type IconoNombre =
   ComponentProps<typeof Ionicons>['name'];
@@ -34,16 +44,40 @@ interface BotonNavegacionProps {
   onPress: () => void;
 }
 
+interface TarjetaResumenProps {
+  icono: IconoNombre;
+  titulo: string;
+  valor: number;
+  color: string;
+  fondoIcono: string;
+  enColumna: boolean;
+  etiquetaAccesibilidad: string;
+}
+
 function BotonNavegacion({
   icono,
   texto,
   activo = false,
   onPress,
 }: BotonNavegacionProps) {
+  const {
+    colores,
+    escalaTexto,
+    preferencias,
+  } = useAccessibility();
+
+  const colorActivo =
+    preferencias.altoContraste
+      ? colores.primario
+      : preferencias.modoOscuro
+        ? '#60A5FA'
+        : '#2563EB';
+
   return (
     <TouchableOpacity
       style={styles.navItem}
       onPress={onPress}
+      focusable
       accessibilityRole="button"
       accessibilityLabel={texto}
       accessibilityState={{
@@ -53,15 +87,29 @@ function BotonNavegacion({
       <Ionicons
         name={icono}
         size={23}
-        color={activo ? '#2563EB' : '#64748B'}
+        color={
+          activo
+            ? colorActivo
+            : colores.textoSecundario
+        }
       />
 
       <Text
         style={[
           styles.navText,
-          activo ? styles.navTextActive : null,
+          {
+            color: activo
+              ? colorActivo
+              : colores.textoSecundario,
+            fontSize:
+              10 * escalaTexto,
+            lineHeight:
+              12 * escalaTexto,
+          },
+          activo &&
+            styles.navTextActive,
         ]}
-        numberOfLines={1}
+        numberOfLines={2}
       >
         {texto}
       </Text>
@@ -69,46 +117,217 @@ function BotonNavegacion({
   );
 }
 
+function TarjetaResumen({
+  icono,
+  titulo,
+  valor,
+  color,
+  fondoIcono,
+  enColumna,
+  etiquetaAccesibilidad,
+}: TarjetaResumenProps) {
+  const {
+    colores,
+    escalaTexto,
+  } = useAccessibility();
+
+  return (
+    <View
+      style={[
+        styles.statCard,
+        {
+          backgroundColor:
+            colores.tarjeta,
+          borderColor: colores.borde,
+        },
+        enColumna &&
+          styles.statCardColumn,
+      ]}
+      accessible
+      accessibilityLabel={
+        etiquetaAccesibilidad
+      }
+    >
+      <View
+        style={[
+          styles.statIconBox,
+          {
+            backgroundColor:
+              fondoIcono,
+          },
+        ]}
+      >
+        <Ionicons
+          name={icono}
+          size={23}
+          color={color}
+        />
+      </View>
+
+      <Text
+        style={[
+          styles.statName,
+          {
+            color: colores.texto,
+            fontSize:
+              10.5 * escalaTexto,
+            lineHeight:
+              14 * escalaTexto,
+          },
+        ]}
+        numberOfLines={
+          enColumna ? undefined : 3
+        }
+      >
+        {titulo}
+      </Text>
+
+      <Text
+        style={[
+          styles.statValue,
+          {
+            color:
+              colores.textoSecundario,
+            fontSize:
+              17 * escalaTexto,
+          },
+        ]}
+      >
+        {valor}
+      </Text>
+    </View>
+  );
+}
+
 export default function InicioAlumnoScreen() {
-  const { width } = useWindowDimensions();
+  const { width } =
+    useWindowDimensions();
 
   const [usuario, setUsuario] =
     useState<Usuario | null>(null);
 
-  const [verificandoSesion, setVerificandoSesion] =
-    useState(true);
+  const [
+    verificandoSesion,
+    setVerificandoSesion,
+  ] = useState(true);
+
+  const {
+    colores,
+    escalaTexto,
+    preferencias,
+    leerTexto,
+    detenerLectura,
+  } = useAccessibility();
 
   const pantallaPequena = width < 360;
 
+  /*
+   * Se utiliza para el encabezado,
+   * la bienvenida y la actividad.
+   */
+  const contenidoEnColumna =
+    pantallaPequena ||
+    escalaTexto > 1.2;
+
+  /*
+   * En tamaño normal siempre se muestran
+   * las tres tarjetas en una fila.
+   *
+   * Solo cambian a columna cuando el usuario
+   * selecciona texto grande o muy grande.
+   */
+  const tarjetasResumenEnColumna =
+    escalaTexto > 1.2;
+
   const paddingHorizontal =
     width >= 768
-      ? Math.max(28, (width - 720) / 2)
+      ? Math.max(
+          28,
+          (width - 720) / 2
+        )
       : pantallaPequena
-        ? 16
+        ? 14
         : 22;
+
+  const altoNavegacion =
+    escalaTexto > 1.2 ? 104 : 76;
+
+  const altoContraste =
+    preferencias.altoContraste;
+
+  const temaOscuro =
+    preferencias.modoOscuro ||
+    altoContraste;
+
+  const colorAzul = altoContraste
+    ? colores.primario
+    : temaOscuro
+      ? '#60A5FA'
+      : '#2563EB';
+
+  const colorVerde = altoContraste
+    ? colores.primario
+    : temaOscuro
+      ? '#4ADE80'
+      : '#16A34A';
+
+  const colorAmarillo =
+    altoContraste
+      ? colores.primario
+      : temaOscuro
+        ? '#FCD34D'
+        : '#F59E0B';
+
+  const fondoAzul = temaOscuro
+    ? colores.fondoPrimario
+    : '#DBEAFE';
+
+  const fondoVerde = temaOscuro
+    ? colores.fondoPrimario
+    : '#DCFCE7';
+
+  const fondoAmarillo = temaOscuro
+    ? colores.fondoPrimario
+    : '#FEF3C7';
 
   useEffect(() => {
     const cargarUsuario = async () => {
       try {
         const token =
-          await AsyncStorage.getItem('token');
+          await AsyncStorage.getItem(
+            'token'
+          );
 
         const usuarioGuardado =
-          await AsyncStorage.getItem('usuario');
+          await AsyncStorage.getItem(
+            'usuario'
+          );
 
-        if (!token || !usuarioGuardado) {
-          router.replace('/');
+        if (
+          !token ||
+          !usuarioGuardado
+        ) {
+          router.replace('/' as any);
           return;
         }
 
         const datosUsuario: Usuario =
           JSON.parse(usuarioGuardado);
 
-        if (datosUsuario.rol !== 'Alumno') {
-          if (datosUsuario.rol === 'Docente') {
-            router.replace('/inicio-docente');
+        if (
+          datosUsuario.rol !== 'Alumno'
+        ) {
+          if (
+            datosUsuario.rol ===
+            'Docente'
+          ) {
+            router.replace(
+              '/inicio-docente' as any
+            );
           } else {
-            router.replace('/');
+            router.replace(
+              '/' as any
+            );
           }
 
           return;
@@ -126,7 +345,7 @@ export default function InicioAlumnoScreen() {
           'usuario',
         ]);
 
-        router.replace('/');
+        router.replace('/' as any);
       } finally {
         setVerificandoSesion(false);
       }
@@ -134,6 +353,28 @@ export default function InicioAlumnoScreen() {
 
     cargarUsuario();
   }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (
+        preferencias.lectorPantalla &&
+        usuario
+      ) {
+        leerTexto(
+          `Hola ${usuario.nombre}. Qué bueno verte de nuevo. No tienes actividades pendientes, lecciones en progreso ni actividades próximas.`
+        );
+      }
+
+      return () => {
+        detenerLectura();
+      };
+    }, [
+      preferencias.lectorPantalla,
+      usuario,
+      leerTexto,
+      detenerLectura,
+    ])
+  );
 
   const mostrarProximamente = (
     seccion: string
@@ -146,13 +387,31 @@ export default function InicioAlumnoScreen() {
 
   if (verificandoSesion) {
     return (
-      <SafeAreaView style={styles.loadingContainer}>
+      <SafeAreaView
+        style={[
+          styles.loadingContainer,
+          {
+            backgroundColor:
+              colores.fondo,
+          },
+        ]}
+      >
         <ActivityIndicator
           size="large"
-          color="#2563EB"
+          color={colorAzul}
         />
 
-        <Text style={styles.loadingText}>
+        <Text
+          style={[
+            styles.loadingText,
+            {
+              color:
+                colores.textoSecundario,
+              fontSize:
+                15 * escalaTexto,
+            },
+          ]}
+        >
           Cargando tu información...
         </Text>
       </SafeAreaView>
@@ -164,40 +423,104 @@ export default function InicioAlumnoScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <View style={styles.screen}>
+    <SafeAreaView
+      style={[
+        styles.safeArea,
+        {
+          backgroundColor:
+            colores.fondo,
+        },
+      ]}
+    >
+      <View
+        style={[
+          styles.screen,
+          {
+            backgroundColor:
+              colores.fondo,
+          },
+        ]}
+      >
         <ScrollView
           contentContainerStyle={[
             styles.content,
             {
               paddingHorizontal,
+              paddingBottom:
+                altoNavegacion + 40,
             },
           ]}
           showsVerticalScrollIndicator={false}
         >
-          {/* Encabezado */}
-
-          <View style={styles.header}>
-            <View style={styles.greetingContainer}>
+          <View
+            style={[
+              styles.header,
+              contenidoEnColumna &&
+                styles.headerColumn,
+            ]}
+          >
+            <View
+              style={
+                styles.greetingContainer
+              }
+            >
               <Text
                 style={[
                   styles.greeting,
-                  pantallaPequena
-                    ? styles.greetingSmall
-                    : null,
+                  {
+                    color: colores.texto,
+                    fontSize:
+                      22 *
+                      escalaTexto,
+                    lineHeight:
+                      28 *
+                      escalaTexto,
+                  },
+                  pantallaPequena &&
+                    escalaTexto === 1 &&
+                    styles.greetingSmall,
                 ]}
+                accessibilityRole="header"
               >
                 ¡Hola, {usuario.nombre}! 👋
               </Text>
 
-              <Text style={styles.welcomeText}>
+              <Text
+                style={[
+                  styles.welcomeText,
+                  {
+                    color:
+                      colores.textoSecundario,
+                    fontSize:
+                      13 *
+                      escalaTexto,
+                    lineHeight:
+                      18 *
+                      escalaTexto,
+                  },
+                ]}
+              >
                 Qué bueno verte de nuevo
               </Text>
             </View>
 
-            <View style={styles.headerActions}>
+            <View
+              style={[
+                styles.headerActions,
+                contenidoEnColumna &&
+                  styles.headerActionsColumn,
+              ]}
+            >
               <TouchableOpacity
-                style={styles.headerButton}
+                style={[
+                  styles.headerButton,
+                  {
+                    backgroundColor:
+                      colores.tarjeta,
+                    borderColor:
+                      colores.borde,
+                  },
+                ]}
                 onPress={() =>
                   mostrarProximamente(
                     'Notificaciones'
@@ -209,188 +532,249 @@ export default function InicioAlumnoScreen() {
                 <Ionicons
                   name="notifications-outline"
                   size={24}
-                  color="#111827"
+                  color={colores.texto}
                 />
               </TouchableOpacity>
 
-              <TouchableOpacity
-                style={[
-                  styles.headerButton,
-                  styles.accessibilityButton,
-                ]}
-                onPress={() =>
-                  mostrarProximamente(
-                    'Accesibilidad'
-                  )
-                }
-                accessibilityRole="button"
-                accessibilityLabel="Opciones de accesibilidad"
-              >
-                <Ionicons
-                  name="accessibility"
-                  size={24}
-                  color="#7C4DFF"
-                />
-              </TouchableOpacity>
+              <BotonAccesibilidad />
             </View>
           </View>
 
-          {/* Tarjeta de bienvenida */}
-
-          <View style={styles.progressCard}>
-            <View style={styles.progressInformation}>
-              <Text style={styles.progressLabel}>
+          <View
+            style={[
+              styles.progressCard,
+              {
+                backgroundColor:
+                  temaOscuro
+                    ? colores.fondoPrimario
+                    : '#F1E8FF',
+                borderColor:
+                  altoContraste
+                    ? colores.borde
+                    : 'transparent',
+              },
+              contenidoEnColumna &&
+                styles.progressCardColumn,
+            ]}
+          >
+            <View
+              style={
+                styles.progressInformation
+              }
+            >
+              <Text
+                style={[
+                  styles.progressLabel,
+                  {
+                    color: colorAzul,
+                    fontSize:
+                      14 *
+                      escalaTexto,
+                  },
+                ]}
+              >
                 Sigue aprendiendo
               </Text>
 
-              <Text style={styles.progressTitle}>
-                Aún no tienes actividades pendientes
+              <Text
+                style={[
+                  styles.progressTitle,
+                  {
+                    color: colores.texto,
+                    fontSize:
+                      16 *
+                      escalaTexto,
+                    lineHeight:
+                      21 *
+                      escalaTexto,
+                  },
+                  contenidoEnColumna && {
+                    maxWidth: '100%',
+                    marginTop: 16,
+                  },
+                ]}
+              >
+                Aún no tienes actividades
+                pendientes
               </Text>
             </View>
 
             <Text
               style={[
                 styles.studentIllustration,
-                pantallaPequena
-                  ? styles.studentIllustrationSmall
-                  : null,
+                pantallaPequena &&
+                  styles.studentIllustrationSmall,
               ]}
               accessibilityElementsHidden
+              importantForAccessibility="no"
             >
               👩‍🎓
             </Text>
           </View>
 
-          {/* Resumen */}
-
-          <Text style={styles.sectionTitle}>
+          <Text
+            style={[
+              styles.sectionTitle,
+              {
+                color: colores.texto,
+                fontSize:
+                  17 * escalaTexto,
+              },
+            ]}
+            accessibilityRole="header"
+          >
             Resumen de hoy
           </Text>
 
-          <View style={styles.statsRow}>
-            <View
-              style={styles.statCard}
-              accessible
-              accessibilityLabel="Cero actividades pendientes"
-            >
-              <View
-                style={[
-                  styles.statIconBox,
-                  styles.blueIconBox,
-                ]}
-              >
-                <Ionicons
-                  name="clipboard"
-                  size={24}
-                  color="#2563EB"
-                />
-              </View>
+          <View
+            style={[
+              styles.statsRow,
+              tarjetasResumenEnColumna &&
+                styles.statsColumn,
+            ]}
+          >
+            <TarjetaResumen
+              icono="clipboard"
+              titulo="Actividades pendientes"
+              valor={0}
+              color={colorAzul}
+              fondoIcono={fondoAzul}
+              enColumna={
+                tarjetasResumenEnColumna
+              }
+              etiquetaAccesibilidad="Cero actividades pendientes"
+            />
 
-              <Text style={styles.statName}>
-                Actividades pendientes
-              </Text>
+            <TarjetaResumen
+              icono="book-outline"
+              titulo="Lecciones en progreso"
+              valor={0}
+              color={colorVerde}
+              fondoIcono={fondoVerde}
+              enColumna={
+                tarjetasResumenEnColumna
+              }
+              etiquetaAccesibilidad="Cero lecciones en progreso"
+            />
 
-              <Text style={styles.statValue}>
-                0
-              </Text>
-            </View>
-
-            <View
-              style={styles.statCard}
-              accessible
-              accessibilityLabel="Cero lecciones en progreso"
-            >
-              <View
-                style={[
-                  styles.statIconBox,
-                  styles.greenIconBox,
-                ]}
-              >
-                <Ionicons
-                  name="book-outline"
-                  size={24}
-                  color="#16A34A"
-                />
-              </View>
-
-              <Text style={styles.statName}>
-                Lecciones en progreso
-              </Text>
-
-              <Text style={styles.statValue}>
-                0
-              </Text>
-            </View>
-
-            <View
-              style={styles.statCard}
-              accessible
-              accessibilityLabel="Cero puntos totales"
-            >
-              <View
-                style={[
-                  styles.statIconBox,
-                  styles.yellowIconBox,
-                ]}
-              >
-                <Ionicons
-                  name="star"
-                  size={22}
-                  color="#F59E0B"
-                />
-              </View>
-
-              <Text style={styles.statName}>
-                Puntos totales
-              </Text>
-
-              <Text style={styles.statValue}>
-                0
-              </Text>
-            </View>
+            <TarjetaResumen
+              icono="star"
+              titulo="Puntos totales"
+              valor={0}
+              color={colorAmarillo}
+              fondoIcono={fondoAmarillo}
+              enColumna={
+                tarjetasResumenEnColumna
+              }
+              etiquetaAccesibilidad="Cero puntos totales"
+            />
           </View>
 
-          {/* Estado vacío */}
-
-          <Text style={styles.sectionTitle}>
+          <Text
+            style={[
+              styles.sectionTitle,
+              {
+                color: colores.texto,
+                fontSize:
+                  17 * escalaTexto,
+              },
+            ]}
+            accessibilityRole="header"
+          >
             Próxima actividad
           </Text>
 
           <View
-            style={styles.emptyActivityCard}
+            style={[
+              styles.emptyActivityCard,
+              {
+                backgroundColor:
+                  colores.tarjeta,
+                borderColor:
+                  colores.borde,
+              },
+              contenidoEnColumna &&
+                styles.emptyActivityColumn,
+            ]}
             accessible
-            accessibilityLabel="No tienes actividades próximas"
+            accessibilityLabel="No tienes actividades próximas. Las actividades que te asigne tu docente aparecerán aquí."
           >
-            <View style={styles.emptyActivityIcon}>
+            <View
+              style={[
+                styles.emptyActivityIcon,
+                {
+                  backgroundColor:
+                    colores.fondoPrimario,
+                },
+              ]}
+            >
               <Ionicons
                 name="calendar-outline"
                 size={32}
-                color="#64748B"
+                color={
+                  colores.textoSecundario
+                }
               />
             </View>
 
             <View
-              style={styles.emptyActivityInformation}
+              style={[
+                styles.emptyActivityInformation,
+                contenidoEnColumna &&
+                  styles.emptyInformationColumn,
+              ]}
             >
               <Text
-                style={styles.emptyActivityTitle}
+                style={[
+                  styles.emptyActivityTitle,
+                  {
+                    color: colores.texto,
+                    fontSize:
+                      15 *
+                      escalaTexto,
+                  },
+                ]}
               >
-                No tienes actividades próximas
+                No tienes actividades
+                próximas
               </Text>
 
               <Text
-                style={styles.emptyActivityText}
+                style={[
+                  styles.emptyActivityText,
+                  {
+                    color:
+                      colores.textoSecundario,
+                    fontSize:
+                      12 *
+                      escalaTexto,
+                    lineHeight:
+                      17 *
+                      escalaTexto,
+                  },
+                ]}
               >
-                Las actividades que te asigne tu
-                docente aparecerán aquí.
+                Las actividades que te
+                asigne tu docente
+                aparecerán aquí.
               </Text>
             </View>
           </View>
         </ScrollView>
 
-        {/* Navegación inferior */}
-
-        <View style={styles.bottomBar}>
+        <View
+          style={[
+            styles.bottomBar,
+            {
+              minHeight:
+                altoNavegacion,
+              backgroundColor:
+                colores.tarjeta,
+              borderTopColor:
+                colores.borde,
+            },
+          ]}
+        >
           <View style={styles.navContent}>
             <BotonNavegacion
               icono="home"
@@ -448,31 +832,25 @@ export default function InicioAlumnoScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
   },
 
   screen: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
   },
 
   loadingContainer: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#F8FAFC',
   },
 
   loadingText: {
-    color: '#475569',
-    fontSize: 15,
     marginTop: 14,
   },
 
   content: {
     flexGrow: 1,
     paddingTop: 24,
-    paddingBottom: 125,
   },
 
   header: {
@@ -482,14 +860,16 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
 
+  headerColumn: {
+    flexDirection: 'column',
+  },
+
   greetingContainer: {
     flex: 1,
     paddingRight: 10,
   },
 
   greeting: {
-    color: '#111827',
-    fontSize: 22,
     fontWeight: '800',
   },
 
@@ -498,8 +878,6 @@ const styles = StyleSheet.create({
   },
 
   welcomeText: {
-    color: '#64748B',
-    fontSize: 13,
     fontWeight: '600',
     marginTop: 8,
   },
@@ -507,31 +885,38 @@ const styles = StyleSheet.create({
   headerActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
+    gap: 7,
+  },
+
+  headerActionsColumn: {
+    alignSelf: 'flex-end',
+    marginTop: 14,
   },
 
   headerButton: {
     width: 44,
     height: 44,
     borderRadius: 22,
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-
-  accessibilityButton: {
-    backgroundColor: '#F3E8FF',
   },
 
   progressCard: {
     minHeight: 130,
     borderRadius: 17,
-    backgroundColor: '#F1E8FF',
+    borderWidth: 1,
     paddingHorizontal: 18,
     paddingVertical: 16,
     flexDirection: 'row',
     alignItems: 'center',
     overflow: 'hidden',
     marginBottom: 26,
+  },
+
+  progressCardColumn: {
+    flexDirection: 'column',
+    alignItems: 'stretch',
   },
 
   progressInformation: {
@@ -542,17 +927,12 @@ const styles = StyleSheet.create({
   },
 
   progressLabel: {
-    color: '#2563EB',
-    fontSize: 14,
     fontWeight: '800',
   },
 
   progressTitle: {
     maxWidth: 180,
-    color: '#111827',
-    fontSize: 16,
     fontWeight: '800',
-    lineHeight: 21,
   },
 
   studentIllustration: {
@@ -565,28 +945,46 @@ const styles = StyleSheet.create({
   },
 
   sectionTitle: {
-    color: '#111827',
-    fontSize: 17,
     fontWeight: '800',
     marginBottom: 14,
   },
 
+  /*
+   * Las tarjetas ocupan exactamente el
+   * ancho disponible de la pantalla.
+   */
   statsRow: {
+    width: '100%',
     flexDirection: 'row',
-    gap: 8,
+    gap: 6,
     marginBottom: 28,
   },
 
+  statsColumn: {
+    flexDirection: 'column',
+    gap: 10,
+  },
+
   statCard: {
-    flex: 1,
+    flexGrow: 1,
+    flexShrink: 1,
+    flexBasis: 0,
+    minWidth: 0,
     minHeight: 145,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
     borderRadius: 14,
-    backgroundColor: '#FFFFFF',
     alignItems: 'center',
-    paddingHorizontal: 6,
+    justifyContent: 'flex-start',
+    paddingHorizontal: 3,
     paddingVertical: 12,
+  },
+
+  statCardColumn: {
+    flexGrow: 0,
+    flexShrink: 0,
+    flexBasis: 'auto',
+    width: '100%',
+    minHeight: 130,
   },
 
   statIconBox: {
@@ -598,30 +996,16 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
 
-  blueIconBox: {
-    backgroundColor: '#DBEAFE',
-  },
-
-  greenIconBox: {
-    backgroundColor: '#DCFCE7',
-  },
-
-  yellowIconBox: {
-    backgroundColor: '#FEF3C7',
-  },
-
   statName: {
-    color: '#111827',
-    fontSize: 11,
+    width: '100%',
+    minWidth: 0,
+    flexShrink: 1,
     fontWeight: '700',
     textAlign: 'center',
-    lineHeight: 15,
     minHeight: 44,
   },
 
   statValue: {
-    color: '#475569',
-    fontSize: 17,
     fontWeight: '800',
     marginTop: 5,
   },
@@ -629,9 +1013,7 @@ const styles = StyleSheet.create({
   emptyActivityCard: {
     minHeight: 105,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
     borderRadius: 16,
-    backgroundColor: '#FFFFFF',
     paddingHorizontal: 14,
     paddingVertical: 13,
     flexDirection: 'row',
@@ -639,11 +1021,15 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
 
+  emptyActivityColumn: {
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+  },
+
   emptyActivityIcon: {
     width: 58,
     height: 58,
     borderRadius: 16,
-    backgroundColor: '#F1F5F9',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 13,
@@ -653,30 +1039,26 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 
+  emptyInformationColumn: {
+    marginTop: 12,
+  },
+
   emptyActivityTitle: {
-    color: '#334155',
-    fontSize: 15,
     fontWeight: '800',
     marginBottom: 6,
   },
 
-  emptyActivityText: {
-    color: '#64748B',
-    fontSize: 12,
-    lineHeight: 17,
-  },
+  emptyActivityText: {},
 
   bottomBar: {
     position: 'absolute',
     left: 0,
     right: 0,
     bottom: 0,
-    minHeight: 76,
     borderTopWidth: 1,
-    borderTopColor: '#E2E8F0',
-    backgroundColor: '#FFFFFF',
     paddingHorizontal: 8,
     paddingTop: 8,
+    paddingBottom: 5,
   },
 
   navContent: {
@@ -688,21 +1070,20 @@ const styles = StyleSheet.create({
 
   navItem: {
     flex: 1,
+    minWidth: 0,
     minHeight: 58,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 2,
+    paddingHorizontal: 1,
   },
 
   navText: {
-    color: '#64748B',
-    fontSize: 10,
     fontWeight: '600',
     marginTop: 4,
+    textAlign: 'center',
   },
 
   navTextActive: {
-    color: '#2563EB',
     fontWeight: '800',
   },
 });

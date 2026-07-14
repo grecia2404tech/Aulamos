@@ -1,6 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
-import { useState } from 'react';
+import {
+  router,
+  useFocusEffect,
+} from 'expo-router';
+import {
+  useCallback,
+  useState,
+} from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -14,15 +20,77 @@ import {
   View,
 } from 'react-native';
 
+import BotonAccesibilidad from '../components/BotonAccesibilidad';
+import { useAccessibility } from '../contexts/AccessibilityContext';
 import { API_URL } from '../services/api';
 
 export default function RecuperarPasswordScreen() {
-  const [correo, setCorreo] = useState('');
-  const [errorCorreo, setErrorCorreo] = useState('');
-  const [cargando, setCargando] = useState(false);
+  const [correo, setCorreo] =
+    useState('');
+  const [errorCorreo, setErrorCorreo] =
+    useState('');
+  const [cargando, setCargando] =
+    useState(false);
+
+  const {
+    colores,
+    escalaTexto,
+    preferencias,
+    leerTexto,
+    detenerLectura,
+  } = useAccessibility();
+
+  const altoContraste =
+    preferencias.altoContraste;
+
+  const colorError = altoContraste
+    ? colores.peligro
+    : '#DC2626';
+
+  const textoBoton = altoContraste
+    ? '#000000'
+    : '#FFFFFF';
+
+  const fondoInformacion = altoContraste
+    ? colores.tarjeta
+    : preferencias.modoOscuro
+      ? colores.fondoPrimario
+      : '#EFF6FF';
+
+  const colorInformacion = altoContraste
+    ? colores.texto
+    : preferencias.modoOscuro
+      ? '#93C5FD'
+      : '#1D4ED8';
+
+  /*
+   * Si la lectura de pantalla está activada,
+   * se leen las indicaciones al abrir la pantalla.
+   */
+  useFocusEffect(
+    useCallback(() => {
+      if (
+        preferencias.lectorPantalla
+      ) {
+        leerTexto(
+          'Recuperar contraseña. Escribe el correo asociado a tu cuenta. Te enviaremos un código de recuperación de 6 dígitos.'
+        );
+      }
+
+      return () => {
+        detenerLectura();
+      };
+    }, [
+      preferencias.lectorPantalla,
+      leerTexto,
+      detenerLectura,
+    ])
+  );
 
   const solicitarCodigo = async () => {
-    const correoLimpio = correo.trim().toLowerCase();
+    const correoLimpio = correo
+      .trim()
+      .toLowerCase();
 
     const expresionCorreo =
       /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
@@ -34,7 +102,11 @@ export default function RecuperarPasswordScreen() {
       return;
     }
 
-    if (!expresionCorreo.test(correoLimpio)) {
+    if (
+      !expresionCorreo.test(
+        correoLimpio
+      )
+    ) {
       setErrorCorreo(
         'Ingresa un correo electrónico válido'
       );
@@ -50,7 +122,8 @@ export default function RecuperarPasswordScreen() {
         {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json',
+            'Content-Type':
+              'application/json',
           },
           body: JSON.stringify({
             correo: correoLimpio,
@@ -58,7 +131,8 @@ export default function RecuperarPasswordScreen() {
         }
       );
 
-      const texto = await respuesta.text();
+      const texto =
+        await respuesta.text();
 
       let datos: {
         mensaje?: string;
@@ -83,6 +157,14 @@ export default function RecuperarPasswordScreen() {
         return;
       }
 
+      if (
+        preferencias.lectorPantalla
+      ) {
+        leerTexto(
+          'Código enviado correctamente. Revisa tu correo electrónico.'
+        );
+      }
+
       Alert.alert(
         'Revisa tu correo',
         datos.mensaje ||
@@ -91,13 +173,15 @@ export default function RecuperarPasswordScreen() {
           {
             text: 'Ingresar código',
             onPress: () => {
-              router.push({
-                pathname:
-                  '/restablecer-password',
-                params: {
-                  correo: correoLimpio,
-                },
-              });
+              router.push(
+                {
+                  pathname:
+                    '/restablecer-password',
+                  params: {
+                    correo: correoLimpio,
+                  },
+                } as any
+              );
             },
           },
         ]
@@ -119,7 +203,13 @@ export default function RecuperarPasswordScreen() {
 
   return (
     <KeyboardAvoidingView
-      style={styles.keyboard}
+      style={[
+        styles.keyboard,
+        {
+          backgroundColor:
+            colores.fondo,
+        },
+      ]}
       behavior={
         Platform.OS === 'ios'
           ? 'padding'
@@ -127,15 +217,34 @@ export default function RecuperarPasswordScreen() {
       }
     >
       <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.container}
+        style={[
+          styles.scroll,
+          {
+            backgroundColor:
+              colores.fondo,
+          },
+        ]}
+        contentContainerStyle={[
+          styles.container,
+          {
+            backgroundColor:
+              colores.fondo,
+          },
+        ]}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.topBar}>
           <TouchableOpacity
-            style={styles.iconButton}
+            style={[
+              styles.iconButton,
+              {
+                backgroundColor:
+                  colores.tarjeta,
+                borderColor: colores.borde,
+              },
+            ]}
             onPress={() => router.back()}
             accessibilityRole="button"
             accessibilityLabel="Regresar"
@@ -143,49 +252,96 @@ export default function RecuperarPasswordScreen() {
             <Ionicons
               name="arrow-back"
               size={24}
-              color="#111827"
+              color={colores.texto}
             />
           </TouchableOpacity>
 
-          <View style={styles.accessButton}>
-            <Ionicons
-              name="accessibility"
-              size={24}
-              color="#7C4DFF"
-            />
-          </View>
+          <BotonAccesibilidad />
         </View>
 
         <View style={styles.header}>
-          <View style={styles.logoBox}>
+          <View
+            style={[
+              styles.logoBox,
+              {
+                backgroundColor:
+                  colores.fondoPrimario,
+                borderColor:
+                  altoContraste
+                    ? colores.borde
+                    : 'transparent',
+              },
+            ]}
+          >
             <Ionicons
               name="key-outline"
               size={55}
-              color="#2563EB"
+              color={colores.primario}
             />
           </View>
 
-          <Text style={styles.title}>
+          <Text
+            style={[
+              styles.title,
+              {
+                color: colores.texto,
+                fontSize:
+                  26 * escalaTexto,
+                lineHeight:
+                  32 * escalaTexto,
+              },
+            ]}
+            accessibilityRole="header"
+          >
             Recuperar contraseña
           </Text>
 
-          <Text style={styles.subtitle}>
-            Escribe el correo asociado a tu cuenta.
-            Te enviaremos un código de 6 dígitos.
+          <Text
+            style={[
+              styles.subtitle,
+              {
+                color:
+                  colores.textoSecundario,
+                fontSize:
+                  15 * escalaTexto,
+                lineHeight:
+                  22 * escalaTexto,
+              },
+            ]}
+          >
+            Escribe el correo asociado a
+            tu cuenta. Te enviaremos un
+            código de 6 dígitos.
           </Text>
         </View>
 
         <View style={styles.form}>
-          <Text style={styles.label}>
+          <Text
+            style={[
+              styles.label,
+              {
+                color: colores.texto,
+                fontSize:
+                  15 * escalaTexto,
+              },
+            ]}
+          >
             Correo electrónico
           </Text>
 
           <View
             style={[
               styles.inputBox,
-              errorCorreo
-                ? styles.inputBoxError
-                : null,
+              {
+                backgroundColor:
+                  colores.tarjeta,
+                borderColor: errorCorreo
+                  ? colorError
+                  : colores.borde,
+                borderWidth: errorCorreo
+                  ? 1.5
+                  : 1,
+              },
             ]}
           >
             <Ionicons
@@ -193,15 +349,24 @@ export default function RecuperarPasswordScreen() {
               size={21}
               color={
                 errorCorreo
-                  ? '#DC2626'
-                  : '#64748B'
+                  ? colorError
+                  : colores.textoSecundario
               }
             />
 
             <TextInput
-              style={styles.input}
+              style={[
+                styles.input,
+                {
+                  color: colores.texto,
+                  fontSize:
+                    15 * escalaTexto,
+                },
+              ]}
               placeholder="correo@gmail.com"
-              placeholderTextColor="#94A3B8"
+              placeholderTextColor={
+                colores.textoSecundario
+              }
               value={correo}
               onChangeText={(texto) => {
                 setCorreo(texto);
@@ -213,40 +378,83 @@ export default function RecuperarPasswordScreen() {
               editable={!cargando}
               maxLength={150}
               returnKeyType="send"
-              onSubmitEditing={solicitarCodigo}
+              onSubmitEditing={
+                solicitarCodigo
+              }
               accessibilityLabel="Correo electrónico"
+              accessibilityHint="Escribe el correo asociado a tu cuenta"
             />
           </View>
 
           {errorCorreo ? (
             <Text
-              style={styles.errorText}
+              style={[
+                styles.errorText,
+                {
+                  color: colorError,
+                  fontSize:
+                    13 * escalaTexto,
+                  lineHeight:
+                    18 * escalaTexto,
+                },
+              ]}
               accessibilityRole="alert"
             >
               {errorCorreo}
             </Text>
           ) : null}
 
-          <View style={styles.infoBox}>
+          <View
+            style={[
+              styles.infoBox,
+              {
+                backgroundColor:
+                  fondoInformacion,
+                borderColor:
+                  altoContraste
+                    ? colores.borde
+                    : 'transparent',
+              },
+            ]}
+          >
             <Ionicons
               name="information-circle-outline"
               size={24}
-              color="#2563EB"
+              color={
+                altoContraste
+                  ? colores.primario
+                  : colorInformacion
+              }
             />
 
-            <Text style={styles.infoText}>
-              El código será válido durante 15
-              minutos y solo podrá utilizarse una
-              vez.
+            <Text
+              style={[
+                styles.infoText,
+                {
+                  color:
+                    colorInformacion,
+                  fontSize:
+                    13 * escalaTexto,
+                  lineHeight:
+                    19 * escalaTexto,
+                },
+              ]}
+            >
+              El código será válido
+              durante 15 minutos y solo
+              podrá utilizarse una vez.
             </Text>
           </View>
 
           <TouchableOpacity
             style={[
               styles.button,
-              cargando
-                ? styles.buttonDisabled
-                : null,
+              {
+                backgroundColor:
+                  colores.primario,
+              },
+              cargando &&
+                styles.buttonDisabled,
             ]}
             onPress={solicitarCodigo}
             disabled={cargando}
@@ -255,21 +463,32 @@ export default function RecuperarPasswordScreen() {
             accessibilityLabel="Enviar código de recuperación"
             accessibilityState={{
               disabled: cargando,
+              busy: cargando,
             }}
           >
             {cargando ? (
               <ActivityIndicator
-                color="#FFFFFF"
+                color={textoBoton}
               />
             ) : (
               <>
                 <Ionicons
                   name="mail-outline"
                   size={21}
-                  color="#FFFFFF"
+                  color={textoBoton}
                 />
 
-                <Text style={styles.buttonText}>
+                <Text
+                  style={[
+                    styles.buttonText,
+                    {
+                      color: textoBoton,
+                      fontSize:
+                        16 *
+                        escalaTexto,
+                    },
+                  ]}
+                >
                   Enviar código
                 </Text>
               </>
@@ -278,11 +497,23 @@ export default function RecuperarPasswordScreen() {
 
           <TouchableOpacity
             style={styles.loginButton}
-            onPress={() => router.replace('/')}
+            onPress={() =>
+              router.replace('/' as any)
+            }
             accessibilityRole="button"
             accessibilityLabel="Volver al inicio de sesión"
           >
-            <Text style={styles.loginText}>
+            <Text
+              style={[
+                styles.loginText,
+                {
+                  color:
+                    colores.primario,
+                  fontSize:
+                    14 * escalaTexto,
+                },
+              ]}
+            >
               Volver al inicio de sesión
             </Text>
           </TouchableOpacity>
@@ -295,7 +526,6 @@ export default function RecuperarPasswordScreen() {
 const styles = StyleSheet.create({
   keyboard: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
   },
 
   scroll: {
@@ -307,7 +537,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 28,
     paddingTop: 50,
     paddingBottom: 80,
-    backgroundColor: '#F8FAFC',
   },
 
   topBar: {
@@ -320,16 +549,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  accessButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#F3E8FF',
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -344,23 +564,18 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 30,
-    backgroundColor: '#DBEAFE',
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 20,
   },
 
   title: {
-    color: '#111827',
-    fontSize: 26,
     fontWeight: '800',
     textAlign: 'center',
   },
 
   subtitle: {
-    color: '#64748B',
-    fontSize: 15,
-    lineHeight: 22,
     textAlign: 'center',
     marginTop: 10,
     maxWidth: 360,
@@ -373,39 +588,26 @@ const styles = StyleSheet.create({
   },
 
   label: {
-    color: '#1F2937',
-    fontSize: 15,
     fontWeight: '700',
     marginBottom: 8,
   },
 
   inputBox: {
     minHeight: 56,
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
     borderRadius: 14,
-    backgroundColor: '#FFFFFF',
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 15,
-  },
-
-  inputBoxError: {
-    borderColor: '#DC2626',
-    borderWidth: 1.5,
+    paddingVertical: 3,
   },
 
   input: {
     flex: 1,
     minHeight: 54,
-    color: '#111827',
-    fontSize: 15,
     marginLeft: 10,
   },
 
   errorText: {
-    color: '#B91C1C',
-    fontSize: 13,
     fontWeight: '600',
     marginTop: 7,
   },
@@ -413,7 +615,7 @@ const styles = StyleSheet.create({
   infoBox: {
     minHeight: 68,
     borderRadius: 14,
-    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 15,
@@ -424,20 +626,18 @@ const styles = StyleSheet.create({
 
   infoText: {
     flex: 1,
-    color: '#1D4ED8',
-    fontSize: 13,
-    lineHeight: 19,
     marginLeft: 11,
   },
 
   button: {
     minHeight: 56,
     borderRadius: 14,
-    backgroundColor: '#4A7CFF',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 9,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
     elevation: 4,
   },
 
@@ -446,9 +646,8 @@ const styles = StyleSheet.create({
   },
 
   buttonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
     fontWeight: '800',
+    textAlign: 'center',
   },
 
   loginButton: {
@@ -456,11 +655,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 12,
+    paddingHorizontal: 12,
   },
 
   loginText: {
-    color: '#2563EB',
-    fontSize: 14,
     fontWeight: '700',
+    textAlign: 'center',
   },
 });
