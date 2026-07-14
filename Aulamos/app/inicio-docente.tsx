@@ -1,8 +1,16 @@
-import BotonAccesibilidad from '../components/BotonAccesibilidad';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import {
+  router,
+  useFocusEffect,
+} from 'expo-router';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  
+  useState,
+} from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -10,6 +18,7 @@ import {
   RefreshControl,
   ScrollView,
   StatusBar,
+  StyleProp,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -19,9 +28,9 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-// Cambia esta IP si cambia la red de tu computadora.
-const API_URL =
-  'http://192.168.6.193:3000/api/docente/inicio';
+import BotonAccesibilidad from '../components/BotonAccesibilidad';
+import { useAccessibility } from '../contexts/AccessibilityContext';
+import { API_URL } from '../services/api';
 
 type InicioDocenteResponse = {
   docente: {
@@ -48,23 +57,63 @@ type InicioDocenteResponse = {
   } | null;
 };
 
-type IoniconName = keyof typeof Ionicons.glyphMap;
+type IoniconName =
+  keyof typeof Ionicons.glyphMap;
 
 export default function InicioDocenteScreen() {
-  const { width } = useWindowDimensions();
-  const insets = useSafeAreaInsets();
+  const { width } =
+    useWindowDimensions();
+
+  const insets =
+    useSafeAreaInsets();
 
   const [datos, setDatos] =
-    useState<InicioDocenteResponse | null>(null);
+    useState<InicioDocenteResponse | null>(
+      null
+    );
 
-  const [cargando, setCargando] = useState(true);
-  const [actualizando, setActualizando] =
-    useState(false);
+  const [cargando, setCargando] =
+    useState(true);
 
-  const esPantallaPequena = width < 360;
+  const [
+    actualizando,
+    setActualizando,
+  ] = useState(false);
+
+  const {
+    colores,
+    escalaTexto,
+    preferencias,
+    leerTexto,
+    detenerLectura,
+  } = useAccessibility();
+
+  const altoContraste =
+    preferencias.altoContraste;
+
+  const temaOscuro =
+    preferencias.modoOscuro ||
+    altoContraste;
+
+  const contenidoGrande =
+    escalaTexto > 1.2;
+
+  /*
+   * En tamaño normal se muestran dos
+   * tarjetas por fila.
+   *
+   * Con texto grande o en pantallas muy
+   * estrechas se muestra una por fila.
+   */
+  const unaTarjetaPorFila =
+    contenidoGrande || width < 340;
 
   const margenHorizontal =
-    width < 350 ? 14 : width < 400 ? 18 : 22;
+    width < 350
+      ? 14
+      : width < 400
+        ? 18
+        : 22;
 
   const anchoContenido = Math.min(
     width - margenHorizontal * 2,
@@ -72,23 +121,51 @@ export default function InicioDocenteScreen() {
   );
 
   const separacionTarjetas =
-    esPantallaPequena ? 8 : 10;
+    width < 360 ? 8 : 10;
 
-  /*
-   * Se resta:
-   * 28 px del padding interno del contenedor del resumen.
-   * La separación entre las dos tarjetas.
-   *
-   * De esta forma siempre quedan dos tarjetas por fila.
-   */
   const anchoTarjetaResumen =
-    (anchoContenido -
-      28 -
-      separacionTarjetas) /
-    2;
+    unaTarjetaPorFila
+      ? anchoContenido - 28
+      : (
+          anchoContenido -
+          28 -
+          separacionTarjetas
+        ) / 2;
 
   const anchoBotonRapido =
-    (anchoContenido - separacionTarjetas) / 2;
+    unaTarjetaPorFila
+      ? anchoContenido
+      : (
+          anchoContenido -
+          separacionTarjetas
+        ) / 2;
+
+  const altoBarraInferior =
+    contenidoGrande ? 94 : 66;
+
+  const colorPrincipal =
+    altoContraste
+      ? colores.primario
+      : temaOscuro
+        ? '#60A5FA'
+        : '#2563EB';
+
+  const colorVerde =
+    altoContraste
+      ? colores.exito
+      : temaOscuro
+        ? '#4ADE80'
+        : '#16A34A';
+
+  const fondoInformacion =
+    temaOscuro
+      ? colores.fondoPrimario
+      : '#FAF7FF';
+
+  const textoBotonContraste =
+    altoContraste
+      ? '#000000'
+      : '#FFFFFF';
 
   const responsive = useMemo(
     () => ({
@@ -110,106 +187,197 @@ export default function InicioDocenteScreen() {
 
       contenidoScroll: {
         paddingBottom:
-          95 + Math.max(insets.bottom, 8),
+          altoBarraInferior +
+          35 +
+          Math.max(
+            insets.bottom,
+            8
+          ),
       } as ViewStyle,
 
       barraInferior: {
-        height: 66 + Math.max(insets.bottom, 5),
-        paddingBottom: Math.max(insets.bottom, 5),
+        height:
+          altoBarraInferior +
+          Math.max(
+            insets.bottom,
+            5
+          ),
+
+        paddingBottom:
+          Math.max(
+            insets.bottom,
+            5
+          ),
       } as ViewStyle,
     }),
     [
       anchoBotonRapido,
       anchoContenido,
       anchoTarjetaResumen,
+      altoBarraInferior,
       insets.bottom,
       insets.top,
     ]
   );
 
-  useEffect(() => {
-    cargarDatos();
-  }, []);
+  const cargarDatos = useCallback(
+    async (
+      mostrarCarga = true
+    ) => {
+      try {
+        if (mostrarCarga) {
+          setCargando(true);
+        }
 
-  const cargarDatos = async (
-    mostrarCarga = true
-  ) => {
-    try {
-      if (mostrarCarga) {
-        setCargando(true);
-      }
+        const token =
+          await AsyncStorage.getItem(
+            'token'
+          );
 
-      const token = await AsyncStorage.getItem(
-        'token'
-      );
+        if (!token) {
+          Alert.alert(
+            'Sesión no encontrada',
+            'Inicia sesión nuevamente.'
+          );
 
-      if (!token) {
-        Alert.alert(
-          'Sesión no encontrada',
-          'Inicia sesión nuevamente.'
+          router.replace('/' as any);
+          return;
+        }
+
+        const respuesta = await fetch(
+          `${API_URL}/docente/inicio`,
+          {
+            method: 'GET',
+            headers: {
+              Accept:
+                'application/json',
+              Authorization:
+                `Bearer ${token}`,
+            },
+          }
         );
 
-        router.replace('/');
-        return;
+        const texto =
+          await respuesta.text();
+
+        let resultado: {
+          mensaje?: string;
+          docente?: InicioDocenteResponse['docente'];
+          resumen?: InicioDocenteResponse['resumen'];
+          actividad_reciente?:
+            InicioDocenteResponse['actividad_reciente'];
+        } = {};
+
+        if (texto) {
+          try {
+            resultado =
+              JSON.parse(texto);
+          } catch {
+            resultado = {
+              mensaje:
+                'El servidor envió una respuesta incorrecta',
+            };
+          }
+        }
+
+        if (
+          respuesta.status === 401 ||
+          respuesta.status === 403
+        ) {
+          await AsyncStorage.multiRemove(
+            ['token', 'usuario']
+          );
+
+          Alert.alert(
+            respuesta.status === 403
+              ? 'Acceso no permitido'
+              : 'Sesión vencida',
+
+            respuesta.status === 403
+              ? 'Tu usuario no tiene permiso para acceder al panel docente.'
+              : 'Inicia sesión nuevamente.'
+          );
+
+          router.replace('/' as any);
+          return;
+        }
+
+        if (!respuesta.ok) {
+          Alert.alert(
+            'No se pudo cargar la información',
+            resultado.mensaje ||
+              'Intenta nuevamente.'
+          );
+
+          return;
+        }
+
+        if (
+          !resultado.docente ||
+          !resultado.resumen
+        ) {
+          Alert.alert(
+            'Respuesta incorrecta',
+            'La API no devolvió los datos del docente.'
+          );
+
+          return;
+        }
+
+        setDatos({
+          docente:
+            resultado.docente,
+
+          resumen:
+            resultado.resumen,
+
+          actividad_reciente:
+            resultado.actividad_reciente ??
+            null,
+        });
+      } catch (error) {
+        console.error(
+          'Error al cargar inicio docente:',
+          error
+        );
+
+        Alert.alert(
+          'Error de conexión',
+          'No se pudo conectar con la API. Verifica el servidor, la IP y la red Wi-Fi.'
+        );
+      } finally {
+        setCargando(false);
+        setActualizando(false);
       }
-
-      const respuesta = await fetch(API_URL, {
-        method: 'GET',
-        headers: {
-          Accept: 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      const resultado = await respuesta.json();
-
-     if (
-  respuesta.status === 401 ||
-  respuesta.status === 403
-) {
-  await AsyncStorage.multiRemove([
-    'token',
-    'usuario',
-  ]);
-
-  Alert.alert(
-    respuesta.status === 403
-      ? 'Acceso no permitido'
-      : 'Sesión vencida',
-    respuesta.status === 403
-      ? 'Tu usuario no tiene permiso para acceder al panel docente.'
-      : 'Inicia sesión nuevamente.'
+    },
+    []
   );
 
-  router.replace('/');
-  return;
-}
-      if (!respuesta.ok) {
-        Alert.alert(
-          'No se pudo cargar la información',
-          resultado.mensaje ||
-            'Intenta nuevamente.'
-        );
+  useEffect(() => {
+    cargarDatos();
+  }, [cargarDatos]);
 
-        return;
+  useFocusEffect(
+    useCallback(() => {
+      if (
+        preferencias.lectorPantalla &&
+        datos
+      ) {
+        leerTexto(
+          `Hola profesor o profesora ${datos.docente.nombre}. Tienes ${datos.resumen.clases_activas} clases activas, ${datos.resumen.actividades_pendientes} actividades pendientes, ${datos.resumen.evaluaciones} evaluaciones publicadas y ${datos.resumen.estudiantes} estudiantes inscritos.`
+        );
       }
 
-      setDatos(resultado);
-    } catch (error) {
-      console.error(
-        'Error al cargar inicio docente:',
-        error
-      );
-
-      Alert.alert(
-        'Error de conexión',
-        'No se pudo conectar con la API. Verifica que el servidor esté encendido, que la IP sea correcta y que ambos dispositivos estén conectados a la misma red.'
-      );
-    } finally {
-      setCargando(false);
-      setActualizando(false);
-    }
-  };
+      return () => {
+        detenerLectura();
+      };
+    }, [
+      preferencias.lectorPantalla,
+      datos,
+      leerTexto,
+      detenerLectura,
+    ])
+  );
 
   const refrescar = () => {
     setActualizando(true);
@@ -221,7 +389,7 @@ export default function InicioDocenteScreen() {
     nombrePantalla: string
   ) => {
     try {
-      router.push(ruta as never);
+      router.push(ruta as any);
     } catch {
       Alert.alert(
         nombrePantalla,
@@ -230,35 +398,43 @@ export default function InicioDocenteScreen() {
     }
   };
 
-  const capitalizar = (texto: string) => {
+  const capitalizar = (
+    texto: string
+  ) => {
     return (
       texto.charAt(0).toUpperCase() +
       texto.slice(1)
     );
   };
 
-  const formatearFechaActual = () => {
-    const texto = new Date().toLocaleDateString(
-      'es-MX',
-      {
-        weekday: 'long',
-        day: 'numeric',
-        month: 'long',
-      }
-    );
+  const formatearFechaActual =
+    () => {
+      const texto =
+        new Date().toLocaleDateString(
+          'es-MX',
+          {
+            weekday: 'long',
+            day: 'numeric',
+            month: 'long',
+          }
+        );
 
-    return capitalizar(texto);
-  };
+      return capitalizar(texto);
+    };
 
   const formatearFechaPublicacion = (
     fechaTexto: string
   ) => {
-    const fecha = new Date(fechaTexto);
+    const fecha =
+      new Date(fechaTexto);
+
     const hoy = new Date();
 
     const esHoy =
-      fecha.getDate() === hoy.getDate() &&
-      fecha.getMonth() === hoy.getMonth() &&
+      fecha.getDate() ===
+        hoy.getDate() &&
+      fecha.getMonth() ===
+        hoy.getMonth() &&
       fecha.getFullYear() ===
         hoy.getFullYear();
 
@@ -267,16 +443,25 @@ export default function InicioDocenteScreen() {
     }
 
     const fechaFormateada =
-      fecha.toLocaleDateString('es-MX', {
-        day: 'numeric',
-        month: 'long',
-      });
+      fecha.toLocaleDateString(
+        'es-MX',
+        {
+          day: 'numeric',
+          month: 'long',
+        }
+      );
 
     return `Publicado el ${fechaFormateada}`;
   };
 
   const nombreUsuario =
-    datos?.docente.nombre || 'Usuario';
+    datos?.docente.nombre ||
+    'Usuario';
+
+  const estiloStatusBar =
+    temaOscuro
+      ? 'light-content'
+      : 'dark-content';
 
   if (cargando) {
     return (
@@ -284,52 +469,106 @@ export default function InicioDocenteScreen() {
         style={[
           styles.loadingScreen,
           responsive.contenedorSeguro,
+          {
+            backgroundColor:
+              colores.fondo,
+          },
         ]}
       >
         <StatusBar
-          barStyle="dark-content"
-          backgroundColor="#FFFFFF"
+          barStyle={estiloStatusBar}
+          backgroundColor={
+            colores.fondo
+          }
         />
 
-        <View style={styles.loadingLogo}>
+        <View
+          style={[
+            styles.loadingLogo,
+            {
+              backgroundColor:
+                colores.fondoPrimario,
+              borderColor:
+                colores.borde,
+            },
+          ]}
+        >
           <Ionicons
             name="school"
             size={34}
-            color="#4A7CFF"
+            color={colorPrincipal}
           />
         </View>
 
         <ActivityIndicator
           size="large"
-          color="#4A7CFF"
+          color={colorPrincipal}
         />
 
-        <Text style={styles.loadingTitle}>
+        <Text
+          style={[
+            styles.loadingTitle,
+            {
+              color: colores.texto,
+              fontSize:
+                21 * escalaTexto,
+            },
+          ]}
+        >
           Aulamos
         </Text>
 
-        <Text style={styles.loadingText}>
-          Preparando tu espacio docente...
+        <Text
+          style={[
+            styles.loadingText,
+            {
+              color:
+                colores.textoSecundario,
+              fontSize:
+                14 * escalaTexto,
+              lineHeight:
+                20 * escalaTexto,
+            },
+          ]}
+        >
+          Preparando tu espacio
+          docente...
         </Text>
       </View>
     );
   }
 
   return (
-    <View style={styles.screen}>
+    <View
+      style={[
+        styles.screen,
+        {
+          backgroundColor:
+            colores.fondo,
+        },
+      ]}
+    >
       <StatusBar
-        barStyle="dark-content"
-        backgroundColor="#F7F8FC"
+        barStyle={estiloStatusBar}
+        backgroundColor={
+          colores.fondo
+        }
       />
 
       <View
         style={[
           styles.safeContainer,
           responsive.contenedorSeguro,
+          {
+            backgroundColor:
+              colores.fondo,
+          },
         ]}
       >
         <ScrollView
-          showsVerticalScrollIndicator={false}
+          showsVerticalScrollIndicator={
+            false
+          }
           contentContainerStyle={[
             styles.scrollContent,
             responsive.contenidoScroll,
@@ -338,8 +577,11 @@ export default function InicioDocenteScreen() {
             <RefreshControl
               refreshing={actualizando}
               onRefresh={refrescar}
-              colors={['#4A7CFF']}
-              tintColor="#4A7CFF"
+              colors={[colorPrincipal]}
+              tintColor={colorPrincipal}
+              progressBackgroundColor={
+                colores.tarjeta
+              }
             />
           }
         >
@@ -349,11 +591,20 @@ export default function InicioDocenteScreen() {
               responsive.contenido,
             ]}
           >
-            {/* Encabezado */}
             <View style={styles.header}>
               <TouchableOpacity
-                style={styles.iconButton}
-                onPress={() => router.back()}
+                style={[
+                  styles.iconButton,
+                  {
+                    backgroundColor:
+                      colores.tarjeta,
+                    borderColor:
+                      colores.borde,
+                  },
+                ]}
+                onPress={() =>
+                  router.back()
+                }
                 activeOpacity={0.7}
                 accessibilityRole="button"
                 accessibilityLabel="Regresar"
@@ -361,81 +612,215 @@ export default function InicioDocenteScreen() {
                 <Ionicons
                   name="arrow-back"
                   size={23}
-                  color="#334155"
+                  color={colores.texto}
                 />
               </TouchableOpacity>
 
-              <Text style={styles.logoText}>
+              <Text
+                style={[
+                  styles.logoText,
+                  {
+                    color:
+                      colorPrincipal,
+                    fontSize:
+                      Math.min(
+                        26 *
+                          escalaTexto,
+                        36
+                      ),
+                  },
+                ]}
+              >
                 Aulamos
               </Text>
 
-              <View style={styles.headerActions}>
+              <View
+                style={
+                  styles.headerActions
+                }
+              >
                 <TouchableOpacity
-                  style={styles.iconButton}
+                  style={[
+                    styles.iconButton,
+                    {
+                      backgroundColor:
+                        colores.tarjeta,
+                      borderColor:
+                        colores.borde,
+                    },
+                  ]}
                   activeOpacity={0.7}
+                  onPress={() =>
+                    Alert.alert(
+                      'Notificaciones',
+                      'No tienes notificaciones nuevas.'
+                    )
+                  }
                   accessibilityRole="button"
                   accessibilityLabel="Notificaciones"
                 >
                   <Ionicons
                     name="notifications"
                     size={22}
-                    color="#273449"
+                    color={colores.texto}
                   />
 
                   <View
-                    style={styles.notificationDot}
+                    style={[
+                      styles.notificationDot,
+                      {
+                        borderColor:
+                          colores.tarjeta,
+                      },
+                    ]}
                   />
                 </TouchableOpacity>
 
-                <TouchableOpacity
-                  style={styles.iconButton}
-                  activeOpacity={0.7}
-                  accessibilityRole="button"
-                  accessibilityLabel="Opciones de accesibilidad"
-                >
-                  <Ionicons
-                    name="accessibility"
-                    size={24}
-                    color="#7C3AED"
-                  />
-                </TouchableOpacity>
+                <BotonAccesibilidad
+                  style={
+                    styles.accessibilityButton
+                  }
+                />
               </View>
             </View>
 
-            {/* Saludo */}
-            <View style={styles.welcomeContainer}>
-              <Text style={styles.welcomeTitle}>
-                ¡Hola, Profesor@ {nombreUsuario}! 👋
+            <View
+              style={
+                styles.welcomeContainer
+              }
+            >
+              <Text
+                style={[
+                  styles.welcomeTitle,
+                  {
+                    color: colores.texto,
+                    fontSize:
+                      19 *
+                      escalaTexto,
+                    lineHeight:
+                      25 *
+                      escalaTexto,
+                  },
+                ]}
+                accessibilityRole="header"
+              >
+                ¡Hola, Profesor@{' '}
+                {nombreUsuario}! 👋
               </Text>
 
-              <Text style={styles.welcomeSubtitle}>
-                Bienvenid@ a tu espacio docente
+              <Text
+                style={[
+                  styles.welcomeSubtitle,
+                  {
+                    color:
+                      colores.textoSecundario,
+                    fontSize:
+                      13 *
+                      escalaTexto,
+                    lineHeight:
+                      19 *
+                      escalaTexto,
+                  },
+                ]}
+              >
+                Bienvenid@ a tu espacio
+                docente
               </Text>
             </View>
 
-            {/* Resumen del día */}
-            <View style={styles.summarySection}>
-              <View style={styles.summaryHeader}>
-                <View style={styles.summaryHeaderText}>
-                  <Text style={styles.summaryTitle}>
+            <View
+              style={[
+                styles.summarySection,
+                {
+                  backgroundColor:
+                    fondoInformacion,
+                  borderColor:
+                    colores.borde,
+                },
+              ]}
+            >
+              <View
+                style={[
+                  styles.summaryHeader,
+                  contenidoGrande &&
+                    styles.summaryHeaderColumn,
+                ]}
+              >
+                <View
+                  style={
+                    styles.summaryHeaderText
+                  }
+                >
+                  <Text
+                    style={[
+                      styles.summaryTitle,
+                      {
+                        color:
+                          colores.texto,
+                        fontSize:
+                          15 *
+                          escalaTexto,
+                      },
+                    ]}
+                    accessibilityRole="header"
+                  >
                     Resumen del día
                   </Text>
 
                   <Text
-                    style={styles.summaryDescription}
+                    style={[
+                      styles.summaryDescription,
+                      {
+                        color:
+                          colores.textoSecundario,
+                        fontSize:
+                          10 *
+                          escalaTexto,
+                        lineHeight:
+                          14 *
+                          escalaTexto,
+                      },
+                    ]}
                   >
-                    Información general de tus clases
+                    Información general de
+                    tus clases
                   </Text>
                 </View>
 
-                <View style={styles.dateBadge}>
+                <View
+                  style={[
+                    styles.dateBadge,
+                    {
+                      backgroundColor:
+                        colores.fondoPrimario,
+                    },
+                    contenidoGrande &&
+                      styles.dateBadgeLarge,
+                  ]}
+                >
                   <Ionicons
                     name="calendar-outline"
-                    size={13}
-                    color="#6D5BD0"
+                    size={15}
+                    color={
+                      colores.primario
+                    }
                   />
 
-                  <Text style={styles.summaryDate}>
+                  <Text
+                    style={[
+                      styles.summaryDate,
+                      {
+                        color:
+                          colores.primario,
+                        fontSize:
+                          9 *
+                          escalaTexto,
+                        lineHeight:
+                          12 *
+                          escalaTexto,
+                      },
+                    ]}
+                  >
                     {formatearFechaActual()}
                   </Text>
                 </View>
@@ -445,17 +830,21 @@ export default function InicioDocenteScreen() {
                 style={[
                   styles.summaryGrid,
                   {
-                    columnGap: separacionTarjetas,
-                    rowGap: separacionTarjetas,
+                    columnGap:
+                      separacionTarjetas,
+                    rowGap:
+                      separacionTarjetas,
                   },
                 ]}
               >
                 <SummaryCard
-                  style={responsive.tarjetaResumen}
+                  style={
+                    responsive.tarjetaResumen
+                  }
                   title="Clases"
                   value={
-                    datos?.resumen.clases_activas ??
-                    0
+                    datos?.resumen
+                      .clases_activas ?? 0
                   }
                   subtitle="Activas"
                   icon="document-text"
@@ -464,11 +853,14 @@ export default function InicioDocenteScreen() {
                 />
 
                 <SummaryCard
-                  style={responsive.tarjetaResumen}
+                  style={
+                    responsive.tarjetaResumen
+                  }
                   title="Actividades"
                   value={
                     datos?.resumen
-                      .actividades_pendientes ?? 0
+                      .actividades_pendientes ??
+                    0
                   }
                   subtitle="Pendientes"
                   icon="clipboard"
@@ -477,22 +869,28 @@ export default function InicioDocenteScreen() {
                 />
 
                 <SummaryCard
-                  style={responsive.tarjetaResumen}
+                  style={
+                    responsive.tarjetaResumen
+                  }
                   title="Evaluaciones"
                   value={
-                    datos?.resumen.evaluaciones ?? 0
+                    datos?.resumen
+                      .evaluaciones ?? 0
                   }
                   subtitle="Publicadas"
                   icon="documents"
-                  iconColor="#F43F5E"
+                  iconColor="#E11D48"
                   iconBackground="#FFE7EC"
                 />
 
                 <SummaryCard
-                  style={responsive.tarjetaResumen}
+                  style={
+                    responsive.tarjetaResumen
+                  }
                   title="Estudiantes"
                   value={
-                    datos?.resumen.estudiantes ?? 0
+                    datos?.resumen
+                      .estudiantes ?? 0
                   }
                   subtitle="Inscritos"
                   icon="people"
@@ -502,13 +900,38 @@ export default function InicioDocenteScreen() {
               </View>
             </View>
 
-            {/* Accesos rápidos */}
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>
+            <View
+              style={
+                styles.sectionHeader
+              }
+            >
+              <Text
+                style={[
+                  styles.sectionTitle,
+                  {
+                    color: colores.texto,
+                    fontSize:
+                      15 *
+                      escalaTexto,
+                  },
+                ]}
+                accessibilityRole="header"
+              >
                 Accesos rápidos
               </Text>
 
-              <Text style={styles.sectionSubtitle}>
+              <Text
+                style={[
+                  styles.sectionSubtitle,
+                  {
+                    color:
+                      colores.textoSecundario,
+                    fontSize:
+                      11 *
+                      escalaTexto,
+                  },
+                ]}
+              >
                 Administra tus cursos
               </Text>
             </View>
@@ -517,17 +940,21 @@ export default function InicioDocenteScreen() {
               style={[
                 styles.quickActions,
                 {
-                  columnGap: separacionTarjetas,
-                  rowGap: separacionTarjetas,
+                  columnGap:
+                    separacionTarjetas,
+                  rowGap:
+                    separacionTarjetas,
                 },
               ]}
             >
               <QuickAction
-                style={responsive.botonRapido}
+                style={
+                  responsive.botonRapido
+                }
                 text="Crear recurso"
                 subtitle="Video, PDF o enlace"
                 icon="add-circle-outline"
-                backgroundColor="#8247E5"
+                backgroundColor="#6D28D9"
                 onPress={() =>
                   navegar(
                     '/crear-recurso',
@@ -537,11 +964,13 @@ export default function InicioDocenteScreen() {
               />
 
               <QuickAction
-                style={responsive.botonRapido}
+                style={
+                  responsive.botonRapido
+                }
                 text="Crear actividad"
                 subtitle="Tarea o ejercicio"
                 icon="add-circle-outline"
-                backgroundColor="#14B8A6"
+                backgroundColor="#0F766E"
                 onPress={() =>
                   navegar(
                     '/crear-actividad',
@@ -551,11 +980,13 @@ export default function InicioDocenteScreen() {
               />
 
               <QuickAction
-                style={responsive.botonRapido}
+                style={
+                  responsive.botonRapido
+                }
                 text="Crear evaluación"
                 subtitle="Examen o cuestionario"
                 icon="add-circle-outline"
-                backgroundColor="#F59E0B"
+                backgroundColor="#A16207"
                 onPress={() =>
                   navegar(
                     '/crear-evaluacion',
@@ -565,11 +996,13 @@ export default function InicioDocenteScreen() {
               />
 
               <QuickAction
-                style={responsive.botonRapido}
+                style={
+                  responsive.botonRapido
+                }
                 text="Ver estudiantes"
                 subtitle="Consulta avances"
                 icon="people-outline"
-                backgroundColor="#3B82F6"
+                backgroundColor="#2563EB"
                 onPress={() =>
                   navegar(
                     '/ver-estudiantes',
@@ -579,11 +1012,13 @@ export default function InicioDocenteScreen() {
               />
 
               <QuickAction
-                style={responsive.botonRapido}
+                style={
+                  responsive.botonRapido
+                }
                 text="Reportes"
                 subtitle="Resultados generales"
                 icon="bar-chart-outline"
-                backgroundColor="#F28F7C"
+                backgroundColor="#9F3A38"
                 onPress={() =>
                   navegar(
                     '/reportes-docente',
@@ -593,44 +1028,121 @@ export default function InicioDocenteScreen() {
               />
             </View>
 
-            {/* Actividad reciente */}
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>
+            <View
+              style={
+                styles.sectionHeader
+              }
+            >
+              <Text
+                style={[
+                  styles.sectionTitle,
+                  {
+                    color: colores.texto,
+                    fontSize:
+                      15 *
+                      escalaTexto,
+                  },
+                ]}
+                accessibilityRole="header"
+              >
                 Actividad reciente
               </Text>
 
-              <Text style={styles.sectionSubtitle}>
+              <Text
+                style={[
+                  styles.sectionSubtitle,
+                  {
+                    color:
+                      colores.textoSecundario,
+                    fontSize:
+                      11 *
+                      escalaTexto,
+                  },
+                ]}
+              >
                 Último contenido publicado
               </Text>
             </View>
 
             {datos?.actividad_reciente ? (
               <TouchableOpacity
-                style={styles.recentCard}
+                style={[
+                  styles.recentCard,
+                  {
+                    backgroundColor:
+                      temaOscuro
+                        ? colores.tarjeta
+                        : '#E6F9ED',
+
+                    borderColor:
+                      temaOscuro
+                        ? colores.borde
+                        : '#CBEED8',
+                  },
+                  contenidoGrande &&
+                    styles.recentCardColumn,
+                ]}
                 activeOpacity={0.82}
                 accessibilityRole="button"
+                accessibilityLabel={`Actividad reciente: ${datos.actividad_reciente.titulo}`}
               >
-                <View style={styles.recentIconBox}>
+                <View
+                  style={[
+                    styles.recentIconBox,
+                    {
+                      backgroundColor:
+                        temaOscuro
+                          ? colores.fondoPrimario
+                          : '#CDF2DA',
+                    },
+                  ]}
+                >
                   <Ionicons
                     name={
-                      datos.actividad_reciente
-                        .origen === 'Recurso'
+                      datos
+                        .actividad_reciente
+                        .origen ===
+                      'Recurso'
                         ? 'document-text'
                         : 'clipboard'
                     }
                     size={30}
-                    color="#16A34A"
+                    color={colorVerde}
                   />
                 </View>
 
-                <View style={styles.recentTextBox}>
-                  <View style={styles.recentTopRow}>
+                <View
+                  style={[
+                    styles.recentTextBox,
+                    contenidoGrande &&
+                      styles.recentTextBoxColumn,
+                  ]}
+                >
+                  <View
+                    style={
+                      styles.recentTopRow
+                    }
+                  >
                     <Text
-                      style={styles.recentTitle}
-                      numberOfLines={1}
+                      style={[
+                        styles.recentTitle,
+                        {
+                          color:
+                            colores.texto,
+                          fontSize:
+                            13 *
+                            escalaTexto,
+                        },
+                      ]}
+                      numberOfLines={
+                        contenidoGrande
+                          ? undefined
+                          : 1
+                      }
                     >
                       {
-                        datos.actividad_reciente
+                        datos
+                          .actividad_reciente
                           .titulo
                       }
                     </Text>
@@ -638,37 +1150,87 @@ export default function InicioDocenteScreen() {
                     <Ionicons
                       name="chevron-forward"
                       size={18}
-                      color="#86A090"
+                      color={
+                        colores.textoSecundario
+                      }
                     />
                   </View>
 
                   <Text
-                    style={styles.recentSubject}
-                    numberOfLines={1}
+                    style={[
+                      styles.recentSubject,
+                      {
+                        color:
+                          colores.textoSecundario,
+                        fontSize:
+                          10 *
+                          escalaTexto,
+                      },
+                    ]}
+                    numberOfLines={
+                      contenidoGrande
+                        ? undefined
+                        : 1
+                    }
                   >
                     {
-                      datos.actividad_reciente
+                      datos
+                        .actividad_reciente
                         .materia
                     }
                   </Text>
 
-                  <View style={styles.recentFooter}>
-                    <View style={styles.recentBadge}>
+                  <View
+                    style={[
+                      styles.recentFooter,
+                      contenidoGrande &&
+                        styles.recentFooterLarge,
+                    ]}
+                  >
+                    <View
+                      style={[
+                        styles.recentBadge,
+                        {
+                          backgroundColor:
+                            colores.fondoPrimario,
+                        },
+                      ]}
+                    >
                       <Text
-                        style={
-                          styles.recentBadgeText
-                        }
+                        style={[
+                          styles.recentBadgeText,
+                          {
+                            color:
+                              colorVerde,
+                            fontSize:
+                              8 *
+                              escalaTexto,
+                          },
+                        ]}
                       >
                         {
-                          datos.actividad_reciente
+                          datos
+                            .actividad_reciente
                             .origen
                         }
                       </Text>
                     </View>
 
-                    <Text style={styles.recentDate}>
+                    <Text
+                      style={[
+                        styles.recentDate,
+                        {
+                          color:
+                            colores.textoSecundario,
+                          fontSize:
+                            8 *
+                            escalaTexto,
+                        },
+                      ]}
+                    >
                       {formatearFechaPublicacion(
-                        datos.actividad_reciente
+                        datos
+                          .actividad_reciente
                           .fecha_publicacion
                       )}
                     </Text>
@@ -676,25 +1238,77 @@ export default function InicioDocenteScreen() {
                 </View>
               </TouchableOpacity>
             ) : (
-              <View style={styles.emptyRecentCard}>
-                <View style={styles.emptyIconBox}>
+              <View
+                style={[
+                  styles.emptyRecentCard,
+                  {
+                    backgroundColor:
+                      colores.tarjeta,
+                    borderColor:
+                      colores.borde,
+                  },
+                  contenidoGrande &&
+                    styles.recentCardColumn,
+                ]}
+              >
+                <View
+                  style={[
+                    styles.emptyIconBox,
+                    {
+                      backgroundColor:
+                        colores.fondoPrimario,
+                    },
+                  ]}
+                >
                   <Ionicons
                     name="file-tray-outline"
                     size={30}
-                    color="#64748B"
+                    color={
+                      colores.textoSecundario
+                    }
                   />
                 </View>
 
-                <View style={styles.emptyTextBox}>
-                  <Text style={styles.emptyTitle}>
+                <View
+                  style={[
+                    styles.emptyTextBox,
+                    contenidoGrande &&
+                      styles.recentTextBoxColumn,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.emptyTitle,
+                      {
+                        color:
+                          colores.texto,
+                        fontSize:
+                          13 *
+                          escalaTexto,
+                      },
+                    ]}
+                  >
                     No hay actividad reciente
                   </Text>
 
                   <Text
-                    style={styles.emptyDescription}
+                    style={[
+                      styles.emptyDescription,
+                      {
+                        color:
+                          colores.textoSecundario,
+                        fontSize:
+                          10 *
+                          escalaTexto,
+                        lineHeight:
+                          14 *
+                          escalaTexto,
+                      },
+                    ]}
                   >
-                    Cuando publiques un recurso o una
-                    actividad aparecerá aquí.
+                    Cuando publiques un recurso
+                    o una actividad aparecerá
+                    aquí.
                   </Text>
                 </View>
               </View>
@@ -702,11 +1316,16 @@ export default function InicioDocenteScreen() {
           </View>
         </ScrollView>
 
-        {/* Barra de navegación inferior */}
         <View
           style={[
             styles.bottomNavigation,
             responsive.barraInferior,
+            {
+              backgroundColor:
+                colores.tarjeta,
+              borderTopColor:
+                colores.borde,
+            },
           ]}
         >
           <View
@@ -784,7 +1403,7 @@ type SummaryCardProps = {
   icon: IoniconName;
   iconColor: string;
   iconBackground: string;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
 };
 
 function SummaryCard({
@@ -796,36 +1415,106 @@ function SummaryCard({
   iconBackground,
   style,
 }: SummaryCardProps) {
+  const {
+    colores,
+    escalaTexto,
+    preferencias,
+  } = useAccessibility();
+
+  const altoContraste =
+    preferencias.altoContraste;
+
+  const temaOscuro =
+    preferencias.modoOscuro ||
+    altoContraste;
+
+  const colorIcono =
+    altoContraste
+      ? colores.primario
+      : iconColor;
+
+  const fondoIcono =
+    temaOscuro
+      ? colores.fondoPrimario
+      : iconBackground;
+
   return (
-    <View style={[styles.summaryCard, style]}>
+    <View
+      style={[
+        styles.summaryCard,
+        style,
+        {
+          backgroundColor:
+            colores.tarjeta,
+          borderColor: colores.borde,
+        },
+      ]}
+      accessible
+      accessibilityLabel={`${title}: ${value} ${subtitle}`}
+    >
       <View
         style={[
           styles.summaryIconBox,
           {
-            backgroundColor: iconBackground,
+            backgroundColor:
+              fondoIcono,
           },
         ]}
       >
         <Ionicons
           name={icon}
           size={24}
-          color={iconColor}
+          color={colorIcono}
         />
       </View>
 
-      <View style={styles.summaryTextBox}>
+      <View
+        style={styles.summaryTextBox}
+      >
         <Text
-          style={styles.summaryCardTitle}
-          numberOfLines={1}
+          style={[
+            styles.summaryCardTitle,
+            {
+              color: colores.texto,
+              fontSize:
+                10 * escalaTexto,
+            },
+          ]}
+          numberOfLines={
+            escalaTexto > 1.2
+              ? undefined
+              : 2
+          }
         >
           {title}
         </Text>
 
-        <Text style={styles.summaryValue}>
+        <Text
+          style={[
+            styles.summaryValue,
+            {
+              color: colores.texto,
+              fontSize:
+                17 * escalaTexto,
+              lineHeight:
+                20 * escalaTexto,
+            },
+          ]}
+        >
           {value}
         </Text>
 
-        <Text style={styles.summarySubtitle}>
+        <Text
+          style={[
+            styles.summarySubtitle,
+            {
+              color:
+                colores.textoSecundario,
+              fontSize:
+                9 * escalaTexto,
+            },
+          ]}
+        >
           {subtitle}
         </Text>
       </View>
@@ -839,7 +1528,7 @@ type QuickActionProps = {
   icon: IoniconName;
   backgroundColor: string;
   onPress: () => void;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
 };
 
 function QuickAction({
@@ -850,39 +1539,103 @@ function QuickAction({
   onPress,
   style,
 }: QuickActionProps) {
+  const {
+    colores,
+    escalaTexto,
+    preferencias,
+  } = useAccessibility();
+
+  const altoContraste =
+    preferencias.altoContraste;
+
+  const fondoFinal =
+    altoContraste
+      ? colores.primario
+      : backgroundColor;
+
+  const colorTexto =
+    altoContraste
+      ? '#000000'
+      : '#FFFFFF';
+
   return (
     <TouchableOpacity
       style={[
         styles.quickButton,
         style,
         {
-          backgroundColor,
+          backgroundColor:
+            fondoFinal,
+          borderColor:
+            altoContraste
+              ? colores.borde
+              : fondoFinal,
         },
       ]}
       activeOpacity={0.82}
       onPress={onPress}
+      focusable
       accessibilityRole="button"
       accessibilityLabel={text}
+      accessibilityHint={subtitle}
     >
-      <View style={styles.quickIconBox}>
+      <View
+        style={[
+          styles.quickIconBox,
+          altoContraste && {
+            backgroundColor:
+              'rgba(0,0,0,0.12)',
+          },
+        ]}
+      >
         <Ionicons
           name={icon}
           size={20}
-          color="#FFFFFF"
+          color={colorTexto}
         />
       </View>
 
-      <View style={styles.quickTextBox}>
+      <View
+        style={
+          styles.quickTextBox
+        }
+      >
         <Text
-          style={styles.quickButtonText}
-          numberOfLines={1}
+          style={[
+            styles.quickButtonText,
+            {
+              color: colorTexto,
+              fontSize:
+                11 * escalaTexto,
+            },
+          ]}
+          numberOfLines={
+            escalaTexto > 1.2
+              ? undefined
+              : 2
+          }
         >
           {text}
         </Text>
 
         <Text
-          style={styles.quickButtonSubtitle}
-          numberOfLines={1}
+          style={[
+            styles.quickButtonSubtitle,
+            {
+              color:
+                altoContraste
+                  ? '#000000'
+                  : 'rgba(255,255,255,0.88)',
+
+              fontSize:
+                8 * escalaTexto,
+            },
+          ]}
+          numberOfLines={
+            escalaTexto > 1.2
+              ? undefined
+              : 2
+          }
         >
           {subtitle}
         </Text>
@@ -906,11 +1659,25 @@ function BottomNavigationItem({
   active = false,
   onPress,
 }: BottomNavigationItemProps) {
+  const {
+    colores,
+    escalaTexto,
+    preferencias,
+  } = useAccessibility();
+
+  const colorActivo =
+    preferencias.altoContraste
+      ? colores.primario
+      : preferencias.modoOscuro
+        ? '#60A5FA'
+        : '#2563EB';
+
   return (
     <TouchableOpacity
       style={styles.bottomItem}
       onPress={onPress}
       activeOpacity={0.7}
+      focusable
       accessibilityRole="button"
       accessibilityState={{
         selected: active,
@@ -920,15 +1687,23 @@ function BottomNavigationItem({
       <View
         style={[
           styles.bottomIconContainer,
-          active &&
-            styles.bottomIconContainerActive,
+          active && {
+            backgroundColor:
+              colores.fondoPrimario,
+          },
         ]}
       >
         <Ionicons
-          name={active ? activeIcon : icon}
+          name={
+            active
+              ? activeIcon
+              : icon
+          }
           size={21}
           color={
-            active ? '#2563EB' : '#8B98AA'
+            active
+              ? colorActivo
+              : colores.textoSecundario
           }
         />
       </View>
@@ -936,9 +1711,20 @@ function BottomNavigationItem({
       <Text
         style={[
           styles.bottomLabel,
-          active && styles.bottomLabelActive,
+          {
+            color: active
+              ? colorActivo
+              : colores.textoSecundario,
+
+            fontSize:
+              8 * escalaTexto,
+            lineHeight:
+              10 * escalaTexto,
+          },
+          active &&
+            styles.bottomLabelActive,
         ]}
-        numberOfLines={1}
+        numberOfLines={2}
       >
         {label}
       </Text>
@@ -949,12 +1735,10 @@ function BottomNavigationItem({
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: '#F7F8FC',
   },
 
   safeContainer: {
     flex: 1,
-    backgroundColor: '#F7F8FC',
   },
 
   scrollContent: {
@@ -968,7 +1752,6 @@ const styles = StyleSheet.create({
 
   loadingScreen: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 24,
@@ -978,7 +1761,7 @@ const styles = StyleSheet.create({
     width: 68,
     height: 68,
     borderRadius: 22,
-    backgroundColor: '#EEF3FF',
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 20,
@@ -986,15 +1769,11 @@ const styles = StyleSheet.create({
 
   loadingTitle: {
     marginTop: 18,
-    fontSize: 21,
     fontWeight: '800',
-    color: '#1E293B',
   },
 
   loadingText: {
     marginTop: 6,
-    fontSize: 14,
-    color: '#64748B',
     textAlign: 'center',
   },
 
@@ -1009,8 +1788,13 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 15,
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+
+  accessibilityButton: {
+    marginLeft: 2,
   },
 
   headerActions: {
@@ -1019,8 +1803,6 @@ const styles = StyleSheet.create({
   },
 
   logoText: {
-    fontSize: 26,
-    color: '#2563EB',
     fontWeight: '900',
     letterSpacing: -0.6,
   },
@@ -1034,7 +1816,6 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     backgroundColor: '#F59E0B',
     borderWidth: 1.5,
-    borderColor: '#FFFFFF',
   },
 
   welcomeContainer: {
@@ -1044,25 +1825,18 @@ const styles = StyleSheet.create({
   },
 
   welcomeTitle: {
-    color: '#152033',
-    fontSize: 19,
     fontWeight: '900',
     letterSpacing: -0.3,
   },
 
   welcomeSubtitle: {
     marginTop: 6,
-    fontSize: 13,
-    lineHeight: 19,
-    color: '#64748B',
   },
 
   summarySection: {
     padding: 14,
     borderRadius: 22,
     borderWidth: 1,
-    borderColor: '#E8DAFF',
-    backgroundColor: '#FAF7FF',
 
     ...Platform.select({
       ios: {
@@ -1089,27 +1863,26 @@ const styles = StyleSheet.create({
     columnGap: 10,
   },
 
+  summaryHeaderColumn: {
+    flexDirection: 'column',
+  },
+
   summaryHeaderText: {
     flex: 1,
   },
 
   summaryTitle: {
-    fontSize: 15,
     fontWeight: '900',
-    color: '#1E293B',
   },
 
   summaryDescription: {
     marginTop: 3,
-    fontSize: 10,
-    color: '#7C8799',
   },
 
   dateBadge: {
     maxWidth: '52%',
     minHeight: 29,
     borderRadius: 10,
-    backgroundColor: '#F0E9FF',
     paddingHorizontal: 9,
     paddingVertical: 6,
     flexDirection: 'row',
@@ -1117,11 +1890,13 @@ const styles = StyleSheet.create({
     columnGap: 5,
   },
 
+  dateBadgeLarge: {
+    maxWidth: '100%',
+    marginTop: 12,
+  },
+
   summaryDate: {
     flexShrink: 1,
-    fontSize: 9,
-    lineHeight: 12,
-    color: '#6D5BD0',
     fontWeight: '700',
   },
 
@@ -1131,9 +1906,10 @@ const styles = StyleSheet.create({
   },
 
   summaryCard: {
-    minHeight: 78,
+    minHeight: 82,
+    minWidth: 0,
     borderRadius: 16,
-    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
     paddingHorizontal: 9,
     paddingVertical: 10,
     flexDirection: 'row',
@@ -1166,30 +1942,26 @@ const styles = StyleSheet.create({
 
   summaryTextBox: {
     flex: 1,
+    minWidth: 0,
     marginLeft: 7,
     alignItems: 'center',
     justifyContent: 'center',
   },
 
   summaryCardTitle: {
-    fontSize: 10,
-    color: '#344054',
+    width: '100%',
     fontWeight: '700',
     textAlign: 'center',
   },
 
   summaryValue: {
     marginTop: 2,
-    fontSize: 17,
-    lineHeight: 20,
-    color: '#111827',
     fontWeight: '900',
   },
 
   summarySubtitle: {
     marginTop: 1,
-    fontSize: 9,
-    color: '#7C8799',
+    textAlign: 'center',
   },
 
   sectionHeader: {
@@ -1199,15 +1971,11 @@ const styles = StyleSheet.create({
   },
 
   sectionTitle: {
-    fontSize: 15,
     fontWeight: '900',
-    color: '#1E293B',
   },
 
   sectionSubtitle: {
     marginTop: 3,
-    fontSize: 11,
-    color: '#8792A2',
   },
 
   quickActions: {
@@ -1216,8 +1984,9 @@ const styles = StyleSheet.create({
   },
 
   quickButton: {
-    minHeight: 61,
+    minHeight: 65,
     borderRadius: 16,
+    borderWidth: 1,
     paddingHorizontal: 10,
     paddingVertical: 9,
     flexDirection: 'row',
@@ -1244,46 +2013,46 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 11,
-    backgroundColor: 'rgba(255,255,255,0.18)',
+    backgroundColor:
+      'rgba(255,255,255,0.18)',
     alignItems: 'center',
     justifyContent: 'center',
   },
 
   quickTextBox: {
     flex: 1,
+    minWidth: 0,
     marginLeft: 8,
   },
 
   quickButtonText: {
-    color: '#FFFFFF',
-    fontSize: 11,
     fontWeight: '900',
   },
 
   quickButtonSubtitle: {
     marginTop: 3,
-    color: 'rgba(255,255,255,0.82)',
-    fontSize: 8,
     fontWeight: '500',
   },
 
   recentCard: {
     minHeight: 88,
     borderRadius: 18,
-    backgroundColor: '#E6F9ED',
     borderWidth: 1,
-    borderColor: '#CBEED8',
     paddingHorizontal: 14,
     paddingVertical: 13,
     flexDirection: 'row',
     alignItems: 'center',
   },
 
+  recentCardColumn: {
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+  },
+
   recentIconBox: {
     width: 54,
     height: 54,
     borderRadius: 16,
-    backgroundColor: '#CDF2DA',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1293,6 +2062,12 @@ const styles = StyleSheet.create({
     marginLeft: 12,
   },
 
+  recentTextBoxColumn: {
+    width: '100%',
+    marginLeft: 0,
+    marginTop: 12,
+  },
+
   recentTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1300,15 +2075,11 @@ const styles = StyleSheet.create({
 
   recentTitle: {
     flex: 1,
-    fontSize: 13,
-    color: '#166534',
     fontWeight: '900',
   },
 
   recentSubject: {
     marginTop: 4,
-    fontSize: 10,
-    color: '#557266',
   },
 
   recentFooter: {
@@ -1317,32 +2088,30 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
 
+  recentFooterLarge: {
+    flexWrap: 'wrap',
+    rowGap: 6,
+  },
+
   recentBadge: {
     borderRadius: 7,
-    backgroundColor: '#C6EFD5',
     paddingHorizontal: 7,
     paddingVertical: 3,
   },
 
   recentBadgeText: {
-    fontSize: 8,
-    color: '#167442',
     fontWeight: '800',
   },
 
   recentDate: {
     flex: 1,
     marginLeft: 8,
-    fontSize: 8,
-    color: '#4A725C',
   },
 
   emptyRecentCard: {
     minHeight: 88,
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: '#DCE2EA',
-    backgroundColor: '#FFFFFF',
     paddingHorizontal: 14,
     paddingVertical: 13,
     flexDirection: 'row',
@@ -1353,7 +2122,6 @@ const styles = StyleSheet.create({
     width: 54,
     height: 54,
     borderRadius: 16,
-    backgroundColor: '#F1F5F9',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1364,16 +2132,11 @@ const styles = StyleSheet.create({
   },
 
   emptyTitle: {
-    fontSize: 13,
-    color: '#334155',
     fontWeight: '900',
   },
 
   emptyDescription: {
     marginTop: 4,
-    fontSize: 10,
-    lineHeight: 14,
-    color: '#7C8799',
   },
 
   bottomNavigation: {
@@ -1382,8 +2145,6 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     borderTopWidth: 1,
-    borderTopColor: '#E7EAF0',
-    backgroundColor: '#FFFFFF',
     alignItems: 'center',
 
     ...Platform.select({
@@ -1411,10 +2172,11 @@ const styles = StyleSheet.create({
 
   bottomItem: {
     flex: 1,
-    minWidth: 54,
-    height: 58,
+    minWidth: 0,
+    minHeight: 58,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: 1,
   },
 
   bottomIconContainer: {
@@ -1425,19 +2187,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 
-  bottomIconContainerActive: {
-    backgroundColor: '#EAF1FF',
-  },
-
   bottomLabel: {
     marginTop: 2,
-    fontSize: 8,
-    color: '#8B98AA',
     fontWeight: '700',
+    textAlign: 'center',
   },
 
   bottomLabelActive: {
-    color: '#2563EB',
     fontWeight: '900',
   },
 });
