@@ -1347,7 +1347,7 @@ export default function InicioDocenteScreen() {
               label="Recursos"
               onPress={() =>
                 navegar(
-                  '/recursos-docente',
+                  '/crear-recurso',
                   'Recursos'
                 )
               }
