@@ -5,6 +5,7 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -12,7 +13,117 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import BotonAccesibilidad from '../components/BotonAccesibilidad';
 import { useAccessibility } from '../contexts/AccessibilityContext';
 
+type TarjetaRolProps = {
+  titulo: 'Alumno' | 'Docente';
+  descripcion: string;
+  icono: keyof typeof Ionicons.glyphMap;
+  ruta:
+    | '/crear-cuenta-alumno'
+    | '/crear-cuenta-docente';
+  color: string;
+  fondoIcono: string;
+  fondoTarjeta: string;
+  colorTexto: string;
+  colorSecundario: string;
+  colorBorde: string;
+  escalaTexto: number;
+  mostrarEnFila: boolean;
+};
+
+function TarjetaRol({
+  titulo,
+  descripcion,
+  icono,
+  ruta,
+  color,
+  fondoIcono,
+  fondoTarjeta,
+  colorTexto,
+  colorSecundario,
+  colorBorde,
+  escalaTexto,
+  mostrarEnFila,
+}: TarjetaRolProps) {
+  return (
+    <Link href={ruta as any} asChild>
+      <TouchableOpacity
+        activeOpacity={0.8}
+        style={[
+          styles.card,
+          mostrarEnFila && styles.cardEnFila,
+          {
+            backgroundColor: fondoTarjeta,
+            borderColor: colorBorde,
+          },
+        ]}
+        accessibilityRole="button"
+        accessibilityLabel={`Continuar como ${titulo}`}
+        accessibilityHint={`Abre el formulario para crear una cuenta de ${titulo.toLowerCase()}`}
+      >
+        <View
+          style={[
+            styles.iconBox,
+            {
+              backgroundColor: fondoIcono,
+            },
+          ]}
+        >
+          <Ionicons
+            name={icono}
+            size={34}
+            color={color}
+          />
+        </View>
+
+        <View style={styles.cardContent}>
+          <Text
+            style={[
+              styles.cardTitle,
+              {
+                color: colorTexto,
+                fontSize: 19 * escalaTexto,
+              },
+            ]}
+          >
+            {titulo}
+          </Text>
+
+          <Text
+            style={[
+              styles.cardDescription,
+              {
+                color: colorSecundario,
+                fontSize: 14 * escalaTexto,
+                lineHeight: 20 * escalaTexto,
+              },
+            ]}
+          >
+            {descripcion}
+          </Text>
+        </View>
+
+        <View
+          style={[
+            styles.arrowBox,
+            {
+              backgroundColor: fondoIcono,
+            },
+          ]}
+        >
+          <Ionicons
+            name="chevron-forward"
+            size={21}
+            color={color}
+          />
+        </View>
+      </TouchableOpacity>
+    </Link>
+  );
+}
+
 export default function CrearCuentaScreen() {
+  const { width } = useWindowDimensions();
+
   const {
     colores,
     escalaTexto,
@@ -22,29 +133,44 @@ export default function CrearCuentaScreen() {
   const altoContraste =
     preferencias.altoContraste;
 
+  const modoOscuro =
+    preferencias.modoOscuro;
+
   const temaOscuro =
-    preferencias.modoOscuro ||
-    altoContraste;
+    modoOscuro || altoContraste;
+
+  const mostrarEnFila =
+    width >= 720 && escalaTexto <= 1.15;
 
   const colorAlumno = altoContraste
     ? colores.primario
     : temaOscuro
-      ? '#60A5FA'
-      : '#2563EB';
+      ? '#93C5FD'
+      : '#3B82F6';
 
   const colorDocente = altoContraste
     ? colores.primario
     : temaOscuro
-      ? '#4ADE80'
-      : '#16A34A';
+      ? '#86EFAC'
+      : '#22A75A';
 
-  const fondoAlumno = temaOscuro
-    ? colores.fondoPrimario
-    : '#DBEAFE';
+  const fondoAlumno = altoContraste
+    ? colores.fondo
+    : temaOscuro
+      ? '#172554'
+      : '#EAF2FF';
 
-  const fondoDocente = temaOscuro
-    ? colores.fondoPrimario
-    : '#DCFCE7';
+  const fondoDocente = altoContraste
+    ? colores.fondo
+    : temaOscuro
+      ? '#052E16'
+      : '#EAF8EF';
+
+  const fondoIntroduccion = altoContraste
+    ? colores.tarjeta
+    : temaOscuro
+      ? '#1E293B'
+      : '#F1F5F9';
 
   return (
     <SafeAreaView
@@ -59,263 +185,237 @@ export default function CrearCuentaScreen() {
         contentContainerStyle={[
           styles.container,
           {
-            backgroundColor:
-              colores.fondo,
+            backgroundColor: colores.fondo,
           },
         ]}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.topBar}>
-          <TouchableOpacity
+        <View style={styles.content}>
+          <View style={styles.topBar}>
+            <TouchableOpacity
+              style={[
+                styles.topButton,
+                {
+                  backgroundColor:
+                    colores.tarjeta,
+                  borderColor: colores.borde,
+                },
+              ]}
+              onPress={() => router.back()}
+              accessibilityRole="button"
+              accessibilityLabel="Regresar"
+            >
+              <Ionicons
+                name="arrow-back"
+                size={23}
+                color={colores.texto}
+              />
+            </TouchableOpacity>
+
+            <BotonAccesibilidad />
+          </View>
+
+          <View
             style={[
-              styles.backButton,
+              styles.introduction,
+              {
+                backgroundColor:
+                  fondoIntroduccion,
+                borderColor: colores.borde,
+              },
+            ]}
+          >
+            <View
+              style={[
+                styles.peopleIcon,
+                {
+                  backgroundColor:
+                    colores.tarjeta,
+                  borderColor:
+                    colores.borde,
+                },
+              ]}
+            >
+              <Ionicons
+                name="people-outline"
+                size={30}
+                color={colores.primario}
+              />
+            </View>
+
+            <Text
+              style={[
+                styles.title,
+                {
+                  color: colores.texto,
+                  fontSize: 27 * escalaTexto,
+                  lineHeight:
+                    33 * escalaTexto,
+                },
+              ]}
+              accessibilityRole="header"
+            >
+              Crear cuenta
+            </Text>
+
+            <Text
+              style={[
+                styles.subtitle,
+                {
+                  color:
+                    colores.textoSecundario,
+                  fontSize: 15 * escalaTexto,
+                  lineHeight:
+                    22 * escalaTexto,
+                },
+              ]}
+            >
+              Primero dinos cómo usarás
+              AULAMOS.
+            </Text>
+          </View>
+
+          <View style={styles.questionBox}>
+            <Text
+              style={[
+                styles.question,
+                {
+                  color: colores.texto,
+                  fontSize: 21 * escalaTexto,
+                  lineHeight:
+                    27 * escalaTexto,
+                },
+              ]}
+            >
+              ¿Eres alumno o docente?
+            </Text>
+
+            <Text
+              style={[
+                styles.instruction,
+                {
+                  color:
+                    colores.textoSecundario,
+                  fontSize: 14 * escalaTexto,
+                  lineHeight:
+                    20 * escalaTexto,
+                },
+              ]}
+            >
+              Toca una opción para continuar.
+            </Text>
+          </View>
+
+          <View
+            style={[
+              styles.cards,
+              mostrarEnFila &&
+                styles.cardsEnFila,
+            ]}
+          >
+            <TarjetaRol
+              titulo="Alumno"
+              descripcion="Quiero aprender y realizar mis actividades."
+              icono="school-outline"
+              ruta="/crear-cuenta-alumno"
+              color={colorAlumno}
+              fondoIcono={fondoAlumno}
+              fondoTarjeta={colores.tarjeta}
+              colorTexto={colores.texto}
+              colorSecundario={
+                colores.textoSecundario
+              }
+              colorBorde={colores.borde}
+              escalaTexto={escalaTexto}
+              mostrarEnFila={mostrarEnFila}
+            />
+
+            <TarjetaRol
+              titulo="Docente"
+              descripcion="Quiero enseñar y crear actividades para mis alumnos."
+              icono="book-outline"
+              ruta="/crear-cuenta-docente"
+              color={colorDocente}
+              fondoIcono={fondoDocente}
+              fondoTarjeta={colores.tarjeta}
+              colorTexto={colores.texto}
+              colorSecundario={
+                colores.textoSecundario
+              }
+              colorBorde={colores.borde}
+              escalaTexto={escalaTexto}
+              mostrarEnFila={mostrarEnFila}
+            />
+          </View>
+
+          <View
+            style={[
+              styles.helpMessage,
               {
                 backgroundColor:
                   colores.tarjeta,
                 borderColor: colores.borde,
               },
             ]}
-            onPress={() => router.back()}
-            accessibilityRole="button"
-            accessibilityLabel="Regresar"
           >
             <Ionicons
-              name="arrow-back"
-              size={24}
-              color={colores.texto}
+              name="information-circle-outline"
+              size={21}
+              color={colores.primario}
             />
-          </TouchableOpacity>
 
-          <BotonAccesibilidad />
-        </View>
-
-        <View style={styles.header}>
-          <Text
-            style={[
-              styles.title,
-              {
-                color: colores.texto,
-                fontSize:
-                  28 * escalaTexto,
-              },
-            ]}
-            accessibilityRole="header"
-          >
-            Crear cuenta
-          </Text>
-
-          <Text
-            style={[
-              styles.subtitle,
-              {
-                color:
-                  colores.textoSecundario,
-                fontSize:
-                  16 * escalaTexto,
-              },
-            ]}
-          >
-            Comienza tu aprendizaje en
-            AULAMOS
-          </Text>
-        </View>
-
-        <View style={styles.content}>
-          <Text
-            style={[
-              styles.question,
-              {
-                color: colores.texto,
-                fontSize:
-                  24 * escalaTexto,
-              },
-            ]}
-          >
-            ¿Cuál es tu rol?
-          </Text>
-
-          <Text
-            style={[
-              styles.text,
-              {
-                color:
-                  colores.textoSecundario,
-                fontSize:
-                  16 * escalaTexto,
-              },
-            ]}
-          >
-            Selecciona una opción para
-            continuar
-          </Text>
-
-          <View style={styles.cards}>
-            <Link
-              href={
-                '/crear-cuenta-alumno' as any
-              }
-              asChild
+            <Text
+              style={[
+                styles.helpText,
+                {
+                  color:
+                    colores.textoSecundario,
+                  fontSize: 13 * escalaTexto,
+                  lineHeight:
+                    18 * escalaTexto,
+                },
+              ]}
             >
-              <TouchableOpacity
-                activeOpacity={0.85}
+              Después podrás escribir tu
+              nombre, correo y contraseña.
+            </Text>
+          </View>
+
+          <View style={styles.loginRow}>
+            <Text
+              style={[
+                styles.loginText,
+                {
+                  color:
+                    colores.textoSecundario,
+                  fontSize: 14 * escalaTexto,
+                },
+              ]}
+            >
+              ¿Ya tienes cuenta?
+            </Text>
+
+            <TouchableOpacity
+              onPress={() =>
+                router.replace('/')
+              }
+              accessibilityRole="button"
+              accessibilityLabel="Ir a iniciar sesión"
+            >
+              <Text
                 style={[
-                  styles.card,
+                  styles.loginLink,
                   {
-                    backgroundColor:
-                      colores.tarjeta,
-                    borderColor:
-                      colores.borde,
+                    color:
+                      colores.primario,
+                    fontSize:
+                      14 * escalaTexto,
                   },
                 ]}
-                accessibilityRole="button"
-                accessibilityLabel="Crear cuenta de alumno"
-                accessibilityHint="Abre el formulario de registro para alumnos"
               >
-                <View
-                  style={[
-                    styles.iconBox,
-                    {
-                      backgroundColor:
-                        fondoAlumno,
-                    },
-                  ]}
-                >
-                  <Ionicons
-                    name="school"
-                    size={42}
-                    color={colorAlumno}
-                  />
-                </View>
-
-                <Text
-                  style={[
-                    styles.roleTitle,
-                    {
-                      color: colorAlumno,
-                      fontSize:
-                        20 *
-                        escalaTexto,
-                    },
-                  ]}
-                >
-                  Alumno
-                </Text>
-
-                <Text
-                  style={[
-                    styles.cardText,
-                    {
-                      color:
-                        colores.textoSecundario,
-                      fontSize:
-                        15 *
-                        escalaTexto,
-                      lineHeight:
-                        21 *
-                        escalaTexto,
-                    },
-                  ]}
-                >
-                  Accede a tus clases,
-                  tareas y recursos
-                  educativos.
-                </Text>
-
-                <View
-                  style={styles.nextButton}
-                >
-                  <Ionicons
-                    name="chevron-forward"
-                    size={22}
-                    color={colorAlumno}
-                  />
-                </View>
-              </TouchableOpacity>
-            </Link>
-
-            <Link
-              href={
-                '/crear-cuenta-docente' as any
-              }
-              asChild
-            >
-              <TouchableOpacity
-                activeOpacity={0.85}
-                style={[
-                  styles.card,
-                  {
-                    backgroundColor:
-                      colores.tarjeta,
-                    borderColor:
-                      colores.borde,
-                  },
-                ]}
-                accessibilityRole="button"
-                accessibilityLabel="Crear cuenta de docente"
-                accessibilityHint="Abre el formulario de registro para docentes"
-              >
-                <View
-                  style={[
-                    styles.iconBox,
-                    {
-                      backgroundColor:
-                        fondoDocente,
-                    },
-                  ]}
-                >
-                  <Ionicons
-                    name="id-card-outline"
-                    size={42}
-                    color={colorDocente}
-                  />
-                </View>
-
-                <Text
-                  style={[
-                    styles.roleTitle,
-                    {
-                      color:
-                        colorDocente,
-                      fontSize:
-                        20 *
-                        escalaTexto,
-                    },
-                  ]}
-                >
-                  Docente
-                </Text>
-
-                <Text
-                  style={[
-                    styles.cardText,
-                    {
-                      color:
-                        colores.textoSecundario,
-                      fontSize:
-                        15 *
-                        escalaTexto,
-                      lineHeight:
-                        21 *
-                        escalaTexto,
-                    },
-                  ]}
-                >
-                  Crea clases, recursos y
-                  evaluaciones para tus
-                  alumnos.
-                </Text>
-
-                <View
-                  style={styles.nextButton}
-                >
-                  <Ionicons
-                    name="chevron-forward"
-                    size={22}
-                    color={colorDocente}
-                  />
-                </View>
-              </TouchableOpacity>
-            </Link>
+                Iniciar sesión
+              </Text>
+            </TouchableOpacity>
           </View>
         </View>
       </ScrollView>
@@ -330,18 +430,24 @@ const styles = StyleSheet.create({
 
   container: {
     flexGrow: 1,
-    paddingHorizontal: 28,
-    paddingTop: 18,
+    paddingHorizontal: 22,
+    paddingTop: 12,
     paddingBottom: 35,
+  },
+
+  content: {
+    width: '100%',
+    maxWidth: 760,
+    alignSelf: 'center',
   },
 
   topBar: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    justifyContent: 'space-between',
   },
 
-  backButton: {
+  topButton: {
     width: 44,
     height: 44,
     borderRadius: 22,
@@ -350,81 +456,137 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 
-  header: {
-    marginTop: 45,
-    marginBottom: 45,
+  introduction: {
+    alignItems: 'center',
+    borderWidth: 1,
+    borderRadius: 22,
+    paddingHorizontal: 22,
+    paddingVertical: 24,
+    marginTop: 24,
+  },
+
+  peopleIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 18,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 15,
   },
 
   title: {
+    textAlign: 'center',
     fontWeight: '800',
-    marginBottom: 8,
   },
 
   subtitle: {
+    maxWidth: 300,
+    textAlign: 'center',
     fontWeight: '500',
-    lineHeight: 23,
+    marginTop: 7,
   },
 
-  content: {
-    flex: 1,
+  questionBox: {
+    marginTop: 28,
+    marginBottom: 18,
   },
 
   question: {
+    textAlign: 'center',
     fontWeight: '800',
-    marginBottom: 8,
   },
 
-  text: {
-    marginBottom: 28,
-    lineHeight: 23,
+  instruction: {
+    textAlign: 'center',
+    fontWeight: '500',
+    marginTop: 6,
   },
 
   cards: {
-    gap: 18,
+    gap: 14,
+  },
+
+  cardsEnFila: {
+    flexDirection: 'row',
   },
 
   card: {
     width: '100%',
-    minHeight: 160,
-    borderWidth: 1,
-    borderRadius: 18,
-    padding: 20,
-    paddingRight: 52,
-    shadowColor: '#000000',
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    elevation: 4,
+    minHeight: 122,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1.2,
+    borderRadius: 19,
+    padding: 17,
+  },
+
+  cardEnFila: {
+    flex: 1,
+    width: undefined,
+    minHeight: 145,
   },
 
   iconBox: {
-    width: 64,
-    height: 64,
+    width: 58,
+    height: 58,
     borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 14,
   },
 
-  roleTitle: {
+  cardContent: {
+    flex: 1,
+    paddingHorizontal: 14,
+  },
+
+  cardTitle: {
     fontWeight: '800',
-    marginBottom: 6,
   },
 
-  cardText: {
-    flexShrink: 1,
+  cardDescription: {
+    marginTop: 5,
+    fontWeight: '500',
   },
 
-  nextButton: {
-    position: 'absolute',
-    right: 18,
-    top: '50%',
-    width: 32,
-    height: 32,
+  arrowBox: {
+    width: 35,
+    height: 35,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+
+  helpMessage: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderRadius: 15,
+    paddingHorizontal: 15,
+    paddingVertical: 13,
+    marginTop: 20,
+  },
+
+  helpText: {
+    flex: 1,
+    fontWeight: '500',
+    marginLeft: 10,
+  },
+
+  loginRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+    marginTop: 25,
+  },
+
+  loginText: {
+    fontWeight: '500',
+  },
+
+  loginLink: {
+    fontWeight: '800',
   },
 });

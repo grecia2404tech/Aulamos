@@ -1,4 +1,3 @@
-
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { Link, router } from 'expo-router';
@@ -17,23 +16,49 @@ import {
   View,
 } from 'react-native';
 
+import BotonAccesibilidad from '../components/BotonAccesibilidad';
 import { useAccessibility } from '../contexts/AccessibilityContext';
 import { API_URL } from '../services/api';
 
+type RutaInicio =
+  | '/inicio-alumno'
+  | '/inicio-docente'
+  | '/inicio-admin';
+
+type UsuarioRespuesta = {
+  id_usuario: number;
+  nombre: string;
+  apellido_paterno?: string;
+  apellido_materno?: string;
+  correo: string;
+  rol: string;
+};
+
+type RespuestaLogin = {
+  mensaje?: string;
+  token?: string;
+  usuario?: UsuarioRespuesta;
+};
+
 export default function LoginScreen() {
-  const [correo, setCorreo] = useState('');
+  const [correo, setCorreo] =
+    useState('');
+
   const [password, setPassword] =
     useState('');
+
   const [
     mostrarPassword,
     setMostrarPassword,
   ] = useState(false);
+
   const [cargando, setCargando] =
     useState(false);
 
   const {
     colores,
     escalaTexto,
+    preferencias,
   } = useAccessibility();
 
   const iniciarSesion = async () => {
@@ -68,13 +93,25 @@ export default function LoginScreen() {
         }
       );
 
-      const datos = await respuesta.json();
+      let datos: RespuestaLogin;
+
+      try {
+        datos =
+          (await respuesta.json()) as RespuestaLogin;
+      } catch {
+        Alert.alert(
+          'Respuesta incorrecta',
+          'El servidor envió una respuesta que no se pudo interpretar.'
+        );
+
+        return;
+      }
 
       if (!respuesta.ok) {
         Alert.alert(
           'No se pudo iniciar sesión',
           datos.mensaje ||
-            'Verifica tus datos.'
+            'Verifica tu correo y contraseña.'
         );
 
         return;
@@ -93,20 +130,19 @@ export default function LoginScreen() {
         return;
       }
 
-      let rutaInicio:
-        | '/inicio-alumno'
-        | '/inicio-docente'
-        | null = null;
+      const rutasInicio: Record<
+        string,
+        RutaInicio
+      > = {
+        Alumno: '/inicio-alumno',
+        Docente: '/inicio-docente',
+        Admin: '/inicio-admin',
+      };
 
-      if (
-        datos.usuario.rol === 'Alumno'
-      ) {
-        rutaInicio = '/inicio-alumno';
-      } else if (
-        datos.usuario.rol === 'Docente'
-      ) {
-        rutaInicio = '/inicio-docente';
-      }
+      const rutaInicio =
+        rutasInicio[
+          datos.usuario.rol
+        ];
 
       if (!rutaInicio) {
         Alert.alert(
@@ -121,7 +157,9 @@ export default function LoginScreen() {
         ['token', datos.token],
         [
           'usuario',
-          JSON.stringify(datos.usuario),
+          JSON.stringify(
+            datos.usuario
+          ),
         ],
       ]);
 
@@ -132,18 +170,9 @@ export default function LoginScreen() {
           {
             text: 'Continuar',
             onPress: () => {
-              if (
-                rutaInicio ===
-                '/inicio-alumno'
-              ) {
-                router.replace(
-                  '/inicio-alumno'
-                );
-              } else {
-                router.replace(
-                  '/inicio-docente'
-                );
-              }
+              router.replace(
+                rutaInicio as any
+              );
             },
           },
         ]
@@ -156,12 +185,17 @@ export default function LoginScreen() {
 
       Alert.alert(
         'Error de conexión',
-        'No fue posible conectarse con la API. Verifica el servidor, la IP y la conexión Wi-Fi.'
+        'No fue posible conectarse con la API. Verifica que el servidor esté encendido, que la IP sea correcta y que los dispositivos estén en la misma red.'
       );
     } finally {
       setCargando(false);
     }
   };
+
+  const colorContenidoBoton =
+    preferencias.altoContraste
+      ? '#000000'
+      : '#FFFFFF';
 
   return (
     <KeyboardAvoidingView
@@ -177,6 +211,11 @@ export default function LoginScreen() {
           ? 'padding'
           : 'height'
       }
+      keyboardVerticalOffset={
+        Platform.OS === 'ios'
+          ? 10
+          : 0
+      }
     >
       <ScrollView
         contentContainerStyle={[
@@ -187,30 +226,19 @@ export default function LoginScreen() {
           },
         ]}
         keyboardShouldPersistTaps="handled"
+        keyboardDismissMode={
+          Platform.OS === 'ios'
+            ? 'interactive'
+            : 'on-drag'
+        }
+        automaticallyAdjustKeyboardInsets={
+          Platform.OS === 'ios'
+        }
         showsVerticalScrollIndicator={false}
       >
-        <TouchableOpacity
-          style={[
-            styles.accessButton,
-            {
-              backgroundColor:
-                colores.fondoPrimario,
-              borderColor: colores.borde,
-            },
-          ]}
-         onPress={() =>
-         router.push('/accesibilidad' as any)
-          }
-          accessibilityRole="button"
-          accessibilityLabel="Abrir configuración de accesibilidad"
-          accessibilityHint="Permite cambiar el contraste, el tamaño del texto y otras preferencias"
-        >
-          <Ionicons
-            name="accessibility"
-            size={24}
-            color={colores.primario}
-          />
-        </TouchableOpacity>
+        <BotonAccesibilidad
+          style={styles.accessButton}
+        />
 
         <Image
           source={require(
@@ -227,6 +255,8 @@ export default function LoginScreen() {
               color: colores.texto,
               fontSize:
                 22 * escalaTexto,
+              lineHeight:
+                28 * escalaTexto,
             },
           ]}
           accessibilityRole="header"
@@ -242,6 +272,8 @@ export default function LoginScreen() {
                 colores.textoSecundario,
               fontSize:
                 15 * escalaTexto,
+              lineHeight:
+                22 * escalaTexto,
             },
           ]}
         >
@@ -268,7 +300,8 @@ export default function LoginScreen() {
             {
               backgroundColor:
                 colores.tarjeta,
-              borderColor: colores.borde,
+              borderColor:
+                colores.borde,
             },
           ]}
         >
@@ -281,10 +314,6 @@ export default function LoginScreen() {
           />
 
           <TextInput
-            placeholder="correo@gmail.com"
-            placeholderTextColor={
-              colores.textoSecundario
-            }
             style={[
               styles.input,
               {
@@ -293,6 +322,10 @@ export default function LoginScreen() {
                   15 * escalaTexto,
               },
             ]}
+            placeholder="correo@gmail.com"
+            placeholderTextColor={
+              colores.textoSecundario
+            }
             value={correo}
             onChangeText={setCorreo}
             keyboardType="email-address"
@@ -323,7 +356,8 @@ export default function LoginScreen() {
             {
               backgroundColor:
                 colores.tarjeta,
-              borderColor: colores.borde,
+              borderColor:
+                colores.borde,
             },
           ]}
         >
@@ -336,13 +370,6 @@ export default function LoginScreen() {
           />
 
           <TextInput
-            placeholder="Tu contraseña"
-            placeholderTextColor={
-              colores.textoSecundario
-            }
-            secureTextEntry={
-              !mostrarPassword
-            }
             style={[
               styles.input,
               {
@@ -351,6 +378,13 @@ export default function LoginScreen() {
                   15 * escalaTexto,
               },
             ]}
+            placeholder="Tu contraseña"
+            placeholderTextColor={
+              colores.textoSecundario
+            }
+            secureTextEntry={
+              !mostrarPassword
+            }
             value={password}
             onChangeText={setPassword}
             autoCapitalize="none"
@@ -367,7 +401,8 @@ export default function LoginScreen() {
             style={styles.eyeButton}
             onPress={() =>
               setMostrarPassword(
-                !mostrarPassword
+                (valorActual) =>
+                  !valorActual
               )
             }
             accessibilityRole="button"
@@ -438,13 +473,17 @@ export default function LoginScreen() {
         >
           {cargando ? (
             <ActivityIndicator
-              color="#FFFFFF"
+              color={
+                colorContenidoBoton
+              }
             />
           ) : (
             <Text
               style={[
                 styles.buttonText,
                 {
+                  color:
+                    colorContenidoBoton,
                   fontSize:
                     16 * escalaTexto,
                 },
@@ -535,7 +574,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     paddingHorizontal: 30,
     paddingTop: 115,
-    paddingBottom: 35,
+    paddingBottom: 40,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -544,12 +583,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 55,
     right: 28,
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
 
   logoImage: {
@@ -568,7 +601,6 @@ const styles = StyleSheet.create({
   subtitle: {
     textAlign: 'center',
     marginBottom: 35,
-    lineHeight: 22,
   },
 
   label: {
@@ -637,15 +669,14 @@ const styles = StyleSheet.create({
   },
 
   buttonText: {
-    color: '#FFFFFF',
     fontWeight: '800',
     textAlign: 'center',
   },
 
   separator: {
+    width: '100%',
     flexDirection: 'row',
     alignItems: 'center',
-    width: '100%',
     marginVertical: 28,
   },
 
