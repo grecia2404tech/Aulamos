@@ -23,6 +23,10 @@ const academicoRoutes = require(
   './routes/academicoRoutes'
 );
 
+const chatbotRoutes = require(
+  './routes/chatbotRoutes'
+);
+
 const app = express();
 
 app.use(cors());
@@ -50,19 +54,22 @@ app.use(
   academicoRoutes
 );
 
+app.use(
+  '/api/chatbot',
+  chatbotRoutes
+);
+
 app.get('/', async (req, res) => {
   try {
-    const [rows] =
-      await pool.query(
-        'SELECT NOW() AS fecha_actual'
-      );
+    const [rows] = await pool.query(
+      'SELECT NOW() AS fecha_actual'
+    );
 
     return res.status(200).json({
       mensaje:
         'API Aulamos funcionando correctamente',
       base_datos: 'Conectada',
-      fecha:
-        rows[0].fecha_actual,
+      fecha: rows[0].fecha_actual,
     });
   } catch (error) {
     console.error(
@@ -78,8 +85,8 @@ app.get('/', async (req, res) => {
 });
 
 /*
- * Respuesta JSON para rutas que
- * no existen.
+ * Respuesta JSON para rutas que no existen.
+ * Siempre debe estar después de todas las rutas.
  */
 app.use((req, res) => {
   return res.status(404).json({
