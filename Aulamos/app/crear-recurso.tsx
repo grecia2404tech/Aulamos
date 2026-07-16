@@ -1,7 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import BotonAccesibilidad from '../components/BotonAccesibilidad';
 import {
   Alert,
   KeyboardAvoidingView,
@@ -16,9 +15,16 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-type TipoRecurso = 'Video' | 'PDF' | 'Documento' | null;
+import BotonAccesibilidad from '../components/BotonAccesibilidad';
 
-type IoniconName = keyof typeof Ionicons.glyphMap;
+type TipoRecurso =
+  | 'Video'
+  | 'PDF'
+  | 'Documento'
+  | null;
+
+type IoniconName =
+  keyof typeof Ionicons.glyphMap;
 
 export default function CrearRecursoScreen() {
   const { width } = useWindowDimensions();
@@ -27,19 +33,27 @@ export default function CrearRecursoScreen() {
   const [tipoRecurso, setTipoRecurso] =
     useState<TipoRecurso>(null);
 
-  const [titulo, setTitulo] = useState('');
+  const [titulo, setTitulo] =
+    useState('');
+
   const [descripcion, setDescripcion] =
     useState('');
 
-  const [archivoSeleccionado, setArchivoSeleccionado] =
-    useState(false);
+  const [
+    archivoSeleccionado,
+    setArchivoSeleccionado,
+  ] = useState(false);
 
   const margenHorizontal =
-    width < 360 ? 14 : width < 400 ? 18 : 22;
+    width < 360
+      ? 14
+      : width < 400
+        ? 18
+        : 22;
 
   const anchoContenido = Math.min(
     width - margenHorizontal * 2,
-    520
+    520,
   );
 
   const seleccionarArchivo = () => {
@@ -47,7 +61,7 @@ export default function CrearRecursoScreen() {
 
     Alert.alert(
       'Seleccionar archivo',
-      'Después puedes conectar esta sección con expo-document-picker.'
+      'Después puedes conectar esta sección con expo-document-picker.',
     );
   };
 
@@ -55,7 +69,7 @@ export default function CrearRecursoScreen() {
     if (!tipoRecurso) {
       Alert.alert(
         'Tipo de recurso requerido',
-        'Selecciona Video, PDF o Documento.'
+        'Selecciona Video, PDF o Documento.',
       );
 
       return;
@@ -64,7 +78,7 @@ export default function CrearRecursoScreen() {
     if (!titulo.trim()) {
       Alert.alert(
         'Título requerido',
-        'Escribe el título del recurso.'
+        'Escribe el título del recurso.',
       );
 
       return;
@@ -73,7 +87,7 @@ export default function CrearRecursoScreen() {
     if (!archivoSeleccionado) {
       Alert.alert(
         'Archivo requerido',
-        'Selecciona un archivo antes de publicar.'
+        'Selecciona un archivo antes de publicar.',
       );
 
       return;
@@ -85,12 +99,13 @@ export default function CrearRecursoScreen() {
       [
         {
           text: 'Aceptar',
-          onPress: () =>
+          onPress: () => {
             router.replace(
-              '/inicio-docente' as never
-            ),
+              '/inicio-docente' as never,
+            );
+          },
         },
-      ]
+      ],
     );
   };
 
@@ -154,12 +169,7 @@ export default function CrearRecursoScreen() {
                 </Text>
               </View>
 
-              <View style={styles.headerButton}>
-                <BotonAccesibilidad />
-                
-              </View>
-               
-
+              <BotonAccesibilidad />
             </View>
 
             {/* Tipo de recurso */}
@@ -173,7 +183,9 @@ export default function CrearRecursoScreen() {
               icon="videocam"
               iconBackground="#DDF8F4"
               iconColor="#34C8BA"
-              selected={tipoRecurso === 'Video'}
+              selected={
+                tipoRecurso === 'Video'
+              }
               onPress={() =>
                 setTipoRecurso('Video')
               }
@@ -185,7 +197,9 @@ export default function CrearRecursoScreen() {
               icon="document-text"
               iconBackground="#FFE5E8"
               iconColor="#FF5263"
-              selected={tipoRecurso === 'PDF'}
+              selected={
+                tipoRecurso === 'PDF'
+              }
               onPress={() =>
                 setTipoRecurso('PDF')
               }
@@ -198,10 +212,13 @@ export default function CrearRecursoScreen() {
               iconBackground="#ECE8FF"
               iconColor="#7059F5"
               selected={
-                tipoRecurso === 'Documento'
+                tipoRecurso ===
+                'Documento'
               }
               onPress={() =>
-                setTipoRecurso('Documento')
+                setTipoRecurso(
+                  'Documento',
+                )
               }
             />
 
@@ -231,7 +248,7 @@ export default function CrearRecursoScreen() {
             />
 
             <Text style={styles.label}>
-              Descripción (Opcional)
+              Descripción (opcional)
             </Text>
 
             <TextInput
@@ -256,7 +273,9 @@ export default function CrearRecursoScreen() {
                 archivoSeleccionado &&
                   styles.uploadBoxSelected,
               ]}
-              onPress={seleccionarArchivo}
+              onPress={
+                seleccionarArchivo
+              }
               activeOpacity={0.8}
               accessibilityRole="button"
               accessibilityLabel="Seleccionar archivo"
@@ -278,7 +297,7 @@ export default function CrearRecursoScreen() {
               <Text style={styles.uploadText}>
                 {archivoSeleccionado
                   ? 'Archivo seleccionado correctamente'
-                  : 'Toca para seleccionar o arrastra tu archivo aquí'}
+                  : 'Toca para seleccionar un archivo'}
               </Text>
 
               <Text style={styles.uploadLimit}>
@@ -286,31 +305,43 @@ export default function CrearRecursoScreen() {
               </Text>
             </TouchableOpacity>
 
-            {/* Acciones */}
+            {/* Botones */}
             <View style={styles.actions}>
               <TouchableOpacity
-                style={styles.cancelButton}
-                onPress={() => router.back()}
+                style={
+                  styles.cancelButton
+                }
+                onPress={() =>
+                  router.back()
+                }
                 activeOpacity={0.8}
                 accessibilityRole="button"
                 accessibilityLabel="Cancelar"
               >
                 <Text
-                  style={styles.cancelButtonText}
+                  style={
+                    styles.cancelButtonText
+                  }
                 >
                   Cancelar
                 </Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={styles.publishButton}
-                onPress={publicarRecurso}
+                style={
+                  styles.publishButton
+                }
+                onPress={
+                  publicarRecurso
+                }
                 activeOpacity={0.8}
                 accessibilityRole="button"
                 accessibilityLabel="Publicar recurso"
               >
                 <Text
-                  style={styles.publishButtonText}
+                  style={
+                    styles.publishButtonText
+                  }
                 >
                   Publicar recurso
                 </Text>
@@ -326,12 +357,16 @@ export default function CrearRecursoScreen() {
             {
               height:
                 66 +
-                Math.max(insets.bottom, 5),
+                Math.max(
+                  insets.bottom,
+                  5,
+                ),
 
-              paddingBottom: Math.max(
-                insets.bottom,
-                5
-              ),
+              paddingBottom:
+                Math.max(
+                  insets.bottom,
+                  5,
+                ),
             },
           ]}
         >
@@ -349,7 +384,7 @@ export default function CrearRecursoScreen() {
               label="Inicio"
               onPress={() =>
                 router.replace(
-                  '/inicio-docente' as never
+                  '/inicio-docente' as never,
                 )
               }
             />
@@ -359,7 +394,9 @@ export default function CrearRecursoScreen() {
               activeIcon="book"
               label="Recursos"
               active
-              onPress={() => {}}
+              onPress={() => {
+                // Ya se encuentra en Recursos.
+              }}
             />
 
             <BottomItem
@@ -368,7 +405,7 @@ export default function CrearRecursoScreen() {
               label="Actividades"
               onPress={() =>
                 router.push(
-                  '/actividades-docente' as never
+                  '/actividades-docente' as never,
                 )
               }
             />
@@ -379,7 +416,7 @@ export default function CrearRecursoScreen() {
               label="Evaluaciones"
               onPress={() =>
                 router.push(
-                  '/evaluaciones-docente' as never
+                  '/evaluaciones-docente' as never,
                 )
               }
             />
@@ -390,7 +427,7 @@ export default function CrearRecursoScreen() {
               label="Más"
               onPress={() =>
                 router.push(
-                  '/menu-docente' as never
+                  '/menu-docente' as never,
                 )
               }
             />
@@ -451,13 +488,21 @@ function ResourceOption({
         />
       </View>
 
-      <View style={styles.resourceTextContainer}>
-        <Text style={styles.resourceTitle}>
+      <View
+        style={
+          styles.resourceTextContainer
+        }
+      >
+        <Text
+          style={styles.resourceTitle}
+        >
           {title}
         </Text>
 
         <Text
-          style={styles.resourceDescription}
+          style={
+            styles.resourceDescription
+          }
         >
           {description}
         </Text>
@@ -508,7 +553,11 @@ function BottomItem({
         ]}
       >
         <Ionicons
-          name={active ? activeIcon : icon}
+          name={
+            active
+              ? activeIcon
+              : icon
+          }
           size={21}
           color={
             active
@@ -553,8 +602,9 @@ const styles = StyleSheet.create({
   header: {
     minHeight: 58,
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
+    alignItems: 'center',
+    justifyContent:
+      'space-between',
     marginBottom: 18,
   },
 
@@ -567,7 +617,7 @@ const styles = StyleSheet.create({
 
   headerText: {
     flex: 1,
-    paddingHorizontal: 5,
+    paddingHorizontal: 8,
   },
 
   title: {
