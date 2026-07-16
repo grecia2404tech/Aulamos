@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useState } from 'react';
+import BotonAccesibilidad from '../components/BotonAccesibilidad';
 import {
   Alert,
   KeyboardAvoidingView,
@@ -153,18 +154,12 @@ export default function CrearRecursoScreen() {
                 </Text>
               </View>
 
-              <TouchableOpacity
-                style={styles.headerButton}
-                activeOpacity={0.7}
-                accessibilityRole="button"
-                accessibilityLabel="Opciones de accesibilidad"
-              >
-                <Ionicons
-                  name="accessibility"
-                  size={24}
-                  color="#7C3AED"
-                />
-              </TouchableOpacity>
+              <View style={styles.headerButton}>
+                <BotonAccesibilidad />
+                
+              </View>
+               
+
             </View>
 
             {/* Tipo de recurso */}
