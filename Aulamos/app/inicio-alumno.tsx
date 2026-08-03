@@ -950,7 +950,7 @@ export default function InicioAlumnoScreen() {
             <BotonNavegacion
               icono="help-circle"
               texto="Chatbot"
-              onPress={() => mostrarProximamente("Chatbot")}
+              onPress={() => router.push("/chatbot")}
             />
           </View>
         </View>

@@ -1,13 +1,8 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Ionicons } from '@expo/vector-icons';
-import axios from 'axios';
-import { router } from 'expo-router';
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-} from 'react';
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Ionicons } from "@expo/vector-icons";
+import axios from "axios";
+import { router } from "expo-router";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -18,16 +13,13 @@ import {
   TouchableOpacity,
   useWindowDimensions,
   View,
-} from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import BotonAccesibilidad from '../components/BotonAccesibilidad';
-import { api } from '../services/api';
+import BotonAccesibilidad from "../components/BotonAccesibilidad";
+import { api } from "../services/api";
 
-type FiltroActividad =
-  | 'Todas'
-  | 'Pendientes'
-  | 'Entregadas';
+type FiltroActividad = "Todas" | "Pendientes" | "Entregadas";
 
 type ActividadAlumno = {
   id_actividad: number;
@@ -36,18 +28,11 @@ type ActividadAlumno = {
   titulo: string;
   descripcion: string | null;
   instrucciones: string | null;
-  tipo:
-    | 'Tarea'
-    | 'Ejercicio'
-    | 'Lectura'
-    | 'Proyecto'
-    | 'Evaluacion';
+  tipo: "Tarea" | "Ejercicio" | "Lectura" | "Proyecto" | "Evaluacion";
   fecha_publicacion: string;
   fecha_limite: string;
   puntaje_maximo: number | string;
-  permite_entrega_archivo:
-    | boolean
-    | number;
+  permite_entrega_archivo: boolean | number;
   estado_actividad: string;
   estado_alumno: string;
   nombre_curso: string;
@@ -75,14 +60,9 @@ type RespuestaError = {
   error?: string;
 };
 
-type IoniconName =
-  keyof typeof Ionicons.glyphMap;
+type IoniconName = keyof typeof Ionicons.glyphMap;
 
-const ESTADOS_TERMINADOS = [
-  'Entregada',
-  'Calificada',
-  'Completada',
-];
+const ESTADOS_TERMINADOS = ["Entregada", "Calificada", "Completada"];
 
 const RESUMEN_VACIO: ResumenActividades = {
   total: 0,
@@ -91,62 +71,39 @@ const RESUMEN_VACIO: ResumenActividades = {
   vencidas: 0,
 };
 
-const normalizarFecha = (
-  fecha: string,
-) => {
+const normalizarFecha = (fecha: string) => {
   if (!fecha) {
     return null;
   }
 
-  const fechaNormalizada =
-    fecha.includes('T')
-      ? fecha
-      : fecha.replace(' ', 'T');
+  const fechaNormalizada = fecha.includes("T")
+    ? fecha
+    : fecha.replace(" ", "T");
 
-  const resultado = new Date(
-    fechaNormalizada,
-  );
+  const resultado = new Date(fechaNormalizada);
 
-  return Number.isNaN(
-    resultado.getTime(),
-  )
-    ? null
-    : resultado;
+  return Number.isNaN(resultado.getTime()) ? null : resultado;
 };
 
-const mostrarFecha = (
-  fecha: string,
-) => {
-  const fechaConvertida =
-    normalizarFecha(fecha);
+const mostrarFecha = (fecha: string) => {
+  const fechaConvertida = normalizarFecha(fecha);
 
   if (!fechaConvertida) {
-    return 'Fecha no disponible';
+    return "Fecha no disponible";
   }
 
-  return fechaConvertida.toLocaleString(
-    'es-MX',
-    {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    },
-  );
+  return fechaConvertida.toLocaleString("es-MX", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 };
 
-const obtenerMensajeError = (
-  error: unknown,
-) => {
-  if (
-    axios.isAxiosError<RespuestaError>(
-      error,
-    )
-  ) {
-    if (
-      error.response?.data?.mensaje
-    ) {
+const obtenerMensajeError = (error: unknown) => {
+  if (axios.isAxiosError<RespuestaError>(error)) {
+    if (error.response?.data?.mensaje) {
       return error.response.data.mensaje;
     }
 
@@ -155,7 +112,7 @@ const obtenerMensajeError = (
     }
 
     if (!error.response) {
-      return 'No se pudo conectar con el servidor. Verifica que el backend esté encendido y que el celular y la computadora estén en la misma red Wi-Fi.';
+      return "No se pudo conectar con el servidor. Verifica que el backend esté encendido y que el celular y la computadora estén en la misma red Wi-Fi.";
     }
   }
 
@@ -163,23 +120,17 @@ const obtenerMensajeError = (
     return error.message;
   }
 
-  return 'No se pudieron cargar tus actividades.';
+  return "No se pudieron cargar tus actividades.";
 };
 
-const esActividadTerminada = (
-  actividad: ActividadAlumno,
-) =>
-  ESTADOS_TERMINADOS.includes(
-    actividad.estado_alumno,
-  );
+const esActividadTerminada = (actividad: ActividadAlumno) =>
+  ESTADOS_TERMINADOS.includes(actividad.estado_alumno);
 
-const esActividadVencida = (
-  actividad: ActividadAlumno,
-) =>
+const esActividadVencida = (actividad: ActividadAlumno) =>
   Number(actividad.vencida) === 1;
 
 const obtenerPresentacionTipo = (
-  tipo: ActividadAlumno['tipo'],
+  tipo: ActividadAlumno["tipo"],
 ): {
   icono: IoniconName;
   fondo: string;
@@ -187,168 +138,120 @@ const obtenerPresentacionTipo = (
   etiqueta: string;
 } => {
   switch (tipo) {
-    case 'Ejercicio':
+    case "Ejercicio":
       return {
-        icono: 'create',
-        fondo: '#DDF8F4',
-        color: '#20A99D',
-        etiqueta: 'Ejercicio',
+        icono: "create",
+        fondo: "#DDF8F4",
+        color: "#20A99D",
+        etiqueta: "Ejercicio",
       };
 
-    case 'Lectura':
+    case "Lectura":
       return {
-        icono: 'book',
-        fondo: '#FFF3D7',
-        color: '#E89B00',
-        etiqueta: 'Lectura',
+        icono: "book",
+        fondo: "#FFF3D7",
+        color: "#E89B00",
+        etiqueta: "Lectura",
       };
 
-    case 'Proyecto':
+    case "Proyecto":
       return {
-        icono: 'folder-open',
-        fondo: '#ECE8FF',
-        color: '#7059F5',
-        etiqueta: 'Proyecto',
+        icono: "folder-open",
+        fondo: "#ECE8FF",
+        color: "#7059F5",
+        etiqueta: "Proyecto",
       };
 
-    case 'Evaluacion':
+    case "Evaluacion":
       return {
-        icono: 'document-text',
-        fondo: '#FFE5E8',
-        color: '#E54859',
-        etiqueta: 'Evaluación',
+        icono: "document-text",
+        fondo: "#FFE5E8",
+        color: "#E54859",
+        etiqueta: "Evaluación",
       };
 
     default:
       return {
-        icono: 'clipboard',
-        fondo: '#EAF1FF',
-        color: '#4A7CFF',
-        etiqueta: 'Tarea',
+        icono: "clipboard",
+        fondo: "#EAF1FF",
+        color: "#4A7CFF",
+        etiqueta: "Tarea",
       };
   }
 };
 
 export default function MisActividadesAlumnoScreen() {
-  const { width } =
-    useWindowDimensions();
-  const insets =
-    useSafeAreaInsets();
+  const { width } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
 
-  const [
-    actividades,
-    setActividades,
-  ] = useState<ActividadAlumno[]>([]);
+  const [actividades, setActividades] = useState<ActividadAlumno[]>([]);
 
-  const [resumen, setResumen] =
-    useState<ResumenActividades>(
-      RESUMEN_VACIO,
-    );
+  const [resumen, setResumen] = useState<ResumenActividades>(RESUMEN_VACIO);
 
-  const [filtro, setFiltro] =
-    useState<FiltroActividad>(
-      'Todas',
-    );
+  const [filtro, setFiltro] = useState<FiltroActividad>("Todas");
 
-  const [cargando, setCargando] =
-    useState(true);
+  const [cargando, setCargando] = useState(true);
 
-  const [
-    actualizando,
-    setActualizando,
-  ] = useState(false);
+  const [actualizando, setActualizando] = useState(false);
 
-  const margenHorizontal =
-    width < 360
-      ? 14
-      : width < 400
-        ? 18
-        : 22;
+  const margenHorizontal = width < 360 ? 14 : width < 400 ? 18 : 22;
 
-  const anchoContenido = Math.min(
-    width - margenHorizontal * 2,
-    520,
-  );
+  const anchoContenido = Math.min(width - margenHorizontal * 2, 520);
 
-  const cargarActividades =
-    useCallback(
-      async (
-        esActualizacion = false,
-      ) => {
-        try {
-          if (esActualizacion) {
-            setActualizando(true);
-          } else {
-            setCargando(true);
-          }
+  const cargarActividades = useCallback(async (esActualizacion = false) => {
+    try {
+      if (esActualizacion) {
+        setActualizando(true);
+      } else {
+        setCargando(true);
+      }
 
-          const token =
-            await AsyncStorage.getItem(
-              'token',
-            );
+      const token = await AsyncStorage.getItem("token");
 
-          if (!token) {
-            throw new Error(
-              'No se encontró tu sesión. Inicia sesión nuevamente.',
-            );
-          }
+      if (!token) {
+        throw new Error("No se encontró tu sesión. Inicia sesión nuevamente.");
+      }
 
-          const respuesta =
-            await api.get<RespuestaMisActividades>(
-              '/academico/actividades/mis-actividades-alumno',
-              {
-                headers: {
-                  Authorization:
-                    `Bearer ${token}`,
-                },
-              },
-            );
+      const respuesta = await api.get<RespuestaMisActividades>(
+        "/academico/actividades/mis-actividades-alumno",
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
 
-          setActividades(
-            respuesta.data
-              .actividades ?? [],
-          );
+      setActividades(respuesta.data.actividades ?? []);
 
-          setResumen(
-            respuesta.data.resumen ??
-              RESUMEN_VACIO,
-          );
-        } catch (error) {
-          Alert.alert(
-            'No se pudieron cargar las actividades',
-            obtenerMensajeError(error),
-          );
-        } finally {
-          setCargando(false);
-          setActualizando(false);
-        }
-      },
-      [],
-    );
+      setResumen(respuesta.data.resumen ?? RESUMEN_VACIO);
+    } catch (error) {
+      Alert.alert(
+        "No se pudieron cargar las actividades",
+        obtenerMensajeError(error),
+      );
+    } finally {
+      setCargando(false);
+      setActualizando(false);
+    }
+  }, []);
 
   useEffect(() => {
     void cargarActividades();
   }, [cargarActividades]);
 
-  const actividadesFiltradas =
-    useMemo(() => {
-      if (filtro === 'Pendientes') {
-        return actividades.filter(
-          (actividad) =>
-            !esActividadTerminada(
-              actividad,
-            ),
-        );
-      }
+  const actividadesFiltradas = useMemo(() => {
+    if (filtro === "Pendientes") {
+      return actividades.filter(
+        (actividad) => !esActividadTerminada(actividad),
+      );
+    }
 
-      if (filtro === 'Entregadas') {
-        return actividades.filter(
-          esActividadTerminada,
-        );
-      }
+    if (filtro === "Entregadas") {
+      return actividades.filter(esActividadTerminada);
+    }
 
-      return actividades;
-    }, [actividades, filtro]);
+    return actividades;
+  }, [actividades, filtro]);
 
   return (
     <View style={styles.screen}>
@@ -357,26 +260,16 @@ export default function MisActividadesAlumnoScreen() {
         contentContainerStyle={[
           styles.scrollContent,
           {
-            paddingTop:
-              insets.top + 8,
-            paddingBottom:
-              104 +
-              Math.max(
-                insets.bottom,
-                8,
-              ),
+            paddingTop: insets.top + 8,
+            paddingBottom: 104 + Math.max(insets.bottom, 8),
           },
         ]}
         showsVerticalScrollIndicator
         refreshControl={
           <RefreshControl
             refreshing={actualizando}
-            onRefresh={() =>
-              void cargarActividades(
-                true,
-              )
-            }
-            colors={['#4A7CFF']}
+            onRefresh={() => void cargarActividades(true)}
+            colors={["#4A7CFF"]}
             tintColor="#4A7CFF"
           />
         }
@@ -385,49 +278,33 @@ export default function MisActividadesAlumnoScreen() {
           style={[
             styles.contentContainer,
             {
-              width:
-                anchoContenido,
+              width: anchoContenido,
             },
           ]}
         >
           <View style={styles.header}>
             <TouchableOpacity
               style={styles.headerButton}
-              onPress={() =>
-                router.back()
-              }
+              onPress={() => router.back()}
               activeOpacity={0.7}
               accessibilityRole="button"
               accessibilityLabel="Regresar"
             >
-              <Ionicons
-                name="arrow-back"
-                size={23}
-                color="#273449"
-              />
+              <Ionicons name="arrow-back" size={23} color="#273449" />
             </TouchableOpacity>
 
-            <View
-              style={styles.headerText}
-            >
-              <Text style={styles.title}>
-                Mis actividades
-              </Text>
+            <View style={styles.headerText}>
+              <Text style={styles.title}>Mis actividades</Text>
 
-              <Text
-                style={styles.subtitle}
-              >
-                Consulta tus trabajos
-                asignados
+              <Text style={styles.subtitle}>
+                Consulta tus trabajos asignados
               </Text>
             </View>
 
             <BotonAccesibilidad />
           </View>
 
-          <View
-            style={styles.summaryRow}
-          >
+          <View style={styles.summaryRow}>
             <SummaryCard
               label="Pendientes"
               value={resumen.pendientes}
@@ -453,106 +330,64 @@ export default function MisActividadesAlumnoScreen() {
             />
           </View>
 
-          <View
-            style={styles.filterRow}
-          >
-            {(
-              [
-                'Todas',
-                'Pendientes',
-                'Entregadas',
-              ] as FiltroActividad[]
-            ).map((opcion) => (
-              <TouchableOpacity
-                key={opcion}
-                style={[
-                  styles.filterButton,
-                  filtro === opcion &&
-                    styles.filterButtonActive,
-                ]}
-                onPress={() =>
-                  setFiltro(opcion)
-                }
-                activeOpacity={0.8}
-                accessibilityRole="button"
-                accessibilityState={{
-                  selected:
-                    filtro === opcion,
-                }}
-              >
-                <Text
+          <View style={styles.filterRow}>
+            {(["Todas", "Pendientes", "Entregadas"] as FiltroActividad[]).map(
+              (opcion) => (
+                <TouchableOpacity
+                  key={opcion}
                   style={[
-                    styles.filterText,
-                    filtro === opcion &&
-                      styles.filterTextActive,
+                    styles.filterButton,
+                    filtro === opcion && styles.filterButtonActive,
                   ]}
+                  onPress={() => setFiltro(opcion)}
+                  activeOpacity={0.8}
+                  accessibilityRole="button"
+                  accessibilityState={{
+                    selected: filtro === opcion,
+                  }}
                 >
-                  {opcion}
-                </Text>
-              </TouchableOpacity>
-            ))}
+                  <Text
+                    style={[
+                      styles.filterText,
+                      filtro === opcion && styles.filterTextActive,
+                    ]}
+                  >
+                    {opcion}
+                  </Text>
+                </TouchableOpacity>
+              ),
+            )}
           </View>
 
           {cargando ? (
-            <View
-              style={
-                styles.loadingContainer
-              }
-            >
-              <ActivityIndicator
-                size="large"
-                color="#4A7CFF"
-              />
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color="#4A7CFF" />
 
-              <Text
-                style={styles.loadingText}
-              >
-                Cargando tus
-                actividades...
+              <Text style={styles.loadingText}>
+                Cargando tus actividades...
               </Text>
             </View>
-          ) : actividadesFiltradas
-              .length === 0 ? (
+          ) : actividadesFiltradas.length === 0 ? (
             <View style={styles.emptyCard}>
-              <View
-                style={
-                  styles.emptyIconBox
-                }
-              >
-                <Ionicons
-                  name="clipboard-outline"
-                  size={34}
-                  color="#4A7CFF"
-                />
+              <View style={styles.emptyIconBox}>
+                <Ionicons name="clipboard-outline" size={34} color="#4A7CFF" />
               </View>
 
-              <Text
-                style={styles.emptyTitle}
-              >
-                No hay actividades
-              </Text>
+              <Text style={styles.emptyTitle}>No hay actividades</Text>
 
-              <Text
-                style={styles.emptyText}
-              >
-                {filtro === 'Todas'
-                  ? 'Cuando un docente publique una actividad aparecerá aquí.'
+              <Text style={styles.emptyText}>
+                {filtro === "Todas"
+                  ? "Cuando un docente publique una actividad aparecerá aquí."
                   : `No tienes actividades ${filtro.toLowerCase()}.`}
               </Text>
             </View>
           ) : (
-            actividadesFiltradas.map(
-              (actividad) => (
-                <ActividadCard
-                  key={
-                    actividad.id_actividad
-                  }
-                  actividad={
-                    actividad
-                  }
-                />
-              ),
-            )
+            actividadesFiltradas.map((actividad) => (
+              <ActividadCard
+                key={actividad.id_actividad}
+                actividad={actividad}
+              />
+            ))
           )}
         </View>
       </ScrollView>
@@ -561,17 +396,8 @@ export default function MisActividadesAlumnoScreen() {
         style={[
           styles.bottomNavigation,
           {
-            height:
-              66 +
-              Math.max(
-                insets.bottom,
-                5,
-              ),
-            paddingBottom:
-              Math.max(
-                insets.bottom,
-                5,
-              ),
+            height: 66 + Math.max(insets.bottom, 5),
+            paddingBottom: Math.max(insets.bottom, 5),
           },
         ]}
       >
@@ -579,8 +405,7 @@ export default function MisActividadesAlumnoScreen() {
           style={[
             styles.bottomContent,
             {
-              width:
-                anchoContenido,
+              width: anchoContenido,
             },
           ]}
         >
@@ -588,11 +413,7 @@ export default function MisActividadesAlumnoScreen() {
             icon="home-outline"
             activeIcon="home"
             label="Inicio"
-            onPress={() =>
-              router.replace(
-                '/inicio-alumno' as never,
-              )
-            }
+            onPress={() => router.replace("/inicio-alumno" as never)}
           />
 
           <BottomItem
@@ -609,33 +430,23 @@ export default function MisActividadesAlumnoScreen() {
             icon="book-outline"
             activeIcon="book"
             label="Biblioteca"
-            onPress={() =>
-              router.push(
-                '/biblioteca-alumno' as never,
-              )
-            }
+            onPress={() => {
+              router.push("/bibloteca-alumno" as never);
+            }}
           />
 
           <BottomItem
             icon="stats-chart-outline"
             activeIcon="stats-chart"
             label="Avances"
-            onPress={() =>
-              router.push(
-                '/mis-avances' as never,
-              )
-            }
+            onPress={() => router.push("/mis-avances" as never)}
           />
 
           <BottomItem
             icon="menu-outline"
             activeIcon="menu"
             label="Más"
-            onPress={() =>
-              router.push(
-                '/menu-alumno' as never,
-              )
-            }
+            onPress={() => router.push("/menu-alumno" as never)}
           />
         </View>
       </View>
@@ -659,38 +470,21 @@ function SummaryCard({
   background,
 }: SummaryCardProps) {
   return (
-    <View
-      style={styles.summaryCard}
-      accessibilityLabel={
-        `${label}: ${value}`
-      }
-    >
+    <View style={styles.summaryCard} accessibilityLabel={`${label}: ${value}`}>
       <View
         style={[
           styles.summaryIcon,
           {
-            backgroundColor:
-              background,
+            backgroundColor: background,
           },
         ]}
       >
-        <Ionicons
-          name={icon}
-          size={19}
-          color={color}
-        />
+        <Ionicons name={icon} size={19} color={color} />
       </View>
 
-      <Text
-        style={styles.summaryValue}
-      >
-        {value}
-      </Text>
+      <Text style={styles.summaryValue}>{value}</Text>
 
-      <Text
-        style={styles.summaryLabel}
-        numberOfLines={1}
-      >
+      <Text style={styles.summaryLabel} numberOfLines={1}>
         {label}
       </Text>
     </View>
@@ -701,28 +495,18 @@ type ActividadCardProps = {
   actividad: ActividadAlumno;
 };
 
-function ActividadCard({
-  actividad,
-}: ActividadCardProps) {
-  const presentacion =
-    obtenerPresentacionTipo(
-      actividad.tipo,
-    );
+function ActividadCard({ actividad }: ActividadCardProps) {
+  const presentacion = obtenerPresentacionTipo(actividad.tipo);
 
-  const terminada =
-    esActividadTerminada(
-      actividad,
-    );
+  const terminada = esActividadTerminada(actividad);
 
-  const vencida =
-    esActividadVencida(actividad);
+  const vencida = esActividadVencida(actividad);
 
   const estadoTexto = vencida
-    ? 'Vencida'
+    ? "Vencida"
     : terminada
       ? actividad.estado_alumno
-      : actividad.estado_alumno ||
-        'Pendiente';
+      : actividad.estado_alumno || "Pendiente";
 
   const estadoEstilo = vencida
     ? styles.statusExpired
@@ -735,167 +519,86 @@ function ActividadCard({
       style={styles.activityCard}
       onPress={() =>
         router.push({
-          pathname:
-            '/detalle-actividad',
+          pathname: "/detalle-actividad",
           params: {
-            id_actividad:
-              String(
-                actividad.id_actividad,
-              ),
+            id_actividad: String(actividad.id_actividad),
           },
         } as never)
       }
       activeOpacity={0.78}
       accessibilityRole="button"
-      accessibilityLabel={
-        `Abrir actividad ${actividad.titulo}`
-      }
+      accessibilityLabel={`Abrir actividad ${actividad.titulo}`}
       accessibilityHint="Muestra la descripción, instrucciones, fecha límite y estado de la actividad"
     >
-      <View
-        style={
-          styles.activityCardHeader
-        }
-      >
+      <View style={styles.activityCardHeader}>
         <View
           style={[
             styles.activityIconBox,
             {
-              backgroundColor:
-                presentacion.fondo,
+              backgroundColor: presentacion.fondo,
             },
           ]}
         >
           <Ionicons
-            name={
-              presentacion.icono
-            }
+            name={presentacion.icono}
             size={22}
-            color={
-              presentacion.color
-            }
+            color={presentacion.color}
           />
         </View>
 
-        <View
-          style={
-            styles.activityHeaderText
-          }
-        >
-          <Text
-            style={styles.subjectText}
-            numberOfLines={1}
-          >
+        <View style={styles.activityHeaderText}>
+          <Text style={styles.subjectText} numberOfLines={1}>
             {actividad.materia}
-            {' · '}
+            {" · "}
             {actividad.grupo}
           </Text>
 
-          <Text
-            style={styles.typeText}
-          >
-            {presentacion.etiqueta}
-          </Text>
+          <Text style={styles.typeText}>{presentacion.etiqueta}</Text>
         </View>
 
-        <View
-          style={[
-            styles.statusBadge,
-            estadoEstilo,
-          ]}
-        >
-          <Text
-            style={styles.statusText}
-          >
-            {estadoTexto}
-          </Text>
+        <View style={[styles.statusBadge, estadoEstilo]}>
+          <Text style={styles.statusText}>{estadoTexto}</Text>
         </View>
       </View>
 
-      <Text
-        style={styles.activityTitle}
-      >
-        {actividad.titulo}
-      </Text>
+      <Text style={styles.activityTitle}>{actividad.titulo}</Text>
 
       {!!actividad.descripcion && (
-        <Text
-          style={
-            styles.activityDescription
-          }
-          numberOfLines={2}
-        >
+        <Text style={styles.activityDescription} numberOfLines={2}>
           {actividad.descripcion}
         </Text>
       )}
 
-      <View
-        style={styles.activityDivider}
-      />
+      <View style={styles.activityDivider} />
 
-      <View
-        style={styles.activityInfoRow}
-      >
-        <View
-          style={
-            styles.activityInfoItem
-          }
-        >
+      <View style={styles.activityInfoRow}>
+        <View style={styles.activityInfoItem}>
           <Ionicons
             name="calendar-outline"
             size={16}
-            color={
-              vencida
-                ? '#E54859'
-                : '#697589'
-            }
+            color={vencida ? "#E54859" : "#697589"}
           />
 
           <Text
-            style={[
-              styles.activityInfoText,
-              vencida &&
-                styles.expiredText,
-            ]}
+            style={[styles.activityInfoText, vencida && styles.expiredText]}
           >
-            {mostrarFecha(
-              actividad.fecha_limite,
-            )}
+            {mostrarFecha(actividad.fecha_limite)}
           </Text>
         </View>
 
-        <View
-          style={
-            styles.activityInfoItem
-          }
-        >
-          <Ionicons
-            name="star-outline"
-            size={16}
-            color="#697589"
-          />
+        <View style={styles.activityInfoItem}>
+          <Ionicons name="star-outline" size={16} color="#697589" />
 
-          <Text
-            style={
-              styles.activityInfoText
-            }
-          >
-            {Number(
-              actividad.puntaje_maximo,
-            )}
-            {' pts'}
+          <Text style={styles.activityInfoText}>
+            {Number(actividad.puntaje_maximo)}
+            {" pts"}
           </Text>
         </View>
       </View>
 
-      <Text
-        style={styles.courseText}
-        numberOfLines={1}
-      >
+      <Text style={styles.courseText} numberOfLines={1}>
         {actividad.nombre_curso}
-        {actividad.periodo
-          ? ` · ${actividad.periodo}`
-          : ''}
+        {actividad.periodo ? ` · ${actividad.periodo}` : ""}
       </Text>
     </TouchableOpacity>
   );
@@ -930,31 +633,18 @@ function BottomItem({
       <View
         style={[
           styles.bottomIconContainer,
-          active &&
-            styles.bottomIconContainerActive,
+          active && styles.bottomIconContainerActive,
         ]}
       >
         <Ionicons
-          name={
-            active
-              ? activeIcon
-              : icon
-          }
+          name={active ? activeIcon : icon}
           size={21}
-          color={
-            active
-              ? '#2563EB'
-              : '#8B98AA'
-          }
+          color={active ? "#2563EB" : "#8B98AA"}
         />
       </View>
 
       <Text
-        style={[
-          styles.bottomLabel,
-          active &&
-            styles.bottomLabelActive,
-        ]}
+        style={[styles.bottomLabel, active && styles.bottomLabelActive]}
         numberOfLines={1}
       >
         {label}
@@ -966,7 +656,7 @@ function BottomItem({
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: "#F8FAFC",
   },
 
   scroll: {
@@ -974,27 +664,26 @@ const styles = StyleSheet.create({
   },
 
   scrollContent: {
-    alignItems: 'center',
+    alignItems: "center",
   },
 
   contentContainer: {
-    alignSelf: 'center',
+    alignSelf: "center",
   },
 
   header: {
     minHeight: 58,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent:
-      'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     marginBottom: 18,
   },
 
   headerButton: {
     width: 44,
     height: 44,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
 
   headerText: {
@@ -1003,19 +692,19 @@ const styles = StyleSheet.create({
   },
 
   title: {
-    color: '#1F2A3A',
+    color: "#1F2A3A",
     fontSize: 21,
-    fontWeight: '800',
+    fontWeight: "800",
   },
 
   subtitle: {
     marginTop: 2,
-    color: '#7C8798',
+    color: "#7C8798",
     fontSize: 12,
   },
 
   summaryRow: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 9,
     marginBottom: 18,
   },
@@ -1026,10 +715,10 @@ const styles = StyleSheet.create({
     paddingVertical: 13,
     paddingHorizontal: 8,
     borderWidth: 1,
-    borderColor: '#E6EAF0',
+    borderColor: "#E6EAF0",
     borderRadius: 13,
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
   },
 
   summaryIcon: {
@@ -1037,43 +726,43 @@ const styles = StyleSheet.create({
     height: 34,
     marginBottom: 7,
     borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
 
   summaryValue: {
-    color: '#1F2A3A',
+    color: "#1F2A3A",
     fontSize: 18,
-    fontWeight: '800',
+    fontWeight: "800",
   },
 
   summaryLabel: {
     marginTop: 2,
-    color: '#7C8798',
+    color: "#7C8798",
     fontSize: 10,
-    fontWeight: '600',
+    fontWeight: "600",
   },
 
   filterRow: {
-    flexDirection: 'row',
+    flexDirection: "row",
     padding: 4,
     marginBottom: 16,
     borderRadius: 11,
-    backgroundColor: '#EDEFF4',
+    backgroundColor: "#EDEFF4",
   },
 
   filterButton: {
     flex: 1,
     minHeight: 37,
     borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     paddingHorizontal: 5,
   },
 
   filterButtonActive: {
-    backgroundColor: '#FFFFFF',
-    shadowColor: '#1F2937',
+    backgroundColor: "#FFFFFF",
+    shadowColor: "#1F2937",
     shadowOffset: {
       width: 0,
       height: 1,
@@ -1084,25 +773,25 @@ const styles = StyleSheet.create({
   },
 
   filterText: {
-    color: '#7C8798',
+    color: "#7C8798",
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: "600",
   },
 
   filterTextActive: {
-    color: '#2563EB',
-    fontWeight: '800',
+    color: "#2563EB",
+    fontWeight: "800",
   },
 
   loadingContainer: {
     minHeight: 280,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
 
   loadingText: {
     marginTop: 12,
-    color: '#7C8798',
+    color: "#7C8798",
     fontSize: 13,
   },
 
@@ -1110,11 +799,11 @@ const styles = StyleSheet.create({
     minHeight: 255,
     padding: 28,
     borderWidth: 1,
-    borderColor: '#E6EAF0',
+    borderColor: "#E6EAF0",
     borderRadius: 15,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
   },
 
   emptyIconBox: {
@@ -1122,34 +811,34 @@ const styles = StyleSheet.create({
     height: 64,
     marginBottom: 15,
     borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#EAF1FF',
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#EAF1FF",
   },
 
   emptyTitle: {
-    color: '#1F2A3A',
+    color: "#1F2A3A",
     fontSize: 17,
-    fontWeight: '800',
+    fontWeight: "800",
   },
 
   emptyText: {
     maxWidth: 280,
     marginTop: 7,
-    color: '#7C8798',
+    color: "#7C8798",
     fontSize: 12,
     lineHeight: 18,
-    textAlign: 'center',
+    textAlign: "center",
   },
 
   activityCard: {
     marginBottom: 13,
     padding: 15,
     borderWidth: 1,
-    borderColor: '#E6EAF0',
+    borderColor: "#E6EAF0",
     borderRadius: 14,
-    backgroundColor: '#FFFFFF',
-    shadowColor: '#26334A',
+    backgroundColor: "#FFFFFF",
+    shadowColor: "#26334A",
     shadowOffset: {
       width: 0,
       height: 2,
@@ -1160,16 +849,16 @@ const styles = StyleSheet.create({
   },
 
   activityCardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
 
   activityIconBox: {
     width: 43,
     height: 43,
     borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
 
   activityHeaderText: {
@@ -1179,14 +868,14 @@ const styles = StyleSheet.create({
   },
 
   subjectText: {
-    color: '#344054',
+    color: "#344054",
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: "700",
   },
 
   typeText: {
     marginTop: 3,
-    color: '#8A94A4',
+    color: "#8A94A4",
     fontSize: 10,
   },
 
@@ -1198,35 +887,35 @@ const styles = StyleSheet.create({
   },
 
   statusPending: {
-    backgroundColor: '#EAF1FF',
+    backgroundColor: "#EAF1FF",
   },
 
   statusCompleted: {
-    backgroundColor: '#DDF8F4',
+    backgroundColor: "#DDF8F4",
   },
 
   statusExpired: {
-    backgroundColor: '#FFE5E8',
+    backgroundColor: "#FFE5E8",
   },
 
   statusText: {
-    color: '#344054',
+    color: "#344054",
     fontSize: 9,
-    fontWeight: '800',
-    textAlign: 'center',
+    fontWeight: "800",
+    textAlign: "center",
   },
 
   activityTitle: {
     marginTop: 13,
-    color: '#1F2A3A',
+    color: "#1F2A3A",
     fontSize: 16,
     lineHeight: 21,
-    fontWeight: '800',
+    fontWeight: "800",
   },
 
   activityDescription: {
     marginTop: 5,
-    color: '#697589',
+    color: "#697589",
     fontSize: 12,
     lineHeight: 17,
   },
@@ -1234,89 +923,87 @@ const styles = StyleSheet.create({
   activityDivider: {
     height: 1,
     marginVertical: 12,
-    backgroundColor: '#EEF0F4',
+    backgroundColor: "#EEF0F4",
   },
 
   activityInfoRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent:
-      'space-between',
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
     gap: 8,
   },
 
   activityInfoItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 5,
   },
 
   activityInfoText: {
-    color: '#697589',
+    color: "#697589",
     fontSize: 10,
-    fontWeight: '600',
+    fontWeight: "600",
   },
 
   expiredText: {
-    color: '#E54859',
+    color: "#E54859",
   },
 
   courseText: {
     marginTop: 10,
-    color: '#8A94A4',
+    color: "#8A94A4",
     fontSize: 10,
   },
 
   bottomNavigation: {
-    position: 'absolute',
+    position: "absolute",
     left: 0,
     right: 0,
     bottom: 0,
     borderTopWidth: 1,
-    borderTopColor: '#E7EAF0',
-    alignItems: 'center',
-    justifyContent: 'flex-start',
-    backgroundColor: '#FFFFFF',
+    borderTopColor: "#E7EAF0",
+    alignItems: "center",
+    justifyContent: "flex-start",
+    backgroundColor: "#FFFFFF",
   },
 
   bottomContent: {
     height: 61,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent:
-      'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
   },
 
   bottomItem: {
     flex: 1,
     minWidth: 0,
     height: 58,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
 
   bottomIconContainer: {
     width: 36,
     height: 28,
     borderRadius: 14,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
 
   bottomIconContainerActive: {
-    backgroundColor: '#EAF1FF',
+    backgroundColor: "#EAF1FF",
   },
 
   bottomLabel: {
-    maxWidth: '100%',
+    maxWidth: "100%",
     marginTop: 1,
-    color: '#8B98AA',
+    color: "#8B98AA",
     fontSize: 9,
-    fontWeight: '600',
+    fontWeight: "600",
   },
 
   bottomLabelActive: {
-    color: '#2563EB',
-    fontWeight: '800',
+    color: "#2563EB",
+    fontWeight: "800",
   },
 });
