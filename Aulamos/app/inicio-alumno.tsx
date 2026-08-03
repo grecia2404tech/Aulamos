@@ -944,7 +944,7 @@ export default function InicioAlumnoScreen() {
             <BotonNavegacion
               icono="stats-chart-outline"
               texto="Avances"
-              onPress={() => mostrarProximamente("Mis avances")}
+              onPress={() => router.push("/mis-avances")}
             />
 
             <BotonNavegacion

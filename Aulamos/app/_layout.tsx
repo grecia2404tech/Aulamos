@@ -39,6 +39,7 @@ export default function RootLayout() {
         <Stack.Screen name="reproductor-video" />
 
         <Stack.Screen name="accesibilidad" />
+        <Stack.Screen name="mis-avances" />
       </Stack>
     </AccessibilityProvider>
   );
