@@ -1,6 +1,6 @@
-import { Stack } from 'expo-router';
+import { Stack } from "expo-router";
 
-import { AccessibilityProvider } from '../contexts/AccessibilityContext';
+import { AccessibilityProvider } from "../contexts/AccessibilityContext";
 
 export default function RootLayout() {
   return (
@@ -23,7 +23,20 @@ export default function RootLayout() {
         <Stack.Screen name="inicio-docente" />
         <Stack.Screen name="inicio-admin" />
         <Stack.Screen name="admin-ciclos" />
-        <Stack.Screen name="crear-recurso"/>
+        <Stack.Screen name="admin-periodos" />
+        <Stack.Screen name="admin-materias" />
+        <Stack.Screen name="admin-grupos" />
+        <Stack.Screen name="admin-cursos" />
+        <Stack.Screen name="admin-inscripciones" />
+        <Stack.Screen name="crear-recurso" />
+        <Stack.Screen name="crear-actividad" />
+        <Stack.Screen name="mis-actividades-alumno" />
+        <Stack.Screen name="detalle-actividad" />
+        <Stack.Screen name="calificar-entrega" />
+        <Stack.Screen name="visor-documento" />
+
+        <Stack.Screen name="biblioteca-alumno" />
+        <Stack.Screen name="reproductor-video" />
 
         <Stack.Screen name="accesibilidad" />
       </Stack>

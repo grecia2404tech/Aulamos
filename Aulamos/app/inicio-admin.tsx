@@ -567,69 +567,92 @@ export default function InicioAdminScreen() {
 }
             />
 
-            <ModuloCard
-              titulo="Periodos de evaluación"
-              descripcion="Organiza los periodos de cada ciclo."
-              icono="time-outline"
-              color="#D97706"
-              fondoIcono={
-                temaOscuro
-                  ? '#451A03'
-                  : '#FEF3C7'
-              }
-              dosColumnas={dosColumnas}
-            />
+         <ModuloCard
+         titulo="Periodos de evaluación"
+  descripcion="Organiza los periodos de cada ciclo."
+  icono="time-outline"
+  color="#D97706"
+  fondoIcono={
+    temaOscuro
+      ? '#451A03'
+      : '#FEF3C7'
+  }
+  disponible
+  dosColumnas={dosColumnas}
+  onPress={() =>
+    router.push('/admin-periodos' as any)
+  }
+/>
+          <ModuloCard
+  titulo="Materias"
+  descripcion="Administra las materias y campos formativos."
+  icono="book-outline"
+  color="#059669"
+  fondoIcono={
+    temaOscuro
+      ? '#064E3B'
+      : '#D1FAE5'
+  }
+  disponible
+  dosColumnas={dosColumnas}
+  onPress={() =>
+    router.push(
+      '/admin-materias' as any
+    )
+  }
+/>
+           <ModuloCard
+  titulo="Grupos"
+  descripcion="Administra grados, grupos, turnos y cupos."
+  icono="people-outline"
+  color="#7C3AED"
+  fondoIcono={
+    temaOscuro
+      ? '#4C1D95'
+      : '#EDE9FE'
+  }
+  disponible
+  dosColumnas={dosColumnas}
+  onPress={() =>
+    router.push(
+      '/admin-grupos' as any
+    )
+  }
+/>
 
-            <ModuloCard
-              titulo="Materias"
-              descripcion="Administra las materias y campos formativos."
-              icono="book-outline"
-              color="#2563EB"
-              fondoIcono={
-                temaOscuro
-                  ? '#172554'
-                  : '#DBEAFE'
-              }
-              dosColumnas={dosColumnas}
-            />
-
-            <ModuloCard
-              titulo="Grupos"
-              descripcion="Configura grados, turnos y cupos."
-              icono="people-outline"
-              color="#059669"
-              fondoIcono={
-                temaOscuro
-                  ? '#052E16'
-                  : '#D1FAE5'
-              }
-              dosColumnas={dosColumnas}
-            />
-
-            <ModuloCard
-              titulo="Cursos y asignaciones"
-              descripcion="Relaciona materias, grupos y docentes."
-              icono="git-network-outline"
-              color="#7C3AED"
-              fondoIcono={
-                temaOscuro
-                  ? '#2E1065'
-                  : '#EDE9FE'
-              }
-              dosColumnas={dosColumnas}
-            />
-
+           <ModuloCard
+  titulo="Cursos y asignaciones"
+  descripcion="Relaciona materias, grupos y docentes."
+  icono="git-network-outline"
+  color="#7C3AED"
+  fondoIcono={
+    temaOscuro
+      ? '#2E1065'
+      : '#EDE9FE'
+  }
+  disponible
+  dosColumnas={dosColumnas}
+  onPress={() =>
+    router.push('/admin-cursos' as any)
+  }
+/>
             <ModuloCard
               titulo="Inscripciones"
-              descripcion="Inscribe estudiantes en sus cursos."
+              descripcion="Asigna estudiantes a los cursos disponibles."
               icono="person-add-outline"
-              color="#DC2626"
+              color="#0891B2"
               fondoIcono={
                 temaOscuro
-                  ? '#450A0A'
-                  : '#FEE2E2'
+                  ? '#164E63'
+                  : '#CFFAFE'
               }
+              disponible
               dosColumnas={dosColumnas}
+              onPress={() =>
+                router.push(
+                  '/admin-inscripciones' as any
+                )
+              }
             />
           </View>
         </View>

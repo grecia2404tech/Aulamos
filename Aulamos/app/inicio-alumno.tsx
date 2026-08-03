@@ -1,15 +1,8 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Ionicons } from '@expo/vector-icons';
-import {
-  router,
-  useFocusEffect,
-} from 'expo-router';
-import type { ComponentProps } from 'react';
-import {
-  useCallback,
-  useEffect,
-  useState,
-} from 'react';
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Ionicons } from "@expo/vector-icons";
+import { router, useFocusEffect } from "expo-router";
+import type { ComponentProps } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -19,14 +12,14 @@ import {
   TouchableOpacity,
   useWindowDimensions,
   View,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
-import BotonAccesibilidad from '../components/BotonAccesibilidad';
-import { useAccessibility } from '../contexts/AccessibilityContext';
+import BotonAccesibilidad from "../components/BotonAccesibilidad";
+import { useAccessibility } from "../contexts/AccessibilityContext";
+import { api } from "../services/api";
 
-type IconoNombre =
-  ComponentProps<typeof Ionicons>['name'];
+type IconoNombre = ComponentProps<typeof Ionicons>["name"];
 
 interface Usuario {
   id_usuario: number;
@@ -54,24 +47,77 @@ interface TarjetaResumenProps {
   etiquetaAccesibilidad: string;
 }
 
+interface ActividadAlumno {
+  id_actividad: number;
+  titulo: string;
+  tipo: string;
+  fecha_limite: string;
+  estado_alumno: string;
+  nombre_curso: string;
+  materia: string;
+  vencida: boolean | number;
+}
+
+interface ResumenActividades {
+  total: number;
+  pendientes: number;
+  entregadas: number;
+  vencidas: number;
+}
+
+interface RespuestaMisActividades {
+  actividades?: ActividadAlumno[];
+  resumen?: ResumenActividades;
+}
+
+const RESUMEN_VACIO: ResumenActividades = {
+  total: 0,
+  pendientes: 0,
+  entregadas: 0,
+  vencidas: 0,
+};
+
+const ESTADOS_TERMINADOS = ["Entregada", "Calificada", "Completada"];
+
+const convertirFecha = (fecha: string) => {
+  const fechaNormalizada = fecha.includes("T")
+    ? fecha
+    : fecha.replace(" ", "T");
+
+  const fechaConvertida = new Date(fechaNormalizada);
+
+  return Number.isNaN(fechaConvertida.getTime()) ? null : fechaConvertida;
+};
+
+const mostrarFecha = (fecha: string) => {
+  const fechaConvertida = convertirFecha(fecha);
+
+  if (!fechaConvertida) {
+    return "Fecha no disponible";
+  }
+
+  return fechaConvertida.toLocaleString("es-MX", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};
+
 function BotonNavegacion({
   icono,
   texto,
   activo = false,
   onPress,
 }: BotonNavegacionProps) {
-  const {
-    colores,
-    escalaTexto,
-    preferencias,
-  } = useAccessibility();
+  const { colores, escalaTexto, preferencias } = useAccessibility();
 
-  const colorActivo =
-    preferencias.altoContraste
-      ? colores.primario
-      : preferencias.modoOscuro
-        ? '#60A5FA'
-        : '#2563EB';
+  const colorActivo = preferencias.altoContraste
+    ? colores.primario
+    : preferencias.modoOscuro
+      ? "#60A5FA"
+      : "#2563EB";
 
   return (
     <TouchableOpacity
@@ -87,27 +133,18 @@ function BotonNavegacion({
       <Ionicons
         name={icono}
         size={23}
-        color={
-          activo
-            ? colorActivo
-            : colores.textoSecundario
-        }
+        color={activo ? colorActivo : colores.textoSecundario}
       />
 
       <Text
         style={[
           styles.navText,
           {
-            color: activo
-              ? colorActivo
-              : colores.textoSecundario,
-            fontSize:
-              10 * escalaTexto,
-            lineHeight:
-              12 * escalaTexto,
+            color: activo ? colorActivo : colores.textoSecundario,
+            fontSize: 10 * escalaTexto,
+            lineHeight: 12 * escalaTexto,
           },
-          activo &&
-            styles.navTextActive,
+          activo && styles.navTextActive,
         ]}
         numberOfLines={2}
       >
@@ -126,42 +163,30 @@ function TarjetaResumen({
   enColumna,
   etiquetaAccesibilidad,
 }: TarjetaResumenProps) {
-  const {
-    colores,
-    escalaTexto,
-  } = useAccessibility();
+  const { colores, escalaTexto } = useAccessibility();
 
   return (
     <View
       style={[
         styles.statCard,
         {
-          backgroundColor:
-            colores.tarjeta,
+          backgroundColor: colores.tarjeta,
           borderColor: colores.borde,
         },
-        enColumna &&
-          styles.statCardColumn,
+        enColumna && styles.statCardColumn,
       ]}
       accessible
-      accessibilityLabel={
-        etiquetaAccesibilidad
-      }
+      accessibilityLabel={etiquetaAccesibilidad}
     >
       <View
         style={[
           styles.statIconBox,
           {
-            backgroundColor:
-              fondoIcono,
+            backgroundColor: fondoIcono,
           },
         ]}
       >
-        <Ionicons
-          name={icono}
-          size={23}
-          color={color}
-        />
+        <Ionicons name={icono} size={23} color={color} />
       </View>
 
       <Text
@@ -169,15 +194,11 @@ function TarjetaResumen({
           styles.statName,
           {
             color: colores.texto,
-            fontSize:
-              10.5 * escalaTexto,
-            lineHeight:
-              14 * escalaTexto,
+            fontSize: 10.5 * escalaTexto,
+            lineHeight: 14 * escalaTexto,
           },
         ]}
-        numberOfLines={
-          enColumna ? undefined : 3
-        }
+        numberOfLines={enColumna ? undefined : 3}
       >
         {titulo}
       </Text>
@@ -186,10 +207,8 @@ function TarjetaResumen({
         style={[
           styles.statValue,
           {
-            color:
-              colores.textoSecundario,
-            fontSize:
-              17 * escalaTexto,
+            color: colores.textoSecundario,
+            fontSize: 17 * escalaTexto,
           },
         ]}
       >
@@ -200,24 +219,22 @@ function TarjetaResumen({
 }
 
 export default function InicioAlumnoScreen() {
-  const { width } =
-    useWindowDimensions();
+  const { width } = useWindowDimensions();
 
-  const [usuario, setUsuario] =
-    useState<Usuario | null>(null);
+  const [usuario, setUsuario] = useState<Usuario | null>(null);
 
-  const [
-    verificandoSesion,
-    setVerificandoSesion,
-  ] = useState(true);
+  const [verificandoSesion, setVerificandoSesion] = useState(true);
 
-  const {
-    colores,
-    escalaTexto,
-    preferencias,
-    leerTexto,
-    detenerLectura,
-  } = useAccessibility();
+  const [resumenActividades, setResumenActividades] =
+    useState<ResumenActividades>(RESUMEN_VACIO);
+
+  const [proximaActividad, setProximaActividad] =
+    useState<ActividadAlumno | null>(null);
+
+  const [cargandoActividades, setCargandoActividades] = useState(true);
+
+  const { colores, escalaTexto, preferencias, leerTexto, detenerLectura } =
+    useAccessibility();
 
   const pantallaPequena = width < 360;
 
@@ -225,9 +242,7 @@ export default function InicioAlumnoScreen() {
    * Se utiliza para el encabezado,
    * la bienvenida y la actividad.
    */
-  const contenidoEnColumna =
-    pantallaPequena ||
-    escalaTexto > 1.2;
+  const contenidoEnColumna = pantallaPequena || escalaTexto > 1.2;
 
   /*
    * En tamaño normal siempre se muestran
@@ -236,98 +251,117 @@ export default function InicioAlumnoScreen() {
    * Solo cambian a columna cuando el usuario
    * selecciona texto grande o muy grande.
    */
-  const tarjetasResumenEnColumna =
-    escalaTexto > 1.2;
+  const tarjetasResumenEnColumna = escalaTexto > 1.2;
 
   const paddingHorizontal =
-    width >= 768
-      ? Math.max(
-          28,
-          (width - 720) / 2
-        )
-      : pantallaPequena
-        ? 14
-        : 22;
+    width >= 768 ? Math.max(28, (width - 720) / 2) : pantallaPequena ? 14 : 22;
 
-  const altoNavegacion =
-    escalaTexto > 1.2 ? 104 : 76;
+  const altoNavegacion = escalaTexto > 1.2 ? 104 : 76;
 
-  const altoContraste =
-    preferencias.altoContraste;
+  const altoContraste = preferencias.altoContraste;
 
-  const temaOscuro =
-    preferencias.modoOscuro ||
-    altoContraste;
+  const temaOscuro = preferencias.modoOscuro || altoContraste;
 
   const colorAzul = altoContraste
     ? colores.primario
     : temaOscuro
-      ? '#60A5FA'
-      : '#2563EB';
+      ? "#60A5FA"
+      : "#2563EB";
 
   const colorVerde = altoContraste
     ? colores.primario
     : temaOscuro
-      ? '#4ADE80'
-      : '#16A34A';
+      ? "#4ADE80"
+      : "#16A34A";
 
-  const colorAmarillo =
-    altoContraste
-      ? colores.primario
-      : temaOscuro
-        ? '#FCD34D'
-        : '#F59E0B';
+  const colorAmarillo = altoContraste
+    ? colores.primario
+    : temaOscuro
+      ? "#FCD34D"
+      : "#F59E0B";
 
-  const fondoAzul = temaOscuro
-    ? colores.fondoPrimario
-    : '#DBEAFE';
+  const fondoAzul = temaOscuro ? colores.fondoPrimario : "#DBEAFE";
 
-  const fondoVerde = temaOscuro
-    ? colores.fondoPrimario
-    : '#DCFCE7';
+  const fondoVerde = temaOscuro ? colores.fondoPrimario : "#DCFCE7";
 
-  const fondoAmarillo = temaOscuro
-    ? colores.fondoPrimario
-    : '#FEF3C7';
+  const fondoAmarillo = temaOscuro ? colores.fondoPrimario : "#FEF3C7";
+
+  const cargarActividadesInicio = useCallback(async () => {
+    try {
+      setCargandoActividades(true);
+
+      const token = await AsyncStorage.getItem("token");
+
+      if (!token) {
+        return;
+      }
+
+      const respuesta = await api.get<RespuestaMisActividades>(
+        "/academico/actividades/mis-actividades-alumno",
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
+
+      const actividades = respuesta.data.actividades ?? [];
+
+      setResumenActividades(respuesta.data.resumen ?? RESUMEN_VACIO);
+
+      const actividadesPendientes = actividades
+        .filter((actividad) => {
+          const estaTerminada = ESTADOS_TERMINADOS.includes(
+            actividad.estado_alumno,
+          );
+
+          const estaVencida = Number(actividad.vencida) === 1;
+
+          return !estaTerminada && !estaVencida;
+        })
+        .sort((primeraActividad, segundaActividad) => {
+          const primeraFecha = convertirFecha(primeraActividad.fecha_limite);
+
+          const segundaFecha = convertirFecha(segundaActividad.fecha_limite);
+
+          return (
+            (primeraFecha?.getTime() ?? Number.MAX_SAFE_INTEGER) -
+            (segundaFecha?.getTime() ?? Number.MAX_SAFE_INTEGER)
+          );
+        });
+
+      setProximaActividad(actividadesPendientes[0] ?? null);
+    } catch (error) {
+      console.error("Error al cargar el resumen del alumno:", error);
+
+      Alert.alert(
+        "No se pudo actualizar el inicio",
+        "Verifica que el backend esté encendido y que el celular y la computadora estén conectados a la misma red Wi-Fi.",
+      );
+    } finally {
+      setCargandoActividades(false);
+    }
+  }, []);
 
   useEffect(() => {
     const cargarUsuario = async () => {
       try {
-        const token =
-          await AsyncStorage.getItem(
-            'token'
-          );
+        const token = await AsyncStorage.getItem("token");
 
-        const usuarioGuardado =
-          await AsyncStorage.getItem(
-            'usuario'
-          );
+        const usuarioGuardado = await AsyncStorage.getItem("usuario");
 
-        if (
-          !token ||
-          !usuarioGuardado
-        ) {
-          router.replace('/' as any);
+        if (!token || !usuarioGuardado) {
+          router.replace("/" as any);
           return;
         }
 
-        const datosUsuario: Usuario =
-          JSON.parse(usuarioGuardado);
+        const datosUsuario: Usuario = JSON.parse(usuarioGuardado);
 
-        if (
-          datosUsuario.rol !== 'Alumno'
-        ) {
-          if (
-            datosUsuario.rol ===
-            'Docente'
-          ) {
-            router.replace(
-              '/inicio-docente' as any
-            );
+        if (datosUsuario.rol !== "Alumno") {
+          if (datosUsuario.rol === "Docente") {
+            router.replace("/inicio-docente" as any);
           } else {
-            router.replace(
-              '/' as any
-            );
+            router.replace("/" as any);
           }
 
           return;
@@ -335,17 +369,11 @@ export default function InicioAlumnoScreen() {
 
         setUsuario(datosUsuario);
       } catch (error) {
-        console.error(
-          'Error al recuperar la sesión:',
-          error
-        );
+        console.error("Error al recuperar la sesión:", error);
 
-        await AsyncStorage.multiRemove([
-          'token',
-          'usuario',
-        ]);
+        await AsyncStorage.multiRemove(["token", "usuario"]);
 
-        router.replace('/' as any);
+        router.replace("/" as any);
       } finally {
         setVerificandoSesion(false);
       }
@@ -354,14 +382,26 @@ export default function InicioAlumnoScreen() {
     cargarUsuario();
   }, []);
 
+  /*
+   * Actualiza el resumen al abrir Inicio y
+   * también cuando el alumno regresa desde
+   * la pantalla de Mis actividades.
+   */
   useFocusEffect(
     useCallback(() => {
-      if (
-        preferencias.lectorPantalla &&
-        usuario
-      ) {
+      void cargarActividadesInicio();
+    }, [cargarActividadesInicio]),
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      if (preferencias.lectorPantalla && usuario && !cargandoActividades) {
+        const mensajeProximaActividad = proximaActividad
+          ? `La próxima actividad es ${proximaActividad.titulo}, con fecha límite ${mostrarFecha(proximaActividad.fecha_limite)}.`
+          : "No tienes actividades próximas.";
+
         leerTexto(
-          `Hola ${usuario.nombre}. Qué bueno verte de nuevo. No tienes actividades pendientes, lecciones en progreso ni actividades próximas.`
+          `Hola ${usuario.nombre}. Qué bueno verte de nuevo. Tienes ${resumenActividades.pendientes} actividades pendientes. ${mensajeProximaActividad}`,
         );
       }
 
@@ -371,18 +411,42 @@ export default function InicioAlumnoScreen() {
     }, [
       preferencias.lectorPantalla,
       usuario,
+      cargandoActividades,
+      resumenActividades.pendientes,
+      proximaActividad,
       leerTexto,
       detenerLectura,
-    ])
+    ]),
   );
 
-  const mostrarProximamente = (
-    seccion: string
-  ) => {
-    Alert.alert(
-      seccion,
-      'Esta sección estará disponible próximamente.'
-    );
+  const mostrarProximamente = (seccion: string) => {
+    Alert.alert(seccion, "Esta sección estará disponible próximamente.");
+  };
+
+  const cerrarSesion = () => {
+    Alert.alert("Cerrar sesión", "¿Estás seguro de que deseas cerrar sesión?", [
+      {
+        text: "Cancelar",
+        style: "cancel",
+      },
+      {
+        text: "Cerrar sesión",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            detenerLectura();
+
+            await AsyncStorage.multiRemove(["token", "usuario"]);
+
+            router.replace("/" as any);
+          } catch (error) {
+            console.error("Error al cerrar sesión:", error);
+
+            Alert.alert("No se pudo cerrar sesión", "Inténtalo nuevamente.");
+          }
+        },
+      },
+    ]);
   };
 
   if (verificandoSesion) {
@@ -391,24 +455,18 @@ export default function InicioAlumnoScreen() {
         style={[
           styles.loadingContainer,
           {
-            backgroundColor:
-              colores.fondo,
+            backgroundColor: colores.fondo,
           },
         ]}
       >
-        <ActivityIndicator
-          size="large"
-          color={colorAzul}
-        />
+        <ActivityIndicator size="large" color={colorAzul} />
 
         <Text
           style={[
             styles.loadingText,
             {
-              color:
-                colores.textoSecundario,
-              fontSize:
-                15 * escalaTexto,
+              color: colores.textoSecundario,
+              fontSize: 15 * escalaTexto,
             },
           ]}
         >
@@ -427,8 +485,7 @@ export default function InicioAlumnoScreen() {
       style={[
         styles.safeArea,
         {
-          backgroundColor:
-            colores.fondo,
+          backgroundColor: colores.fondo,
         },
       ]}
     >
@@ -436,8 +493,7 @@ export default function InicioAlumnoScreen() {
         style={[
           styles.screen,
           {
-            backgroundColor:
-              colores.fondo,
+            backgroundColor: colores.fondo,
           },
         ]}
       >
@@ -446,39 +502,24 @@ export default function InicioAlumnoScreen() {
             styles.content,
             {
               paddingHorizontal,
-              paddingBottom:
-                altoNavegacion + 40,
+              paddingBottom: altoNavegacion + 40,
             },
           ]}
           showsVerticalScrollIndicator={false}
         >
           <View
-            style={[
-              styles.header,
-              contenidoEnColumna &&
-                styles.headerColumn,
-            ]}
+            style={[styles.header, contenidoEnColumna && styles.headerColumn]}
           >
-            <View
-              style={
-                styles.greetingContainer
-              }
-            >
+            <View style={styles.greetingContainer}>
               <Text
                 style={[
                   styles.greeting,
                   {
                     color: colores.texto,
-                    fontSize:
-                      22 *
-                      escalaTexto,
-                    lineHeight:
-                      28 *
-                      escalaTexto,
+                    fontSize: 22 * escalaTexto,
+                    lineHeight: 28 * escalaTexto,
                   },
-                  pantallaPequena &&
-                    escalaTexto === 1 &&
-                    styles.greetingSmall,
+                  pantallaPequena && escalaTexto === 1 && styles.greetingSmall,
                 ]}
                 accessibilityRole="header"
               >
@@ -489,14 +530,9 @@ export default function InicioAlumnoScreen() {
                 style={[
                   styles.welcomeText,
                   {
-                    color:
-                      colores.textoSecundario,
-                    fontSize:
-                      13 *
-                      escalaTexto,
-                    lineHeight:
-                      18 *
-                      escalaTexto,
+                    color: colores.textoSecundario,
+                    fontSize: 13 * escalaTexto,
+                    lineHeight: 18 * escalaTexto,
                   },
                 ]}
               >
@@ -507,25 +543,18 @@ export default function InicioAlumnoScreen() {
             <View
               style={[
                 styles.headerActions,
-                contenidoEnColumna &&
-                  styles.headerActionsColumn,
+                contenidoEnColumna && styles.headerActionsColumn,
               ]}
             >
               <TouchableOpacity
                 style={[
                   styles.headerButton,
                   {
-                    backgroundColor:
-                      colores.tarjeta,
-                    borderColor:
-                      colores.borde,
+                    backgroundColor: colores.tarjeta,
+                    borderColor: colores.borde,
                   },
                 ]}
-                onPress={() =>
-                  mostrarProximamente(
-                    'Notificaciones'
-                  )
-                }
+                onPress={() => mostrarProximamente("Notificaciones")}
                 accessibilityRole="button"
                 accessibilityLabel="Notificaciones"
               >
@@ -540,36 +569,56 @@ export default function InicioAlumnoScreen() {
             </View>
           </View>
 
+          <TouchableOpacity
+            style={[
+              styles.logoutButton,
+              {
+                backgroundColor: colores.tarjeta,
+                borderColor: altoContraste ? colores.texto : "#DC2626",
+              },
+            ]}
+            onPress={cerrarSesion}
+            accessibilityRole="button"
+            accessibilityLabel="Cerrar sesión"
+            accessibilityHint="Cierra tu sesión y regresa a la pantalla de inicio"
+          >
+            <Ionicons
+              name="log-out-outline"
+              size={20}
+              color={altoContraste ? colores.texto : "#DC2626"}
+            />
+
+            <Text
+              style={[
+                styles.logoutButtonText,
+                {
+                  color: altoContraste ? colores.texto : "#DC2626",
+                  fontSize: 13 * escalaTexto,
+                  lineHeight: 18 * escalaTexto,
+                },
+              ]}
+            >
+              Cerrar sesión
+            </Text>
+          </TouchableOpacity>
+
           <View
             style={[
               styles.progressCard,
               {
-                backgroundColor:
-                  temaOscuro
-                    ? colores.fondoPrimario
-                    : '#F1E8FF',
-                borderColor:
-                  altoContraste
-                    ? colores.borde
-                    : 'transparent',
+                backgroundColor: temaOscuro ? colores.fondoPrimario : "#F1E8FF",
+                borderColor: altoContraste ? colores.borde : "transparent",
               },
-              contenidoEnColumna &&
-                styles.progressCardColumn,
+              contenidoEnColumna && styles.progressCardColumn,
             ]}
           >
-            <View
-              style={
-                styles.progressInformation
-              }
-            >
+            <View style={styles.progressInformation}>
               <Text
                 style={[
                   styles.progressLabel,
                   {
                     color: colorAzul,
-                    fontSize:
-                      14 *
-                      escalaTexto,
+                    fontSize: 14 * escalaTexto,
                   },
                 ]}
               >
@@ -581,29 +630,31 @@ export default function InicioAlumnoScreen() {
                   styles.progressTitle,
                   {
                     color: colores.texto,
-                    fontSize:
-                      16 *
-                      escalaTexto,
-                    lineHeight:
-                      21 *
-                      escalaTexto,
+                    fontSize: 16 * escalaTexto,
+                    lineHeight: 21 * escalaTexto,
                   },
                   contenidoEnColumna && {
-                    maxWidth: '100%',
+                    maxWidth: "100%",
                     marginTop: 16,
                   },
                 ]}
               >
-                Aún no tienes actividades
-                pendientes
+                {cargandoActividades
+                  ? "Cargando tus actividades..."
+                  : resumenActividades.pendientes > 0
+                    ? `Tienes ${resumenActividades.pendientes} ${
+                        resumenActividades.pendientes === 1
+                          ? "actividad pendiente"
+                          : "actividades pendientes"
+                      }`
+                    : "Aún no tienes actividades pendientes"}
               </Text>
             </View>
 
             <Text
               style={[
                 styles.studentIllustration,
-                pantallaPequena &&
-                  styles.studentIllustrationSmall,
+                pantallaPequena && styles.studentIllustrationSmall,
               ]}
               accessibilityElementsHidden
               importantForAccessibility="no"
@@ -617,8 +668,7 @@ export default function InicioAlumnoScreen() {
               styles.sectionTitle,
               {
                 color: colores.texto,
-                fontSize:
-                  17 * escalaTexto,
+                fontSize: 17 * escalaTexto,
               },
             ]}
             accessibilityRole="header"
@@ -629,20 +679,17 @@ export default function InicioAlumnoScreen() {
           <View
             style={[
               styles.statsRow,
-              tarjetasResumenEnColumna &&
-                styles.statsColumn,
+              tarjetasResumenEnColumna && styles.statsColumn,
             ]}
           >
             <TarjetaResumen
               icono="clipboard"
               titulo="Actividades pendientes"
-              valor={0}
+              valor={resumenActividades.pendientes}
               color={colorAzul}
               fondoIcono={fondoAzul}
-              enColumna={
-                tarjetasResumenEnColumna
-              }
-              etiquetaAccesibilidad="Cero actividades pendientes"
+              enColumna={tarjetasResumenEnColumna}
+              etiquetaAccesibilidad={`${resumenActividades.pendientes} actividades pendientes`}
             />
 
             <TarjetaResumen
@@ -651,9 +698,7 @@ export default function InicioAlumnoScreen() {
               valor={0}
               color={colorVerde}
               fondoIcono={fondoVerde}
-              enColumna={
-                tarjetasResumenEnColumna
-              }
+              enColumna={tarjetasResumenEnColumna}
               etiquetaAccesibilidad="Cero lecciones en progreso"
             />
 
@@ -663,9 +708,7 @@ export default function InicioAlumnoScreen() {
               valor={0}
               color={colorAmarillo}
               fondoIcono={fondoAmarillo}
-              enColumna={
-                tarjetasResumenEnColumna
-              }
+              enColumna={tarjetasResumenEnColumna}
               etiquetaAccesibilidad="Cero puntos totales"
             />
           </View>
@@ -675,8 +718,7 @@ export default function InicioAlumnoScreen() {
               styles.sectionTitle,
               {
                 color: colores.texto,
-                fontSize:
-                  17 * escalaTexto,
+                fontSize: 17 * escalaTexto,
               },
             ]}
             accessibilityRole="header"
@@ -684,94 +726,198 @@ export default function InicioAlumnoScreen() {
             Próxima actividad
           </Text>
 
-          <View
-            style={[
-              styles.emptyActivityCard,
-              {
-                backgroundColor:
-                  colores.tarjeta,
-                borderColor:
-                  colores.borde,
-              },
-              contenidoEnColumna &&
-                styles.emptyActivityColumn,
-            ]}
-            accessible
-            accessibilityLabel="No tienes actividades próximas. Las actividades que te asigne tu docente aparecerán aquí."
-          >
+          {cargandoActividades ? (
             <View
               style={[
-                styles.emptyActivityIcon,
+                styles.emptyActivityCard,
                 {
-                  backgroundColor:
-                    colores.fondoPrimario,
+                  backgroundColor: colores.tarjeta,
+                  borderColor: colores.borde,
+                  justifyContent: "center",
                 },
               ]}
+              accessible
+              accessibilityLabel="Cargando la próxima actividad"
             >
-              <Ionicons
-                name="calendar-outline"
-                size={32}
-                color={
-                  colores.textoSecundario
-                }
-              />
-            </View>
+              <ActivityIndicator size="small" color={colorAzul} />
 
+              <Text
+                style={[
+                  styles.loadingActivityText,
+                  {
+                    color: colores.textoSecundario,
+                    fontSize: 13 * escalaTexto,
+                  },
+                ]}
+              >
+                Cargando actividad...
+              </Text>
+            </View>
+          ) : proximaActividad ? (
+            <TouchableOpacity
+              style={[
+                styles.emptyActivityCard,
+                {
+                  backgroundColor: colores.tarjeta,
+                  borderColor: colores.borde,
+                },
+                contenidoEnColumna && styles.emptyActivityColumn,
+              ]}
+              onPress={() =>
+                router.push({
+                  pathname:
+                    "/detalle-actividad",
+                  params: {
+                    id_actividad:
+                      String(
+                        proximaActividad.id_actividad,
+                      ),
+                  },
+                } as never)
+              }
+              activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel={`Próxima actividad: ${proximaActividad.titulo}. ${proximaActividad.materia}. Fecha límite ${mostrarFecha(proximaActividad.fecha_limite)}. Abrir detalle de la actividad.`}
+            >
+              <View
+                style={[
+                  styles.emptyActivityIcon,
+                  {
+                    backgroundColor: fondoAzul,
+                  },
+                ]}
+              >
+                <Ionicons
+                  name="clipboard-outline"
+                  size={32}
+                  color={colorAzul}
+                />
+              </View>
+
+              <View
+                style={[
+                  styles.emptyActivityInformation,
+                  contenidoEnColumna && styles.emptyInformationColumn,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.activityType,
+                    {
+                      color: colorAzul,
+                      fontSize: 11 * escalaTexto,
+                    },
+                  ]}
+                >
+                  {proximaActividad.tipo}
+                  {" · "}
+                  {proximaActividad.materia}
+                </Text>
+
+                <Text
+                  style={[
+                    styles.emptyActivityTitle,
+                    {
+                      color: colores.texto,
+                      fontSize: 15 * escalaTexto,
+                    },
+                  ]}
+                  numberOfLines={2}
+                >
+                  {proximaActividad.titulo}
+                </Text>
+
+                <Text
+                  style={[
+                    styles.emptyActivityText,
+                    {
+                      color: colores.textoSecundario,
+                      fontSize: 12 * escalaTexto,
+                      lineHeight: 17 * escalaTexto,
+                    },
+                  ]}
+                >
+                  Entrega: {mostrarFecha(proximaActividad.fecha_limite)}
+                </Text>
+              </View>
+
+              <Ionicons
+                name="chevron-forward"
+                size={24}
+                color={colorAzul}
+                style={styles.activityChevron}
+              />
+            </TouchableOpacity>
+          ) : (
             <View
               style={[
-                styles.emptyActivityInformation,
-                contenidoEnColumna &&
-                  styles.emptyInformationColumn,
+                styles.emptyActivityCard,
+                {
+                  backgroundColor: colores.tarjeta,
+                  borderColor: colores.borde,
+                },
+                contenidoEnColumna && styles.emptyActivityColumn,
               ]}
+              accessible
+              accessibilityLabel="No tienes actividades próximas. Las actividades que te asigne tu docente aparecerán aquí."
             >
-              <Text
+              <View
                 style={[
-                  styles.emptyActivityTitle,
+                  styles.emptyActivityIcon,
                   {
-                    color: colores.texto,
-                    fontSize:
-                      15 *
-                      escalaTexto,
+                    backgroundColor: colores.fondoPrimario,
                   },
                 ]}
               >
-                No tienes actividades
-                próximas
-              </Text>
+                <Ionicons
+                  name="calendar-outline"
+                  size={32}
+                  color={colores.textoSecundario}
+                />
+              </View>
 
-              <Text
+              <View
                 style={[
-                  styles.emptyActivityText,
-                  {
-                    color:
-                      colores.textoSecundario,
-                    fontSize:
-                      12 *
-                      escalaTexto,
-                    lineHeight:
-                      17 *
-                      escalaTexto,
-                  },
+                  styles.emptyActivityInformation,
+                  contenidoEnColumna && styles.emptyInformationColumn,
                 ]}
               >
-                Las actividades que te
-                asigne tu docente
-                aparecerán aquí.
-              </Text>
+                <Text
+                  style={[
+                    styles.emptyActivityTitle,
+                    {
+                      color: colores.texto,
+                      fontSize: 15 * escalaTexto,
+                    },
+                  ]}
+                >
+                  No tienes actividades próximas
+                </Text>
+
+                <Text
+                  style={[
+                    styles.emptyActivityText,
+                    {
+                      color: colores.textoSecundario,
+                      fontSize: 12 * escalaTexto,
+                      lineHeight: 17 * escalaTexto,
+                    },
+                  ]}
+                >
+                  Las actividades que te asigne tu docente aparecerán aquí.
+                </Text>
+              </View>
             </View>
-          </View>
+          )}
         </ScrollView>
 
         <View
           style={[
             styles.bottomBar,
             {
-              minHeight:
-                altoNavegacion,
-              backgroundColor:
-                colores.tarjeta,
-              borderTopColor:
-                colores.borde,
+              minHeight: altoNavegacion,
+              backgroundColor: colores.tarjeta,
+              borderTopColor: colores.borde,
             },
           ]}
         >
@@ -786,41 +932,25 @@ export default function InicioAlumnoScreen() {
             <BotonNavegacion
               icono="list-outline"
               texto="Actividades"
-              onPress={() =>
-                mostrarProximamente(
-                  'Actividades'
-                )
-              }
+              onPress={() => router.push("/mis-actividades-alumno")}
             />
 
             <BotonNavegacion
               icono="book-outline"
               texto="Biblioteca"
-              onPress={() =>
-                mostrarProximamente(
-                  'Biblioteca'
-                )
-              }
+              onPress={() => router.push("/bibloteca-alumno")}
             />
 
             <BotonNavegacion
               icono="stats-chart-outline"
               texto="Avances"
-              onPress={() =>
-                mostrarProximamente(
-                  'Mis avances'
-                )
-              }
+              onPress={() => mostrarProximamente("Mis avances")}
             />
 
             <BotonNavegacion
               icono="help-circle"
               texto="Chatbot"
-              onPress={() =>
-                mostrarProximamente(
-                  'Chatbot'
-                )
-              }
+              onPress={() => mostrarProximamente("Chatbot")}
             />
           </View>
         </View>
@@ -840,8 +970,8 @@ const styles = StyleSheet.create({
 
   loadingContainer: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   loadingText: {
@@ -854,14 +984,14 @@ const styles = StyleSheet.create({
   },
 
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
     marginBottom: 24,
   },
 
   headerColumn: {
-    flexDirection: 'column',
+    flexDirection: "column",
   },
 
   greetingContainer: {
@@ -870,7 +1000,7 @@ const styles = StyleSheet.create({
   },
 
   greeting: {
-    fontWeight: '800',
+    fontWeight: "800",
   },
 
   greetingSmall: {
@@ -878,18 +1008,18 @@ const styles = StyleSheet.create({
   },
 
   welcomeText: {
-    fontWeight: '600',
+    fontWeight: "600",
     marginTop: 8,
   },
 
   headerActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 7,
   },
 
   headerActionsColumn: {
-    alignSelf: 'flex-end',
+    alignSelf: "flex-end",
     marginTop: 14,
   },
 
@@ -898,8 +1028,27 @@ const styles = StyleSheet.create({
     height: 44,
     borderRadius: 22,
     borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  logoutButton: {
+    minHeight: 44,
+    alignSelf: "flex-end",
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: -10,
+    marginBottom: 18,
+  },
+
+  logoutButtonText: {
+    fontWeight: "800",
+    marginLeft: 7,
   },
 
   progressCard: {
@@ -908,31 +1057,31 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     paddingHorizontal: 18,
     paddingVertical: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    overflow: 'hidden',
+    flexDirection: "row",
+    alignItems: "center",
+    overflow: "hidden",
     marginBottom: 26,
   },
 
   progressCardColumn: {
-    flexDirection: 'column',
-    alignItems: 'stretch',
+    flexDirection: "column",
+    alignItems: "stretch",
   },
 
   progressInformation: {
     flex: 1,
-    alignSelf: 'stretch',
-    justifyContent: 'space-between',
+    alignSelf: "stretch",
+    justifyContent: "space-between",
     paddingVertical: 2,
   },
 
   progressLabel: {
-    fontWeight: '800',
+    fontWeight: "800",
   },
 
   progressTitle: {
     maxWidth: 180,
-    fontWeight: '800',
+    fontWeight: "800",
   },
 
   studentIllustration: {
@@ -945,7 +1094,7 @@ const styles = StyleSheet.create({
   },
 
   sectionTitle: {
-    fontWeight: '800',
+    fontWeight: "800",
     marginBottom: 14,
   },
 
@@ -954,14 +1103,14 @@ const styles = StyleSheet.create({
    * ancho disponible de la pantalla.
    */
   statsRow: {
-    width: '100%',
-    flexDirection: 'row',
+    width: "100%",
+    flexDirection: "row",
     gap: 6,
     marginBottom: 28,
   },
 
   statsColumn: {
-    flexDirection: 'column',
+    flexDirection: "column",
     gap: 10,
   },
 
@@ -973,8 +1122,8 @@ const styles = StyleSheet.create({
     minHeight: 145,
     borderWidth: 1,
     borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'flex-start',
+    alignItems: "center",
+    justifyContent: "flex-start",
     paddingHorizontal: 3,
     paddingVertical: 12,
   },
@@ -982,8 +1131,8 @@ const styles = StyleSheet.create({
   statCardColumn: {
     flexGrow: 0,
     flexShrink: 0,
-    flexBasis: 'auto',
-    width: '100%',
+    flexBasis: "auto",
+    width: "100%",
     minHeight: 130,
   },
 
@@ -991,22 +1140,22 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 11,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     marginBottom: 8,
   },
 
   statName: {
-    width: '100%',
+    width: "100%",
     minWidth: 0,
     flexShrink: 1,
-    fontWeight: '700',
-    textAlign: 'center',
+    fontWeight: "700",
+    textAlign: "center",
     minHeight: 44,
   },
 
   statValue: {
-    fontWeight: '800',
+    fontWeight: "800",
     marginTop: 5,
   },
 
@@ -1016,22 +1165,22 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     paddingHorizontal: 14,
     paddingVertical: 13,
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: 20,
   },
 
   emptyActivityColumn: {
-    flexDirection: 'column',
-    alignItems: 'flex-start',
+    flexDirection: "column",
+    alignItems: "flex-start",
   },
 
   emptyActivityIcon: {
     width: 58,
     height: 58,
     borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     marginRight: 13,
   },
 
@@ -1044,14 +1193,28 @@ const styles = StyleSheet.create({
   },
 
   emptyActivityTitle: {
-    fontWeight: '800',
+    fontWeight: "800",
     marginBottom: 6,
   },
 
   emptyActivityText: {},
 
+  loadingActivityText: {
+    marginLeft: 10,
+    fontWeight: "700",
+  },
+
+  activityType: {
+    fontWeight: "800",
+    marginBottom: 5,
+  },
+
+  activityChevron: {
+    marginLeft: 8,
+  },
+
   bottomBar: {
-    position: 'absolute',
+    position: "absolute",
     left: 0,
     right: 0,
     bottom: 0,
@@ -1062,28 +1225,28 @@ const styles = StyleSheet.create({
   },
 
   navContent: {
-    width: '100%',
+    width: "100%",
     maxWidth: 720,
-    alignSelf: 'center',
-    flexDirection: 'row',
+    alignSelf: "center",
+    flexDirection: "row",
   },
 
   navItem: {
     flex: 1,
     minWidth: 0,
     minHeight: 58,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     paddingHorizontal: 1,
   },
 
   navText: {
-    fontWeight: '600',
+    fontWeight: "600",
     marginTop: 4,
-    textAlign: 'center',
+    textAlign: "center",
   },
 
   navTextActive: {
-    fontWeight: '800',
+    fontWeight: "800",
   },
 });

@@ -47,7 +47,8 @@ type InicioDocenteResponse = {
   };
 
   actividad_reciente: {
-    id: number;
+    id?: number;
+    id_actividad?: number;
     titulo: string;
     materia: string;
     tipo: string;
@@ -383,6 +384,45 @@ export default function InicioDocenteScreen() {
     cargarDatos(false);
   };
 
+  const confirmarCerrarSesion = () => {
+    Alert.alert(
+      'Cerrar sesión',
+      '¿Seguro que deseas cerrar tu sesión?',
+      [
+        {
+          text: 'Cancelar',
+          style: 'cancel',
+        },
+        {
+          text: 'Cerrar sesión',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              detenerLectura();
+
+              await AsyncStorage.multiRemove([
+                'token',
+                'usuario',
+              ]);
+
+              router.replace('/' as any);
+            } catch (error) {
+              console.error(
+                'Error al cerrar sesión:',
+                error
+              );
+
+              Alert.alert(
+                'No se pudo cerrar sesión',
+                'Intenta nuevamente.'
+              );
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const navegar = (
     ruta: string,
     nombrePantalla: string
@@ -395,6 +435,52 @@ export default function InicioDocenteScreen() {
         `Todavía debes crear la pantalla ${ruta}.`
       );
     }
+  };
+
+  const abrirActividadReciente = () => {
+    const actividadReciente =
+      datos?.actividad_reciente;
+
+    if (!actividadReciente) {
+      return;
+    }
+
+    if (
+      actividadReciente.origen
+        .trim()
+        .toLowerCase() !==
+      'actividad'
+    ) {
+      Alert.alert(
+        'Contenido reciente',
+        'El contenido mostrado es un recurso. Para consultar entregas y calificaciones, abre una actividad.',
+      );
+      return;
+    }
+
+    const idActividad = Number(
+      actividadReciente.id_actividad ??
+        actividadReciente.id,
+    );
+
+    if (
+      !Number.isInteger(idActividad) ||
+      idActividad <= 0
+    ) {
+      Alert.alert(
+        'Actividad no disponible',
+        'No se recibió el identificador de esta actividad. Actualiza la pantalla e inténtalo nuevamente.',
+      );
+      return;
+    }
+
+    router.push({
+      pathname: '/detalle-actividad',
+      params: {
+        id_actividad:
+          String(idActividad),
+      },
+    } as any);
   };
 
   const capitalizar = (
@@ -726,6 +812,53 @@ export default function InicioDocenteScreen() {
                 docente
               </Text>
             </View>
+
+            <TouchableOpacity
+              style={[
+                styles.logoutButton,
+                {
+                  backgroundColor:
+                    temaOscuro
+                      ? colores.tarjeta
+                      : '#FFF1F2',
+                  borderColor:
+                    altoContraste
+                      ? colores.borde
+                      : '#FCA5A5',
+                },
+              ]}
+              activeOpacity={0.75}
+              onPress={confirmarCerrarSesion}
+              accessibilityRole="button"
+              accessibilityLabel="Cerrar sesión"
+              accessibilityHint="Cierra tu sesión y regresa a la pantalla de inicio de sesión"
+            >
+              <Ionicons
+                name="log-out-outline"
+                size={20}
+                color={
+                  altoContraste
+                    ? colores.texto
+                    : '#DC2626'
+                }
+              />
+
+              <Text
+                style={[
+                  styles.logoutButtonText,
+                  {
+                    color:
+                      altoContraste
+                        ? colores.texto
+                        : '#DC2626',
+                    fontSize:
+                      12 * escalaTexto,
+                  },
+                ]}
+              >
+                Cerrar sesión
+              </Text>
+            </TouchableOpacity>
 
             <View
               style={[
@@ -1081,9 +1214,13 @@ export default function InicioDocenteScreen() {
                   contenidoGrande &&
                     styles.recentCardColumn,
                 ]}
+                onPress={
+                  abrirActividadReciente
+                }
                 activeOpacity={0.82}
                 accessibilityRole="button"
                 accessibilityLabel={`Actividad reciente: ${datos.actividad_reciente.titulo}`}
+                accessibilityHint="Abre el detalle para consultar estudiantes, entregas y calificaciones"
               >
                 <View
                   style={[
@@ -1360,7 +1497,7 @@ export default function InicioDocenteScreen() {
               onPress={() =>
                 navegar(
                   '/actividades-docente',
-                  'Actividades'
+                  'Mis actividades'
                 )
               }
             />
@@ -1830,6 +1967,22 @@ const styles = StyleSheet.create({
 
   welcomeSubtitle: {
     marginTop: 6,
+  },
+
+  logoutButton: {
+    minHeight: 44,
+    marginBottom: 18,
+    borderRadius: 14,
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    columnGap: 8,
+  },
+
+  logoutButtonText: {
+    fontWeight: '800',
   },
 
   summarySection: {

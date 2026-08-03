@@ -1,0 +1,42 @@
+﻿
+# Dependencias
+**/node_modules/
+
+# Variables privadas
+**/.env
+**/.env.*
+!**/.env.example
+
+# Expo y compilaciones
+**/.expo/
+**/.expo-shared/
+**/dist/
+**/web-build/
+
+# Archivos cargados durante las pruebas
+**/uploads/
+**/uploads-recursos/
+**/uploads-entregas/
+
+# Caché, pruebas y registros
+**/.cache/
+**/coverage/
+*.log
+npm-debug.log*
+yarn-debug.log*
+
+# Configuración del editor
+**/.vscode/
+**/.idea/
+
+# Archivos del sistema
+.DS_Store
+Thumbs.db
+
+# Llaves y certificados
+*.pem
+*.key
+*.p12
+*.jks
+*.keystore
+.npmrc
