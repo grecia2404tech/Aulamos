@@ -35,11 +35,15 @@ export default function RootLayout() {
         <Stack.Screen name="calificar-entrega" />
         <Stack.Screen name="visor-documento" />
 
-        <Stack.Screen name="biblioteca-alumno" />
+        <Stack.Screen name="bibloteca-alumno" />
         <Stack.Screen name="reproductor-video" />
 
         <Stack.Screen name="accesibilidad" />
         <Stack.Screen name="mis-avances" />
+        <Stack.Screen name="reportes" />
+        <Stack.Screen name="reporte-rendimiento-actividad" />
+        <Stack.Screen name="reporte-rendimiento-evaluacion" />
+        <Stack.Screen name="reporte-asistencia" />
       </Stack>
     </AccessibilityProvider>
   );
