@@ -31,7 +31,8 @@ const solicitarRecuperacion = async (
   req,
   res
 ) => {
-  let idTokenCreado = null;
+  
+  
 
   try {
     const { correo } = req.body;

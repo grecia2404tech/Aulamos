@@ -164,6 +164,81 @@ const obtenerInicioDocente = async (req, res) => {
   }
 };
 
+const obtenerEstudiantesDocente = async (req, res) => {
+  try {
+    const idDocente = req.usuario.id_usuario;
+
+    const [estudiantes] = await pool.query(
+      `SELECT DISTINCT
+          u.id_usuario AS id_alumno,
+          u.nombre,
+          u.apellido_paterno,
+          u.apellido_materno,
+          CONCAT_WS(
+            ' ',
+            u.nombre,
+            u.apellido_paterno,
+            u.apellido_materno
+          ) AS nombre_completo,
+          u.correo,
+
+          g.id_grupo,
+          g.nombre AS grupo,
+          g.grado,
+
+          c.id_curso,
+          c.nombre AS curso,
+
+          m.id_materia,
+          m.nombre AS materia
+
+       FROM cursos c
+
+       INNER JOIN inscripciones i
+          ON i.id_curso = c.id_curso
+
+       INNER JOIN usuarios u
+          ON u.id_usuario = i.id_alumno
+
+       INNER JOIN grupos g
+          ON g.id_grupo = c.id_grupo
+
+       INNER JOIN materias m
+          ON m.id_materia = c.id_materia
+
+       WHERE c.id_docente = ?
+       AND c.estado = 'Activo'
+       AND i.estado = 'Activo'
+
+       ORDER BY
+          g.grado ASC,
+          g.nombre ASC,
+          u.apellido_paterno ASC,
+          u.apellido_materno ASC,
+          u.nombre ASC`,
+      [idDocente]
+    );
+
+    return res.status(200).json({
+      mensaje:
+        'Estudiantes del docente obtenidos correctamente',
+      total: estudiantes.length,
+      estudiantes,
+    });
+  } catch (error) {
+    console.error(
+      'Error al obtener estudiantes del docente:',
+      error
+    );
+
+    return res.status(500).json({
+      mensaje:
+        'Error al obtener los estudiantes del docente',
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   obtenerInicioDocente,
 };

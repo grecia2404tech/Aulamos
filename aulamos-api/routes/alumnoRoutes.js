@@ -2,6 +2,7 @@ const express = require('express');
 
 const {
   obtenerInicioAlumno,
+  obtenerAvancesAlumno,
 } = require('../controllers/alumnoController');
 
 const verificarToken = require(
@@ -19,6 +20,13 @@ router.get(
   verificarToken,
   verificarRol('Alumno'),
   obtenerInicioAlumno
+);
+
+router.get(
+  '/avances',
+  verificarToken,
+  verificarRol('Alumno'),
+  obtenerAvancesAlumno
 );
 
 module.exports = router;

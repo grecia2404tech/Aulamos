@@ -1,99 +1,68 @@
-const express = require("express");
+const express = require('express');
 
-// Controlador del inicio del docente
 const {
   obtenerInicioDocente,
-} = require("../controllers/docenteController");
-
-// Controlador para ver estudiantes
-const {
   obtenerEstudiantesDocente,
-} = require(
-  "../controllers/docenteEstudiantesController"
-);
+} = require('../controllers/docenteController');
 
-// Controladores de reportes
 const {
   obtenerMateriasDocente,
   obtenerResumenReportes,
   obtenerRendimientoActividades,
   obtenerRendimientoEvaluaciones,
 } = require(
-  "../controllers/reportesDocenteController"
+  '../controllers/reportesDocenteController'
 );
 
-// Middleware de autenticación
 const verificarToken = require(
-  "../middleware/authMiddleware"
+  '../middleware/authMiddleware'
 );
 
 const {
   verificarRol,
-} = require("../middleware/authMiddleware");
+} = require('../middleware/authMiddleware');
 
 const router = express.Router();
 
-// =====================================================
-// INICIO DEL DOCENTE
-// GET /api/docente/inicio
-// =====================================================
 router.get(
-  "/inicio",
+  '/inicio',
   verificarToken,
-  verificarRol("Docente"),
+  verificarRol('Docente'),
   obtenerInicioDocente
 );
 
-// =====================================================
-// MATERIAS DEL DOCENTE
-// GET /api/docente/materias
-// =====================================================
 router.get(
-  "/materias",
+  '/estudiantes',
   verificarToken,
-  verificarRol("Docente"),
-  obtenerMateriasDocente
-);
-
-// =====================================================
-// ESTUDIANTES DE LOS CURSOS DEL DOCENTE
-// GET /api/docente/estudiantes
-// =====================================================
-router.get(
-  "/estudiantes",
-  verificarToken,
-  verificarRol("Docente"),
+  verificarRol('Docente'),
   obtenerEstudiantesDocente
 );
 
-// =====================================================
-// RESUMEN DE REPORTES
-// GET /api/docente/reportes/resumen
-// =====================================================
 router.get(
-  "/reportes/resumen",
+  '/materias',
   verificarToken,
-  verificarRol("Docente"),
+  verificarRol('Docente'),
+  obtenerMateriasDocente
+);
+
+router.get(
+  '/reportes/resumen',
+  verificarToken,
+  verificarRol('Docente'),
   obtenerResumenReportes
 );
 
-// =====================================================
-// RENDIMIENTO DE ACTIVIDADES
-// =====================================================
 router.get(
-  "/reportes/rendimiento-actividad",
+  '/reportes/rendimiento-actividad',
   verificarToken,
-  verificarRol("Docente"),
+  verificarRol('Docente'),
   obtenerRendimientoActividades
 );
 
-// =====================================================
-// RENDIMIENTO DE EVALUACIONES
-// =====================================================
 router.get(
-  "/reportes/rendimiento-evaluacion",
+  '/reportes/rendimiento-evaluacion',
   verificarToken,
-  verificarRol("Docente"),
+  verificarRol('Docente'),
   obtenerRendimientoEvaluaciones
 );
 
