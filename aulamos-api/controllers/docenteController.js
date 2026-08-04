@@ -207,8 +207,8 @@ const obtenerEstudiantesDocente = async (req, res) => {
           ON m.id_materia = c.id_materia
 
        WHERE c.id_docente = ?
-       AND c.estado = 'Activo'
-       AND i.estado = 'Activo'
+         AND c.estado = 'Activo'
+         AND i.estado = 'Activo'
 
        ORDER BY
           g.grado ASC,
@@ -241,4 +241,5 @@ const obtenerEstudiantesDocente = async (req, res) => {
 
 module.exports = {
   obtenerInicioDocente,
+  obtenerEstudiantesDocente,
 };
