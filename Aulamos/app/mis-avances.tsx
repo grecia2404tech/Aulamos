@@ -1,15 +1,34 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
 import {
+  type Href,
+  router,
+  useFocusEffect,
+} from 'expo-router';
+import {
+  useCallback,
+  useMemo,
+  useState,
+} from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  Platform,
   Pressable,
-  SafeAreaView,
+  RefreshControl,
   ScrollView,
   StatusBar,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Circle } from 'react-native-svg';
+
+import BotonAccesibilidad from '../components/BotonAccesibilidad';
+import { useAccessibility } from '../contexts/AccessibilityContext';
+import { API_URL } from '../services/api';
 
 type EstadoActividad = {
   nombre: string;
@@ -18,173 +37,1053 @@ type EstadoActividad = {
 };
 
 type ProgresoMateria = {
-  id: number;
+  id_materia: number;
   nombre: string;
   porcentaje: number;
-  color: string;
+  total_actividades: number;
+  completadas: number;
 };
 
-const COLORES = {
-  primario: '#2D5BFF',
+type ResumenAvances = {
+  progreso_general: number;
+  total_actividades: number;
+  completadas: number;
+  en_progreso: number;
+  pendientes: number;
+};
+
+type RespuestaAvances = {
+  mensaje?: string;
+  resumen?: Partial<ResumenAvances>;
+  materias?: ProgresoMateria[];
+};
+
+type DatosAvances = {
+  resumen: ResumenAvances;
+  materias: ProgresoMateria[];
+};
+
+const DATOS_VACIOS: DatosAvances = {
+  resumen: {
+    progreso_general: 0,
+    total_actividades: 0,
+    completadas: 0,
+    en_progreso: 0,
+    pendientes: 0,
+  },
+  materias: [],
+};
+
+const COLORES_GRAFICAS = {
+  completadas: '#14B8A6',
+  progreso: '#2D5BFF',
+  pendientes: '#A99CF3',
+  verde: '#16A34A',
+  amarillo: '#F59E0B',
   morado: '#8057F5',
-  turquesa: '#2BB8B6',
-  verde: '#17A566',
-  amarillo: '#FFB818',
-
-  fondo: '#FFFFFF',
-  fondoMensaje: '#F8F6FF',
-  texto: '#182033',
-  textoSecundario: '#667085',
-  borde: '#E7E9EE',
-  barraFondo: '#E6E8EC',
-  grisIcono: '#98A2B3',
 };
 
-const ESTADOS: EstadoActividad[] = [
-  {
-    nombre: 'Completadas',
-    cantidad: 18,
-    color: COLORES.turquesa,
-  },
-  {
-    nombre: 'En progreso',
-    cantidad: 6,
-    color: COLORES.primario,
-  },
-  {
-    nombre: 'Pendientes',
-    cantidad: 4,
-    color: '#A99CF3',
-  },
-];
+export default function MisAvancesScreen() {
+  const { width } = useWindowDimensions();
 
-const MATERIAS: ProgresoMateria[] = [
-  {
-    id: 1,
-    nombre: 'Lengua y Literatura',
-    porcentaje: 80,
-    color: COLORES.primario,
-  },
-  {
-    id: 2,
-    nombre: 'Matemáticas',
-    porcentaje: 65,
-    color: COLORES.verde,
-  },
-  {
-    id: 3,
-    nombre: 'Ciencias Naturales',
-    porcentaje: 75,
-    color: COLORES.amarillo,
-  },
-  {
-    id: 4,
-    nombre: 'Ciencias Sociales',
-    porcentaje: 60,
-    color: COLORES.morado,
-  },
-];
+  const {
+    preferencias,
+    colores,
+    escalaTexto,
+    leerTexto,
+    detenerLectura,
+  } = useAccessibility();
 
-interface GraficaCircularProps {
-  porcentaje: number;
+  const [datos, setDatos] =
+    useState<DatosAvances>(DATOS_VACIOS);
+
+  const [cargando, setCargando] = useState(true);
+  const [actualizando, setActualizando] =
+    useState(false);
+
+  const esPantallaEstrecha = width < 360;
+  const textoGrande = escalaTexto > 1.2;
+
+  const anunciar = useCallback(
+    (mensaje: string) => {
+      if (preferencias.lectorPantalla) {
+        leerTexto(mensaje);
+      }
+    },
+    [
+      preferencias.lectorPantalla,
+      leerTexto,
+    ]
+  );
+
+  const cargarAvances = useCallback(
+    async (mostrarCarga = true) => {
+      try {
+        if (mostrarCarga) {
+          setCargando(true);
+        }
+
+        const token =
+          await AsyncStorage.getItem('token');
+
+        if (!token) {
+          Alert.alert(
+            'Sesión no encontrada',
+            'Inicia sesión nuevamente.'
+          );
+
+          router.replace('/' as Href);
+          return;
+        }
+
+        const respuesta = await fetch(
+          `${API_URL}/alumno/avances`,
+          {
+            method: 'GET',
+            headers: {
+              Accept: 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+
+        const texto = await respuesta.text();
+
+        let resultado: RespuestaAvances = {};
+
+        if (texto) {
+          try {
+            resultado = JSON.parse(texto);
+          } catch {
+            throw new Error(
+              'El servidor envió una respuesta incorrecta.'
+            );
+          }
+        }
+
+        if (
+          respuesta.status === 401 ||
+          respuesta.status === 403
+        ) {
+          await AsyncStorage.multiRemove([
+            'token',
+            'usuario',
+          ]);
+
+          Alert.alert(
+            'Sesión vencida',
+            'Inicia sesión nuevamente.'
+          );
+
+          router.replace('/' as Href);
+          return;
+        }
+
+        if (!respuesta.ok) {
+          throw new Error(
+            resultado.mensaje ||
+              'No se pudieron cargar tus avances.'
+          );
+        }
+
+        const nuevosDatos: DatosAvances = {
+          resumen: {
+            progreso_general: Number(
+              resultado.resumen
+                ?.progreso_general ?? 0
+            ),
+            total_actividades: Number(
+              resultado.resumen
+                ?.total_actividades ?? 0
+            ),
+            completadas: Number(
+              resultado.resumen
+                ?.completadas ?? 0
+            ),
+            en_progreso: Number(
+              resultado.resumen
+                ?.en_progreso ?? 0
+            ),
+            pendientes: Number(
+              resultado.resumen
+                ?.pendientes ?? 0
+            ),
+          },
+
+          materias: Array.isArray(
+            resultado.materias
+          )
+            ? resultado.materias.map(
+                (materia) => ({
+                  id_materia: Number(
+                    materia.id_materia
+                  ),
+                  nombre:
+                    materia.nombre ||
+                    'Materia sin nombre',
+                  porcentaje: Number(
+                    materia.porcentaje ?? 0
+                  ),
+                  total_actividades: Number(
+                    materia.total_actividades ??
+                      0
+                  ),
+                  completadas: Number(
+                    materia.completadas ?? 0
+                  ),
+                })
+              )
+            : [],
+        };
+
+        setDatos(nuevosDatos);
+
+        anunciar(
+          `Tus avances se actualizaron. Tienes un progreso general de ${Math.round(
+            nuevosDatos.resumen
+              .progreso_general
+          )} por ciento. Has completado ${
+            nuevosDatos.resumen.completadas
+          } actividades, tienes ${
+            nuevosDatos.resumen.en_progreso
+          } en progreso y ${
+            nuevosDatos.resumen.pendientes
+          } pendientes.`
+        );
+      } catch (error) {
+        console.error(
+          'Error al obtener avances:',
+          error
+        );
+
+        setDatos(DATOS_VACIOS);
+
+        const mensaje =
+          error instanceof Error
+            ? error.message
+            : 'Ocurrió un error inesperado.';
+
+        Alert.alert('Error', mensaje);
+        anunciar(`Error. ${mensaje}`);
+      } finally {
+        setCargando(false);
+        setActualizando(false);
+      }
+    },
+    [anunciar]
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      cargarAvances();
+
+      return () => {
+        detenerLectura();
+      };
+    }, [cargarAvances, detenerLectura])
+  );
+
+  const actualizar = () => {
+    setActualizando(true);
+    cargarAvances(false);
+  };
+
+  const estados = useMemo<EstadoActividad[]>(
+    () => [
+      {
+        nombre: 'Completadas',
+        cantidad:
+          datos.resumen.completadas,
+        color:
+          COLORES_GRAFICAS.completadas,
+      },
+      {
+        nombre: 'En progreso',
+        cantidad:
+          datos.resumen.en_progreso,
+        color: COLORES_GRAFICAS.progreso,
+      },
+      {
+        nombre: 'Pendientes',
+        cantidad:
+          datos.resumen.pendientes,
+        color:
+          COLORES_GRAFICAS.pendientes,
+      },
+    ],
+    [datos.resumen]
+  );
+
+  const mensajeMotivacional = useMemo(() => {
+    const progreso =
+      datos.resumen.progreso_general;
+
+    if (
+      datos.resumen.total_actividades === 0
+    ) {
+      return {
+        titulo: 'Comienza tu aprendizaje',
+        descripcion:
+          'Cuando tengas actividades asignadas, aquí aparecerá tu progreso.',
+        icono:
+          'rocket-outline' as const,
+      };
+    }
+
+    if (progreso >= 90) {
+      return {
+        titulo: '¡Excelente trabajo!',
+        descripcion:
+          'Tu esfuerzo está dando grandes resultados. Sigue así.',
+        icono: 'trophy' as const,
+      };
+    }
+
+    if (progreso >= 70) {
+      return {
+        titulo: '¡Vas muy bien!',
+        descripcion:
+          'Estás avanzando correctamente. Continúa con ese esfuerzo.',
+        icono:
+          'ribbon-outline' as const,
+      };
+    }
+
+    if (progreso >= 40) {
+      return {
+        titulo: '¡Sigue avanzando!',
+        descripcion:
+          'Cada actividad completada te acerca más a tu meta.',
+        icono:
+          'trending-up-outline' as const,
+      };
+    }
+
+    return {
+      titulo: '¡Tú puedes!',
+      descripcion:
+        'Comienza con tus actividades pendientes y avanza paso a paso.',
+      icono:
+        'sparkles-outline' as const,
+    };
+  }, [datos.resumen]);
+
+  const statusBarOscuro =
+    preferencias.modoOscuro ||
+    preferencias.altoContraste;
+
+  return (
+    <SafeAreaView
+      style={[
+        styles.safeArea,
+        {
+          backgroundColor: colores.fondo,
+        },
+      ]}
+    >
+      <StatusBar
+        barStyle={
+          statusBarOscuro
+            ? 'light-content'
+            : 'dark-content'
+        }
+        backgroundColor={colores.fondo}
+      />
+
+      <View
+        style={[
+          styles.pantalla,
+          {
+            backgroundColor: colores.fondo,
+          },
+        ]}
+      >
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={[
+            styles.contenido,
+            {
+              paddingHorizontal:
+                esPantallaEstrecha ? 14 : 20,
+            },
+          ]}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={actualizando}
+              onRefresh={actualizar}
+              colors={[colores.primario]}
+              tintColor={colores.primario}
+              progressBackgroundColor={
+                colores.tarjeta
+              }
+            />
+          }
+        >
+          <View style={styles.encabezado}>
+            <View>
+              <Text
+                style={[
+                  styles.titulo,
+                  {
+                    color: colores.texto,
+                    fontSize:
+                      22 * escalaTexto,
+                    lineHeight:
+                      28 * escalaTexto,
+                  },
+                ]}
+                accessibilityRole="header"
+              >
+                Mis avances
+              </Text>
+
+              <Text
+                style={[
+                  styles.subtituloEncabezado,
+                  {
+                    color:
+                      colores.textoSecundario,
+                    fontSize:
+                      12 * escalaTexto,
+                  },
+                ]}
+              >
+                Consulta tu progreso académico
+              </Text>
+            </View>
+
+            <BotonAccesibilidad />
+          </View>
+
+          {cargando ? (
+            <View style={styles.cargando}>
+              <View
+                style={[
+                  styles.iconoCarga,
+                  {
+                    backgroundColor:
+                      colores.fondoPrimario,
+                    borderColor:
+                      colores.borde,
+                  },
+                ]}
+              >
+                <Ionicons
+                  name="stats-chart"
+                  size={35}
+                  color={colores.primario}
+                />
+              </View>
+
+              <ActivityIndicator
+                size="large"
+                color={colores.primario}
+              />
+
+              <Text
+                style={[
+                  styles.textoCargando,
+                  {
+                    color:
+                      colores.textoSecundario,
+                    fontSize:
+                      14 * escalaTexto,
+                  },
+                ]}
+              >
+                Calculando tus avances...
+              </Text>
+            </View>
+          ) : (
+            <>
+              <View
+                style={[
+                  styles.mensajeMotivacional,
+                  {
+                    backgroundColor:
+                      colores.fondoPrimario,
+                    borderColor:
+                      colores.borde,
+                  },
+                  textoGrande &&
+                    styles.mensajeGrande,
+                ]}
+                accessible
+                accessibilityLabel={`${mensajeMotivacional.titulo}. ${mensajeMotivacional.descripcion}`}
+              >
+                <View
+                  style={
+                    styles.informacionMensaje
+                  }
+                >
+                  <Text
+                    style={[
+                      styles.tituloMensaje,
+                      {
+                        color:
+                          colores.primario,
+                        fontSize:
+                          16 *
+                          escalaTexto,
+                      },
+                    ]}
+                  >
+                    {
+                      mensajeMotivacional.titulo
+                    }
+                  </Text>
+
+                  <Text
+                    style={[
+                      styles.descripcionMensaje,
+                      {
+                        color:
+                          colores.textoSecundario,
+                        fontSize:
+                          12 *
+                          escalaTexto,
+                        lineHeight:
+                          18 *
+                          escalaTexto,
+                      },
+                    ]}
+                  >
+                    {
+                      mensajeMotivacional.descripcion
+                    }
+                  </Text>
+                </View>
+
+                <View
+                  style={[
+                    styles.cajaTrofeo,
+                    {
+                      backgroundColor:
+                        colores.tarjeta,
+                    },
+                  ]}
+                >
+                  <Ionicons
+                    name={
+                      mensajeMotivacional.icono
+                    }
+                    size={37}
+                    color="#F59E0B"
+                  />
+                </View>
+              </View>
+
+              <Text
+                style={[
+                  styles.tituloSeccion,
+                  {
+                    color: colores.texto,
+                    fontSize:
+                      15 * escalaTexto,
+                  },
+                ]}
+                accessibilityRole="header"
+              >
+                Resumen general
+              </Text>
+
+              <View
+                style={[
+                  styles.tarjetaResumen,
+                  {
+                    backgroundColor:
+                      colores.tarjeta,
+                    borderColor:
+                      colores.borde,
+                  },
+                  textoGrande &&
+                    styles.resumenGrande,
+                ]}
+              >
+                <GraficaCircular
+                  porcentaje={
+                    datos.resumen
+                      .progreso_general
+                  }
+                  color={colores.primario}
+                  colorFondo={colores.borde}
+                  escalaTexto={escalaTexto}
+                />
+
+                <View style={styles.leyenda}>
+                  {estados.map((estado) => (
+                    <View
+                      key={estado.nombre}
+                      style={
+                        styles.elementoLeyenda
+                      }
+                      accessible
+                      accessibilityLabel={`${estado.nombre}: ${estado.cantidad}`}
+                    >
+                      <View
+                        style={[
+                          styles.puntoLeyenda,
+                          {
+                            backgroundColor:
+                              estado.color,
+                          },
+                        ]}
+                      />
+
+                      <Text
+                        style={[
+                          styles.nombreEstado,
+                          {
+                            color:
+                              colores.textoSecundario,
+                            fontSize:
+                              12 *
+                              escalaTexto,
+                          },
+                        ]}
+                      >
+                        {estado.nombre}
+                      </Text>
+
+                      <Text
+                        style={[
+                          styles.cantidadEstado,
+                          {
+                            color:
+                              colores.texto,
+                            fontSize:
+                              13 *
+                              escalaTexto,
+                          },
+                        ]}
+                      >
+                        {estado.cantidad}
+                      </Text>
+                    </View>
+                  ))}
+
+                  <View
+                    style={[
+                      styles.divisor,
+                      {
+                        backgroundColor:
+                          colores.borde,
+                      },
+                    ]}
+                  />
+
+                  <View
+                    style={
+                      styles.totalActividades
+                    }
+                  >
+                    <Text
+                      style={[
+                        styles.textoTotal,
+                        {
+                          color:
+                            colores.textoSecundario,
+                          fontSize:
+                            11 *
+                            escalaTexto,
+                        },
+                      ]}
+                    >
+                      Total de actividades
+                    </Text>
+
+                    <Text
+                      style={[
+                        styles.numeroTotal,
+                        {
+                          color:
+                            colores.primario,
+                          fontSize:
+                            18 *
+                            escalaTexto,
+                        },
+                      ]}
+                    >
+                      {
+                        datos.resumen
+                          .total_actividades
+                      }
+                    </Text>
+                  </View>
+                </View>
+              </View>
+
+              <Text
+                style={[
+                  styles.tituloSeccion,
+                  {
+                    color: colores.texto,
+                    fontSize:
+                      15 * escalaTexto,
+                  },
+                ]}
+                accessibilityRole="header"
+              >
+                Progreso por materia
+              </Text>
+
+              {datos.materias.length === 0 ? (
+                <View
+                  style={[
+                    styles.estadoVacio,
+                    {
+                      backgroundColor:
+                        colores.tarjeta,
+                      borderColor:
+                        colores.borde,
+                    },
+                  ]}
+                >
+                  <View
+                    style={[
+                      styles.iconoVacio,
+                      {
+                        backgroundColor:
+                          colores.fondoPrimario,
+                      },
+                    ]}
+                  >
+                    <Ionicons
+                      name="school-outline"
+                      size={36}
+                      color={
+                        colores.textoSecundario
+                      }
+                    />
+                  </View>
+
+                  <Text
+                    style={[
+                      styles.tituloVacio,
+                      {
+                        color: colores.texto,
+                        fontSize:
+                          15 *
+                          escalaTexto,
+                      },
+                    ]}
+                  >
+                    Aún no hay avances
+                  </Text>
+
+                  <Text
+                    style={[
+                      styles.descripcionVacio,
+                      {
+                        color:
+                          colores.textoSecundario,
+                        fontSize:
+                          12 *
+                          escalaTexto,
+                        lineHeight:
+                          18 *
+                          escalaTexto,
+                      },
+                    ]}
+                  >
+                    Tus materias y avances
+                    aparecerán cuando tengas
+                    actividades asignadas.
+                  </Text>
+                </View>
+              ) : (
+                <View style={styles.listaMaterias}>
+                  {datos.materias.map(
+                    (materia, index) => (
+                      <BarraMateria
+                        key={
+                          materia.id_materia
+                        }
+                        materia={materia}
+                        indice={index}
+                        colores={colores}
+                        escalaTexto={
+                          escalaTexto
+                        }
+                      />
+                    )
+                  )}
+                </View>
+              )}
+            </>
+          )}
+        </ScrollView>
+
+        <BarraNavegacion
+          colores={colores}
+          escalaTexto={escalaTexto}
+        />
+      </View>
+    </SafeAreaView>
+  );
 }
+
+type GraficaCircularProps = {
+  porcentaje: number;
+  color: string;
+  colorFondo: string;
+  escalaTexto: number;
+};
 
 function GraficaCircular({
   porcentaje,
+  color,
+  colorFondo,
+  escalaTexto,
 }: GraficaCircularProps) {
-  const tamaño = 124;
-  const grosor = 25;
-  const radio = (tamaño - grosor) / 2;
-  const circunferencia = 2 * Math.PI * radio;
+  const tamano = 142;
+  const grosor = 17;
+  const radio = (tamano - grosor) / 2;
+  const circunferencia =
+    2 * Math.PI * radio;
 
   const progresoLimitado = Math.min(
-    Math.max(porcentaje, 0),
-    100,
+    Math.max(
+      Number.isFinite(porcentaje)
+        ? porcentaje
+        : 0,
+      0
+    ),
+    100
   );
 
   const desplazamiento =
     circunferencia -
-    (progresoLimitado / 100) * circunferencia;
+    (progresoLimitado / 100) *
+      circunferencia;
 
   return (
     <View
-      style={styles.contenedorGrafica}
+      style={[
+        styles.contenedorGrafica,
+        {
+          width: tamano,
+          height: tamano,
+        },
+      ]}
       accessible
-      accessibilityLabel={`Progreso general del ${progresoLimitado} por ciento`}
+      accessibilityLabel={`Progreso general de ${Math.round(
+        progresoLimitado
+      )} por ciento`}
     >
       <Svg
-        width={tamaño}
-        height={tamaño}
-        viewBox={`0 0 ${tamaño} ${tamaño}`}
+        width={tamano}
+        height={tamano}
+        viewBox={`0 0 ${tamano} ${tamano}`}
       >
         <Circle
-          cx={tamaño / 2}
-          cy={tamaño / 2}
+          cx={tamano / 2}
+          cy={tamano / 2}
           r={radio}
-          stroke="#E7E9EE"
+          stroke={colorFondo}
           strokeWidth={grosor}
           fill="none"
         />
 
         <Circle
-          cx={tamaño / 2}
-          cy={tamaño / 2}
+          cx={tamano / 2}
+          cy={tamano / 2}
           r={radio}
-          stroke={COLORES.turquesa}
+          stroke={color}
           strokeWidth={grosor}
           fill="none"
-          strokeLinecap="butt"
+          strokeLinecap="round"
           strokeDasharray={`${circunferencia} ${circunferencia}`}
           strokeDashoffset={desplazamiento}
           rotation="-90"
-          origin={`${tamaño / 2}, ${tamaño / 2}`}
+          origin={`${tamano / 2}, ${tamano / 2}`}
         />
       </Svg>
 
       <View style={styles.centroGrafica}>
-        <Text style={styles.porcentajeGrafica}>
-          {progresoLimitado}%
+        <Text
+          style={[
+            styles.porcentajeGrafica,
+            {
+              color: color,
+              fontSize:
+                Math.min(
+                  25 * escalaTexto,
+                  35
+                ),
+            },
+          ]}
+        >
+          {Math.round(progresoLimitado)}%
+        </Text>
+
+        <Text
+          style={[
+            styles.textoProgreso,
+            {
+              fontSize:
+                Math.min(
+                  10 * escalaTexto,
+                  14
+                ),
+            },
+          ]}
+        >
+          completado
         </Text>
       </View>
     </View>
   );
 }
 
-interface BarraMateriaProps {
+type ColoresAccesibilidad = {
+  fondo: string;
+  tarjeta: string;
+  texto: string;
+  textoSecundario: string;
+  borde: string;
+  primario: string;
+  fondoPrimario: string;
+};
+
+type BarraMateriaProps = {
   materia: ProgresoMateria;
-}
+  indice: number;
+  colores: ColoresAccesibilidad;
+  escalaTexto: number;
+};
 
 function BarraMateria({
   materia,
+  indice,
+  colores,
+  escalaTexto,
 }: BarraMateriaProps) {
   const porcentaje = Math.min(
     Math.max(materia.porcentaje, 0),
-    100,
+    100
   );
+
+  const coloresBarras = [
+    colores.primario,
+    COLORES_GRAFICAS.verde,
+    COLORES_GRAFICAS.amarillo,
+    COLORES_GRAFICAS.morado,
+    COLORES_GRAFICAS.completadas,
+  ];
+
+  const colorBarra =
+    coloresBarras[
+      indice % coloresBarras.length
+    ];
 
   return (
     <View
-      style={styles.contenedorMateria}
+      style={[
+        styles.tarjetaMateria,
+        {
+          backgroundColor: colores.tarjeta,
+          borderColor: colores.borde,
+        },
+      ]}
       accessible
-      accessibilityLabel={`${materia.nombre}, progreso del ${porcentaje} por ciento`}
+      accessibilityLabel={`${materia.nombre}. Progreso de ${Math.round(
+        porcentaje
+      )} por ciento. ${
+        materia.completadas
+      } de ${
+        materia.total_actividades
+      } actividades completadas.`}
     >
       <View style={styles.encabezadoMateria}>
-        <Text style={styles.nombreMateria}>
-          {materia.nombre}
-        </Text>
+        <View
+          style={[
+            styles.iconoMateria,
+            {
+              backgroundColor:
+                colores.fondoPrimario,
+            },
+          ]}
+        >
+          <Ionicons
+            name="book-outline"
+            size={21}
+            color={colorBarra}
+          />
+        </View>
 
-        <Text style={styles.porcentajeMateria}>
-          {porcentaje}%
-        </Text>
+        <View style={styles.datosMateria}>
+          <Text
+            style={[
+              styles.nombreMateria,
+              {
+                color: colores.texto,
+                fontSize:
+                  13 * escalaTexto,
+              },
+            ]}
+            numberOfLines={2}
+          >
+            {materia.nombre}
+          </Text>
+
+          <Text
+            style={[
+              styles.detalleMateria,
+              {
+                color:
+                  colores.textoSecundario,
+                fontSize:
+                  10 * escalaTexto,
+              },
+            ]}
+          >
+            {materia.completadas} de{' '}
+            {materia.total_actividades}{' '}
+            actividades completadas
+          </Text>
+        </View>
+
+        <View
+          style={[
+            styles.insigniaPorcentaje,
+            {
+              backgroundColor:
+                colores.fondoPrimario,
+            },
+          ]}
+        >
+          <Text
+            style={[
+              styles.porcentajeMateria,
+              {
+                color: colorBarra,
+                fontSize:
+                  12 * escalaTexto,
+              },
+            ]}
+          >
+            {Math.round(porcentaje)}%
+          </Text>
+        </View>
       </View>
 
-      <View style={styles.fondoBarra}>
+      <View
+        style={[
+          styles.fondoBarra,
+          {
+            backgroundColor:
+              colores.borde,
+          },
+        ]}
+      >
         <View
           style={[
             styles.progresoBarra,
             {
               width: `${porcentaje}%`,
-              backgroundColor: materia.color,
+              backgroundColor: colorBarra,
             },
           ]}
         />
@@ -200,91 +1099,130 @@ type SeccionAlumno =
   | 'avances'
   | 'chatbot';
 
-interface OpcionNavegacion {
+type OpcionNavegacion = {
   id: SeccionAlumno;
   titulo: string;
   icono: keyof typeof Ionicons.glyphMap;
-  ruta?: string;
-}
+  ruta: Href;
+};
 
 const OPCIONES_NAVEGACION: OpcionNavegacion[] = [
   {
     id: 'inicio',
     titulo: 'Inicio',
-    icono: 'home',
+    icono: 'home-outline',
     ruta: '/inicio-alumno',
   },
   {
     id: 'actividades',
     titulo: 'Actividades',
     icono: 'document-text-outline',
-    ruta: '/resumen-actividades',
+    ruta: '/mis-actividades-alumno',
   },
   {
     id: 'biblioteca',
     titulo: 'Biblioteca',
     icono: 'book-outline',
-    ruta: '/biblioteca-alumno',
+
+    /*
+     * Actualmente tu proyecto tiene este
+     * nombre escrito como "bibloteca".
+     * Cámbialo cuando renombres el archivo.
+     */
+    ruta: '/bibloteca-alumno',
   },
   {
     id: 'avances',
-    titulo: 'Mis Avances',
+    titulo: 'Mis avances',
     icono: 'stats-chart',
     ruta: '/mis-avances',
   },
   {
     id: 'chatbot',
     titulo: 'Chatbot',
-    icono: 'help-circle',
+    icono: 'chatbubble-ellipses-outline',
     ruta: '/chatbot',
   },
 ];
 
-function BarraNavegacion() {
-  const navegar = (opcion: OpcionNavegacion) => {
-    if (!opcion.ruta) {
-      return;
-    }
+type BarraNavegacionProps = {
+  colores: ColoresAccesibilidad;
+  escalaTexto: number;
+};
 
-    router.navigate(opcion.ruta as never);
-  };
-
+function BarraNavegacion({
+  colores,
+  escalaTexto,
+}: BarraNavegacionProps) {
   return (
-    <View style={styles.barraNavegacion}>
+    <View
+      style={[
+        styles.barraNavegacion,
+        {
+          backgroundColor: colores.tarjeta,
+          borderTopColor: colores.borde,
+        },
+      ]}
+      accessibilityRole="tablist"
+    >
       {OPCIONES_NAVEGACION.map((opcion) => {
-        const seleccionada = opcion.id === 'avances';
+        const seleccionada =
+          opcion.id === 'avances';
+
+        const color = seleccionada
+          ? colores.primario
+          : colores.textoSecundario;
 
         return (
           <Pressable
             key={opcion.id}
-            onPress={() => navegar(opcion)}
-            accessibilityRole="button"
-            accessibilityLabel={`Abrir ${opcion.titulo}`}
+            onPress={() =>
+              router.replace(opcion.ruta)
+            }
+            accessibilityRole="tab"
+            accessibilityLabel={opcion.titulo}
             accessibilityState={{
               selected: seleccionada,
             }}
             style={({ pressed }) => [
               styles.opcionNavegacion,
-              pressed && styles.opcionPresionada,
+              pressed && {
+                opacity: 0.65,
+              },
             ]}
           >
-            <Ionicons
-              name={opcion.icono}
-              size={22}
-              color={
-                seleccionada
-                  ? COLORES.primario
-                  : COLORES.grisIcono
-              }
-            />
+            <View
+              style={[
+                styles.contenedorIconoNavegacion,
+                seleccionada && {
+                  backgroundColor:
+                    colores.fondoPrimario,
+                },
+              ]}
+            >
+              <Ionicons
+                name={opcion.icono}
+                size={22}
+                color={color}
+              />
+            </View>
 
             <Text
               style={[
                 styles.textoNavegacion,
-                seleccionada &&
-                  styles.textoNavegacionSeleccionado,
+                {
+                  color,
+                  fontSize:
+                    Math.min(
+                      9 * escalaTexto,
+                      12
+                    ),
+                  fontWeight: seleccionada
+                    ? '800'
+                    : '600',
+                },
               ]}
-              numberOfLines={1}
+              numberOfLines={2}
             >
               {opcion.titulo}
             </Text>
@@ -295,126 +1233,13 @@ function BarraNavegacion() {
   );
 }
 
-export default function MisAvancesScreen() {
-  const porcentajeGeneral = 72;
-
-  return (
-    <SafeAreaView style={styles.safeArea}>
-      <StatusBar
-        barStyle="dark-content"
-        backgroundColor={COLORES.fondo}
-      />
-
-      <View style={styles.pantalla}>
-        <ScrollView
-          style={styles.scroll}
-          contentContainerStyle={styles.contenido}
-          showsVerticalScrollIndicator={false}
-        >
-          <View style={styles.encabezado}>
-            <Text style={styles.titulo}>
-              Mis avances
-            </Text>
-
-            <Pressable
-              onPress={() =>
-                router.navigate('/accesibilidad')
-              }
-              accessibilityRole="button"
-              accessibilityLabel="Abrir opciones de accesibilidad"
-              hitSlop={12}
-              style={({ pressed }) => [
-                styles.botonAccesibilidad,
-                pressed && styles.opcionPresionada,
-              ]}
-            >
-              <Ionicons
-                name="accessibility"
-                size={25}
-                color={COLORES.morado}
-              />
-            </Pressable>
-          </View>
-
-          <View style={styles.mensajeMotivacional}>
-            <View style={styles.informacionMensaje}>
-              <Text style={styles.tituloMensaje}>
-                ¡Vas muy bien!
-              </Text>
-
-              <Text style={styles.descripcionMensaje}>
-                Sigue así, tú puedes lograrlo.
-              </Text>
-            </View>
-
-            <Ionicons
-              name="trophy"
-              size={48}
-              color={COLORES.amarillo}
-            />
-          </View>
-
-          <View style={styles.resumen}>
-            <GraficaCircular
-              porcentaje={porcentajeGeneral}
-            />
-
-            <View style={styles.leyenda}>
-              {ESTADOS.map((estado) => (
-                <View
-                  key={estado.nombre}
-                  style={styles.elementoLeyenda}
-                >
-                  <View
-                    style={[
-                      styles.puntoLeyenda,
-                      {
-                        backgroundColor: estado.color,
-                      },
-                    ]}
-                  />
-
-                  <Text style={styles.nombreEstado}>
-                    {estado.nombre}
-                  </Text>
-
-                  <Text style={styles.cantidadEstado}>
-                    {estado.cantidad}
-                  </Text>
-                </View>
-              ))}
-            </View>
-          </View>
-
-          <Text style={styles.subtitulo}>
-            Progreso por materia
-          </Text>
-
-          <View style={styles.listaMaterias}>
-            {MATERIAS.map((materia) => (
-              <BarraMateria
-                key={materia.id}
-                materia={materia}
-              />
-            ))}
-          </View>
-        </ScrollView>
-
-        <BarraNavegacion />
-      </View>
-    </SafeAreaView>
-  );
-}
-
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: COLORES.fondo,
   },
 
   pantalla: {
     flex: 1,
-    backgroundColor: COLORES.fondo,
   },
 
   scroll: {
@@ -422,74 +1247,136 @@ const styles = StyleSheet.create({
   },
 
   contenido: {
-    paddingHorizontal: 22,
-    paddingTop: 18,
+    paddingTop: 14,
     paddingBottom: 32,
   },
 
   encabezado: {
+    minHeight: 60,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 23,
+    marginBottom: 18,
   },
 
   titulo: {
-    color: COLORES.texto,
-    fontSize: 21,
-    fontWeight: '700',
+    fontWeight: '900',
   },
 
-  botonAccesibilidad: {
-    width: 42,
-    height: 42,
+  subtituloEncabezado: {
+    marginTop: 3,
+  },
+
+  cargando: {
+    minHeight: 480,
     alignItems: 'center',
     justifyContent: 'center',
   },
 
-  opcionPresionada: {
-    opacity: 0.65,
+  iconoCarga: {
+    width: 68,
+    height: 68,
+    borderRadius: 22,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 22,
+  },
+
+  textoCargando: {
+    marginTop: 13,
   },
 
   mensajeMotivacional: {
-    minHeight: 88,
+    minHeight: 105,
+    borderWidth: 1,
+    borderRadius: 20,
+    paddingHorizontal: 17,
+    paddingVertical: 16,
+    marginBottom: 23,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: COLORES.fondoMensaje,
-    borderRadius: 16,
-    paddingHorizontal: 18,
-    paddingVertical: 14,
-    marginBottom: 32,
+
+    ...Platform.select({
+      ios: {
+        shadowColor: '#5B21B6',
+        shadowOffset: {
+          width: 0,
+          height: 5,
+        },
+        shadowOpacity: 0.08,
+        shadowRadius: 10,
+      },
+
+      android: {
+        elevation: 2,
+      },
+    }),
+  },
+
+  mensajeGrande: {
+    flexDirection: 'column',
+    alignItems: 'flex-start',
   },
 
   informacionMensaje: {
     flex: 1,
-    paddingRight: 14,
+    paddingRight: 12,
   },
 
   tituloMensaje: {
-    color: COLORES.morado,
-    fontSize: 15,
-    fontWeight: '700',
-    marginBottom: 8,
+    fontWeight: '900',
+    marginBottom: 5,
   },
 
   descripcionMensaje: {
-    color: COLORES.textoSecundario,
-    fontSize: 11,
-    lineHeight: 16,
+    fontWeight: '500',
   },
 
-  resumen: {
+  cajaTrofeo: {
+    width: 62,
+    height: 62,
+    borderRadius: 19,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  tituloSeccion: {
+    fontWeight: '900',
+    marginBottom: 10,
+  },
+
+  tarjetaResumen: {
+    minHeight: 180,
+    borderWidth: 1,
+    borderRadius: 22,
+    padding: 17,
+    marginBottom: 24,
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 28,
+
+    ...Platform.select({
+      ios: {
+        shadowColor: '#111827',
+        shadowOffset: {
+          width: 0,
+          height: 5,
+        },
+        shadowOpacity: 0.06,
+        shadowRadius: 12,
+      },
+
+      android: {
+        elevation: 2,
+      },
+    }),
+  },
+
+  resumenGrande: {
+    flexDirection: 'column',
   },
 
   contenedorGrafica: {
-    width: 124,
-    height: 124,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -501,117 +1388,193 @@ const styles = StyleSheet.create({
   },
 
   porcentajeGrafica: {
-    color: COLORES.texto,
-    fontSize: 23,
-    fontWeight: '700',
+    fontWeight: '900',
+  },
+
+  textoProgreso: {
+    color: '#667085',
+    marginTop: 1,
+    fontWeight: '600',
   },
 
   leyenda: {
     flex: 1,
-    marginLeft: 28,
+    marginLeft: 20,
   },
 
   elementoLeyenda: {
+    minHeight: 35,
     flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: 7,
   },
 
   puntoLeyenda: {
-    width: 9,
-    height: 9,
+    width: 10,
+    height: 10,
     borderRadius: 5,
-    marginRight: 7,
+    marginRight: 8,
   },
 
   nombreEstado: {
     flex: 1,
-    color: COLORES.textoSecundario,
-    fontSize: 11,
+    fontWeight: '600',
   },
 
   cantidadEstado: {
-    minWidth: 20,
-    color: COLORES.texto,
-    fontSize: 11,
-    fontWeight: '700',
+    minWidth: 25,
     textAlign: 'right',
+    fontWeight: '900',
   },
 
-  subtitulo: {
-    color: COLORES.texto,
-    fontSize: 14,
-    fontWeight: '700',
-    marginBottom: 25,
+  divisor: {
+    height: 1,
+    marginVertical: 8,
+  },
+
+  totalActividades: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+
+  textoTotal: {
+    flex: 1,
+    fontWeight: '600',
+  },
+
+  numeroTotal: {
+    fontWeight: '900',
   },
 
   listaMaterias: {
-    width: '100%',
+    marginBottom: 5,
   },
 
-  contenedorMateria: {
-    marginBottom: 28,
+  tarjetaMateria: {
+    borderWidth: 1,
+    borderRadius: 17,
+    padding: 14,
+    marginBottom: 10,
+
+    ...Platform.select({
+      android: {
+        elevation: 1,
+      },
+    }),
   },
 
   encabezadoMateria: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 10,
+    marginBottom: 13,
+  },
+
+  iconoMateria: {
+    width: 43,
+    height: 43,
+    borderRadius: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  datosMateria: {
+    flex: 1,
+    marginHorizontal: 11,
   },
 
   nombreMateria: {
-    color: COLORES.texto,
-    fontSize: 11,
-    fontWeight: '500',
+    fontWeight: '800',
+  },
+
+  detalleMateria: {
+    marginTop: 4,
+  },
+
+  insigniaPorcentaje: {
+    minWidth: 48,
+    minHeight: 31,
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
   porcentajeMateria: {
-    color: COLORES.textoSecundario,
-    fontSize: 10,
+    fontWeight: '900',
   },
 
   fondoBarra: {
     width: '100%',
-    height: 7,
-    backgroundColor: COLORES.barraFondo,
-    borderRadius: 10,
+    height: 9,
+    borderRadius: 6,
     overflow: 'hidden',
   },
 
   progresoBarra: {
     height: '100%',
-    borderRadius: 10,
+    borderRadius: 6,
+  },
+
+  estadoVacio: {
+    minHeight: 210,
+    borderWidth: 1,
+    borderRadius: 20,
+    padding: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  iconoVacio: {
+    width: 68,
+    height: 68,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  tituloVacio: {
+    marginTop: 14,
+    fontWeight: '900',
+  },
+
+  descripcionVacio: {
+    marginTop: 6,
+    textAlign: 'center',
   },
 
   barraNavegacion: {
     minHeight: 70,
     flexDirection: 'row',
-    backgroundColor: COLORES.fondo,
     borderTopWidth: 1,
-    borderTopColor: COLORES.borde,
-    paddingTop: 8,
-    paddingBottom: 8,
-    paddingHorizontal: 5,
+    paddingTop: 6,
+    paddingBottom: 5,
+    paddingHorizontal: 3,
+
+    ...Platform.select({
+      android: {
+        elevation: 9,
+      },
+    }),
   },
 
   opcionNavegacion: {
     flex: 1,
+    minWidth: 0,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 2,
+    paddingHorizontal: 1,
+  },
+
+  contenedorIconoNavegacion: {
+    width: 38,
+    height: 29,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
   textoNavegacion: {
-    color: COLORES.grisIcono,
-    fontSize: 8,
-    fontWeight: '500',
-    marginTop: 4,
+    marginTop: 3,
     textAlign: 'center',
-  },
-
-  textoNavegacionSeleccionado: {
-    color: COLORES.primario,
-    fontWeight: '700',
   },
 });
