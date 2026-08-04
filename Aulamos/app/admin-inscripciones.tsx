@@ -12,7 +12,6 @@ import {
   Modal,
   Platform,
   RefreshControl,
-  SafeAreaView,
   ScrollView,
   StatusBar,
   StyleSheet,
@@ -22,6 +21,11 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
+
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 
 import AsyncStorage from
   "@react-native-async-storage/async-storage";
@@ -48,6 +52,9 @@ type EstadoInscripcion =
 
 type RegistroCatalogo =
   Record<string, unknown>;
+
+type IoniconName =
+  keyof typeof Ionicons.glyphMap;
 
 type Inscripcion = {
   id_inscripcion: number;
@@ -284,6 +291,11 @@ AdminInscripcionesScreen() {
 
   const { width } =
     useWindowDimensions();
+
+  const insets =
+    useSafeAreaInsets();
+
+  const altoBarraInferior = 68;
 
   const dosColumnas =
     width >= 760;
@@ -976,9 +988,18 @@ AdminInscripcionesScreen() {
       />
 
       <ScrollView
-        contentContainerStyle={
-          styles.contenido
-        }
+        contentContainerStyle={[
+          styles.contenido,
+          {
+            paddingBottom:
+              altoBarraInferior +
+              Math.max(
+                insets.bottom,
+                5
+              ) +
+              30,
+          },
+        ]}
         refreshControl={
           <RefreshControl
             refreshing={actualizando}
@@ -1532,6 +1553,103 @@ AdminInscripcionesScreen() {
         )}
       </ScrollView>
 
+      <View
+        style={[
+          styles.navegacionInferior,
+          {
+            height:
+              altoBarraInferior +
+              Math.max(
+                insets.bottom,
+                5
+              ),
+
+            paddingBottom:
+              Math.max(
+                insets.bottom,
+                5
+              ),
+
+            backgroundColor:
+              tema.tarjeta,
+
+            borderTopColor:
+              tema.borde,
+          },
+        ]}
+      >
+        <View
+          style={
+            styles.contenidoNavegacion
+          }
+        >
+          <BottomNavigationItem
+            icon="home-outline"
+            activeIcon="home"
+            label="Inicio"
+            onPress={() =>
+              router.push(
+                "/inicio-admin" as never
+              )
+            }
+            tema={tema}
+            tamano={tamano}
+          />
+
+          <BottomNavigationItem
+            icon="calendar-outline"
+            activeIcon="calendar"
+            label="Ciclos"
+            onPress={() =>
+              router.push(
+                "/admin-ciclos" as never
+              )
+            }
+            tema={tema}
+            tamano={tamano}
+          />
+
+          <BottomNavigationItem
+            icon="book-outline"
+            activeIcon="book"
+            label="Materias"
+            onPress={() =>
+              router.push(
+                "/admin-materias" as never
+              )
+            }
+            tema={tema}
+            tamano={tamano}
+          />
+
+          <BottomNavigationItem
+            icon="people-outline"
+            activeIcon="people"
+            label="Grupos"
+            onPress={() =>
+              router.push(
+                "/admin-grupos" as never
+              )
+            }
+            tema={tema}
+            tamano={tamano}
+          />
+
+          <BottomNavigationItem
+            icon="grid-outline"
+            activeIcon="grid"
+            label="Cursos"
+            onPress={() =>
+              router.push(
+                "/admin-cursos" as never
+              )
+            }
+            tema={tema}
+            tamano={tamano}
+          />
+        </View>
+      </View>
+
       <Modal
         transparent
         animationType="slide"
@@ -1839,6 +1957,96 @@ AdminInscripcionesScreen() {
         </KeyboardAvoidingView>
       </Modal>
     </SafeAreaView>
+  );
+}
+
+type BottomNavigationItemProps = {
+  icon: IoniconName;
+  activeIcon: IoniconName;
+  label: string;
+  active?: boolean;
+  onPress: () => void;
+
+  tema: {
+    textoSecundario: string;
+    primario: string;
+    fondoPrimario: string;
+  };
+
+  tamano: (
+    base: number
+  ) => number;
+};
+
+function BottomNavigationItem({
+  icon,
+  activeIcon,
+  label,
+  active = false,
+  onPress,
+  tema,
+  tamano,
+}: BottomNavigationItemProps) {
+  return (
+    <TouchableOpacity
+      style={
+        styles.itemNavegacion
+      }
+      onPress={onPress}
+      activeOpacity={0.7}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{
+        selected: active,
+      }}
+    >
+      <View
+        style={[
+          styles.contenedorIconoNavegacion,
+          active && {
+            backgroundColor:
+              tema.fondoPrimario,
+          },
+        ]}
+      >
+        <Ionicons
+          name={
+            active
+              ? activeIcon
+              : icon
+          }
+          size={22}
+          color={
+            active
+              ? tema.primario
+              : tema.textoSecundario
+          }
+        />
+      </View>
+
+      <Text
+        numberOfLines={1}
+        style={[
+          styles.etiquetaNavegacion,
+          {
+            color:
+              active
+                ? tema.primario
+                : tema.textoSecundario,
+
+            fontSize:
+              Math.min(
+                tamano(10),
+                13
+              ),
+          },
+          active &&
+            styles.etiquetaNavegacionActiva,
+        ]}
+      >
+        {label}
+      </Text>
+    </TouchableOpacity>
   );
 }
 
@@ -2167,5 +2375,56 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
+  },
+
+  navegacionInferior: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderTopWidth: 1,
+    shadowColor: "#000000",
+    shadowOffset: {
+      width: 0,
+      height: -3,
+    },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 12,
+  },
+
+  contenidoNavegacion: {
+    flex: 1,
+    width: "100%",
+    maxWidth: 520,
+    alignSelf: "center",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-around",
+  },
+
+  itemNavegacion: {
+    flex: 1,
+    height: "100%",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 2,
+  },
+
+  contenedorIconoNavegacion: {
+    minWidth: 35,
+    height: 28,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  etiquetaNavegacion: {
+    marginTop: 2,
+    fontWeight: "600",
+  },
+
+  etiquetaNavegacionActiva: {
+    fontWeight: "900",
   },
 });

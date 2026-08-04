@@ -946,7 +946,7 @@ export default function InicioAlumnoScreen() {
               texto="Avances"
               onPress={() => router.push("/mis-avances")}
             />
-
+            
             <BotonNavegacion
               icono="help-circle"
               texto="Chatbot"

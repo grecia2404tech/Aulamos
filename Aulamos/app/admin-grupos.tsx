@@ -23,7 +23,10 @@ import {
   View,
 } from 'react-native';
 
-import { SafeAreaView } from 'react-native-safe-area-context';
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from 'react-native-safe-area-context';
 
 import BotonAccesibilidad from '../components/BotonAccesibilidad';
 import { useAccessibility } from '../contexts/AccessibilityContext';
@@ -64,6 +67,8 @@ type RespuestaApi = {
   grupos?: Grupo[];
   grupo?: Grupo;
 };
+
+type IoniconName = keyof typeof Ionicons.glyphMap;
 
 const TURNOS: Turno[] = [
   'Matutino',
@@ -110,6 +115,8 @@ const limpiarTexto = (
 };
 
 export default function AdminGruposScreen() {
+  const insets = useSafeAreaInsets();
+
   const { width } =
     useWindowDimensions();
 
@@ -188,6 +195,9 @@ export default function AdminGruposScreen() {
   const temaOscuro =
     preferencias.modoOscuro ||
     altoContraste;
+
+  const altoBarraInferior =
+    escalaTexto > 1.2 ? 94 : 66;
 
   const dosColumnas =
     width >= 760 &&
@@ -709,6 +719,7 @@ export default function AdminGruposScreen() {
 
   return (
     <SafeAreaView
+      edges={['top', 'left', 'right']}
       style={[
         styles.safeArea,
         {
@@ -718,9 +729,15 @@ export default function AdminGruposScreen() {
       ]}
     >
       <ScrollView
-        contentContainerStyle={
-          styles.container
-        }
+        contentContainerStyle={[
+          styles.container,
+          {
+            paddingBottom:
+              altoBarraInferior +
+              Math.max(insets.bottom, 5) +
+              30,
+          },
+        ]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={
           false
@@ -1517,6 +1534,69 @@ export default function AdminGruposScreen() {
         </View>
       </ScrollView>
 
+      <View
+        style={[
+          styles.bottomNavigation,
+          {
+            height:
+              altoBarraInferior +
+              Math.max(insets.bottom, 5),
+            paddingBottom:
+              Math.max(insets.bottom, 5),
+            backgroundColor:
+              colores.tarjeta,
+            borderTopColor:
+              colores.borde,
+          },
+        ]}
+      >
+        <View style={styles.bottomContent}>
+          <BottomNavigationItem
+            icon="home-outline"
+            activeIcon="home"
+            label="Inicio"
+            onPress={() =>
+              router.push('/inicio-admin' as any)
+            }
+          />
+
+          <BottomNavigationItem
+            icon="calendar-outline"
+            activeIcon="calendar"
+            label="Ciclos"
+            onPress={() =>
+              router.push('/admin-ciclos' as any)
+            }
+          />
+
+          <BottomNavigationItem
+            icon="book-outline"
+            activeIcon="book"
+            label="Materias"
+            onPress={() =>
+              router.push('/admin-materias' as any)
+            }
+          />
+
+          <BottomNavigationItem
+            icon="people-outline"
+            activeIcon="people"
+            label="Grupos"
+            active
+            onPress={() => {}}
+          />
+
+          <BottomNavigationItem
+            icon="grid-outline"
+            activeIcon="grid"
+            label="Cursos"
+            onPress={() =>
+              router.push('/admin-cursos' as any)
+            }
+          />
+        </View>
+      </View>
+
       <Modal
         visible={modalVisible}
         transparent
@@ -2123,6 +2203,80 @@ export default function AdminGruposScreen() {
   );
 }
 
+type BottomNavigationItemProps = {
+  icon: IoniconName;
+  activeIcon: IoniconName;
+  label: string;
+  active?: boolean;
+  onPress: () => void;
+};
+
+function BottomNavigationItem({
+  icon,
+  activeIcon,
+  label,
+  active = false,
+  onPress,
+}: BottomNavigationItemProps) {
+  const {
+    colores,
+    escalaTexto,
+  } = useAccessibility();
+
+  return (
+    <TouchableOpacity
+      style={styles.bottomItem}
+      onPress={onPress}
+      activeOpacity={0.7}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{
+        selected: active,
+      }}
+    >
+      <View
+        style={[
+          styles.bottomIconContainer,
+          active && {
+            backgroundColor:
+              colores.fondoPrimario,
+          },
+        ]}
+      >
+        <Ionicons
+          name={active ? activeIcon : icon}
+          size={22}
+          color={
+            active
+              ? colores.primario
+              : colores.textoSecundario
+          }
+        />
+      </View>
+
+      <Text
+        numberOfLines={1}
+        style={[
+          styles.bottomLabel,
+          {
+            color: active
+              ? colores.primario
+              : colores.textoSecundario,
+            fontSize: Math.min(
+              10 * escalaTexto,
+              13
+            ),
+          },
+          active &&
+            styles.bottomLabelActive,
+        ]}
+      >
+        {label}
+      </Text>
+    </TouchableOpacity>
+  );
+}
+
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
@@ -2481,5 +2635,56 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: '900',
     marginLeft: 6,
+  },
+
+  bottomNavigation: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderTopWidth: 1,
+    shadowColor: '#000000',
+    shadowOffset: {
+      width: 0,
+      height: -3,
+    },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 12,
+  },
+
+  bottomContent: {
+    flex: 1,
+    width: '100%',
+    maxWidth: 520,
+    alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-around',
+  },
+
+  bottomItem: {
+    flex: 1,
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 2,
+  },
+
+  bottomIconContainer: {
+    minWidth: 35,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  bottomLabel: {
+    marginTop: 2,
+    fontWeight: '600',
+  },
+
+  bottomLabelActive: {
+    fontWeight: '900',
   },
 });

@@ -1,11 +1,7 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
-import {
-  useEffect,
-  useMemo,
-  useState,
-} from 'react';
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Ionicons } from "@expo/vector-icons";
+import { router } from "expo-router";
+import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -19,17 +15,17 @@ import {
   TextInput,
   TouchableOpacity,
   View,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+} from "react-native";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 
-import BotonAccesibilidad from '../components/BotonAccesibilidad';
-import { useAccessibility } from '../contexts/AccessibilityContext';
-import { API_URL } from '../services/api';
+import BotonAccesibilidad from "../components/BotonAccesibilidad";
+import { useAccessibility } from "../contexts/AccessibilityContext";
+import { API_URL } from "../services/api";
 
-type EstadoCiclo =
-  | 'Activo'
-  | 'Inactivo'
-  | 'Cerrado';
+type EstadoCiclo = "Activo" | "Inactivo" | "Cerrado";
 
 type CicloEscolar = {
   id_ciclo: number;
@@ -56,138 +52,82 @@ type RespuestaApi = {
   campo?: string;
 };
 
-const ESTADOS: EstadoCiclo[] = [
-  'Activo',
-  'Inactivo',
-  'Cerrado',
-];
+type IoniconName = keyof typeof Ionicons.glyphMap;
+
+const ESTADOS: EstadoCiclo[] = ["Activo", "Inactivo", "Cerrado"];
 
 export default function AdminCiclosScreen() {
-  const {
-    colores,
-    escalaTexto,
-    preferencias,
-  } = useAccessibility();
+  const insets = useSafeAreaInsets();
 
-  const [token, setToken] =
-    useState('');
+  const { colores, escalaTexto, preferencias } = useAccessibility();
 
-  const [ciclos, setCiclos] =
-    useState<CicloEscolar[]>([]);
+  const [token, setToken] = useState("");
 
-  const [cargando, setCargando] =
-    useState(true);
+  const [ciclos, setCiclos] = useState<CicloEscolar[]>([]);
 
-  const [
-    refrescando,
-    setRefrescando,
-  ] = useState(false);
+  const [cargando, setCargando] = useState(true);
 
-  const [
-    guardando,
-    setGuardando,
-  ] = useState(false);
+  const [refrescando, setRefrescando] = useState(false);
 
-  const [
-    actualizandoId,
-    setActualizandoId,
-  ] = useState<number | null>(null);
+  const [guardando, setGuardando] = useState(false);
 
-  const [
-    formularioVisible,
-    setFormularioVisible,
-  ] = useState(false);
+  const [actualizandoId, setActualizandoId] = useState<number | null>(null);
 
-  const [
-    cicloEditando,
-    setCicloEditando,
-  ] = useState<CicloEscolar | null>(
-    null
-  );
+  const [formularioVisible, setFormularioVisible] = useState(false);
 
-  const [nombre, setNombre] =
-    useState('');
+  const [cicloEditando, setCicloEditando] = useState<CicloEscolar | null>(null);
 
-  const [
-    fechaInicio,
-    setFechaInicio,
-  ] = useState('');
+  const [nombre, setNombre] = useState("");
 
-  const [fechaFin, setFechaFin] =
-    useState('');
+  const [fechaInicio, setFechaInicio] = useState("");
 
-  const [estado, setEstado] =
-    useState<EstadoCiclo>('Inactivo');
+  const [fechaFin, setFechaFin] = useState("");
 
-  const [
-    errorFormulario,
-    setErrorFormulario,
-  ] = useState('');
+  const [estado, setEstado] = useState<EstadoCiclo>("Inactivo");
 
-  const altoContraste =
-    preferencias.altoContraste;
+  const [errorFormulario, setErrorFormulario] = useState("");
 
-  const temaOscuro =
-    preferencias.modoOscuro ||
-    altoContraste;
+  const altoContraste = preferencias.altoContraste;
 
-  const colorPrincipal =
-    altoContraste
-      ? colores.primario
-      : temaOscuro
-        ? '#A5B4FC'
-        : '#4A7CFF';
+  const temaOscuro = preferencias.modoOscuro || altoContraste;
+
+  const altoBarraInferior = escalaTexto > 1.2 ? 94 : 66;
+
+  const colorPrincipal = altoContraste
+    ? colores.primario
+    : temaOscuro
+      ? "#A5B4FC"
+      : "#4A7CFF";
 
   const cicloActivo = useMemo(
-    () =>
-      ciclos.find(
-        (ciclo) =>
-          ciclo.estado === 'Activo'
-      ) || null,
-    [ciclos]
+    () => ciclos.find((ciclo) => ciclo.estado === "Activo") || null,
+    [ciclos],
   );
 
-  const cerrarSesionVencida =
-    async () => {
-      await AsyncStorage.multiRemove([
-        'token',
-        'usuario',
-      ]);
+  const cerrarSesionVencida = async () => {
+    await AsyncStorage.multiRemove(["token", "usuario"]);
 
-      Alert.alert(
-        'Sesión vencida',
-        'Inicia sesión nuevamente.',
-        [
-          {
-            text: 'Aceptar',
-            onPress: () =>
-              router.replace('/'),
-          },
-        ]
-      );
-    };
+    Alert.alert("Sesión vencida", "Inicia sesión nuevamente.", [
+      {
+        text: "Aceptar",
+        onPress: () => router.replace("/"),
+      },
+    ]);
+  };
 
-  const cargarCiclos = async (
-    tokenActual: string,
-    esRecarga = false
-  ) => {
+  const cargarCiclos = async (tokenActual: string, esRecarga = false) => {
     try {
       if (esRecarga) {
         setRefrescando(true);
       }
 
-      const respuesta = await fetch(
-        `${API_URL}/academico/ciclos`,
-        {
-          headers: {
-            Authorization:
-              `Bearer ${tokenActual}`,
-          },
-        }
-      );
+      const respuesta = await fetch(`${API_URL}/academico/ciclos`, {
+        headers: {
+          Authorization: `Bearer ${tokenActual}`,
+        },
+      });
 
-      const datos =
-        (await respuesta.json()) as RespuestaApi;
+      const datos = (await respuesta.json()) as RespuestaApi;
 
       if (respuesta.status === 401) {
         await cerrarSesionVencida();
@@ -196,23 +136,19 @@ export default function AdminCiclosScreen() {
 
       if (respuesta.status === 403) {
         Alert.alert(
-          'Acceso restringido',
-          datos.mensaje ||
-            'No tienes permiso para consultar los ciclos.'
+          "Acceso restringido",
+          datos.mensaje || "No tienes permiso para consultar los ciclos.",
         );
 
-        router.replace(
-          '/inicio-admin' as any
-        );
+        router.replace("/inicio-admin" as any);
 
         return;
       }
 
       if (!respuesta.ok) {
         Alert.alert(
-          'No se pudieron cargar los ciclos',
-          datos.mensaje ||
-            'Inténtalo nuevamente.'
+          "No se pudieron cargar los ciclos",
+          datos.mensaje || "Inténtalo nuevamente.",
         );
 
         return;
@@ -220,14 +156,11 @@ export default function AdminCiclosScreen() {
 
       setCiclos(datos.ciclos || []);
     } catch (error) {
-      console.error(
-        'Error al cargar ciclos:',
-        error
-      );
+      console.error("Error al cargar ciclos:", error);
 
       Alert.alert(
-        'Error de conexión',
-        'No fue posible consultar los ciclos escolares.'
+        "Error de conexión",
+        "No fue posible consultar los ciclos escolares.",
       );
     } finally {
       setCargando(false);
@@ -235,70 +168,52 @@ export default function AdminCiclosScreen() {
     }
   };
 
-  const prepararPantalla =
-    async () => {
-      try {
-        const [
-          tokenGuardado,
-          usuarioTexto,
-        ] = await Promise.all([
-          AsyncStorage.getItem('token'),
-          AsyncStorage.getItem('usuario'),
-        ]);
+  const prepararPantalla = async () => {
+    try {
+      const [tokenGuardado, usuarioTexto] = await Promise.all([
+        AsyncStorage.getItem("token"),
+        AsyncStorage.getItem("usuario"),
+      ]);
 
-        if (
-          !tokenGuardado ||
-          !usuarioTexto
-        ) {
-          await cerrarSesionVencida();
-          return;
-        }
-
-        const usuario =
-          JSON.parse(
-            usuarioTexto
-          ) as UsuarioGuardado;
-
-        if (usuario.rol !== 'Admin') {
-          Alert.alert(
-            'Acceso restringido',
-            'Esta pantalla solamente está disponible para administradores.'
-          );
-
-          router.replace('/');
-          return;
-        }
-
-        setToken(tokenGuardado);
-
-        await cargarCiclos(
-          tokenGuardado
-        );
-      } catch (error) {
-        console.error(
-          'Error al preparar ciclos:',
-          error
-        );
-
-        Alert.alert(
-          'Error',
-          'No fue posible verificar la sesión.'
-        );
-
-        router.replace('/');
+      if (!tokenGuardado || !usuarioTexto) {
+        await cerrarSesionVencida();
+        return;
       }
-    };
+
+      const usuario = JSON.parse(usuarioTexto) as UsuarioGuardado;
+
+      if (usuario.rol !== "Admin") {
+        Alert.alert(
+          "Acceso restringido",
+          "Esta pantalla solamente está disponible para administradores.",
+        );
+
+        router.replace("/");
+        return;
+      }
+
+      setToken(tokenGuardado);
+
+      await cargarCiclos(tokenGuardado);
+    } catch (error) {
+      console.error("Error al preparar ciclos:", error);
+
+      Alert.alert("Error", "No fue posible verificar la sesión.");
+
+      router.replace("/");
+    }
+  };
 
   useEffect(() => {
     prepararPantalla();
   }, []);
 
   const limpiarFormulario = () => {
-    setNombre('');
-    setFechaInicio('');
-    setFechaFin('');
-    setEstado('Inactivo');
-    setErrorFormulario('');
+    setNombre("");
+    setFechaInicio("");
+    setFechaFin("");
+    setEstado("Inactivo");
+    setErrorFormulario("");
     setCicloEditando(null);
   };
 
@@ -307,17 +222,13 @@ export default function AdminCiclosScreen() {
     setFormularioVisible(true);
   };
 
-  const abrirEditarCiclo = (
-    ciclo: CicloEscolar
-  ) => {
+  const abrirEditarCiclo = (ciclo: CicloEscolar) => {
     setCicloEditando(ciclo);
     setNombre(ciclo.nombre);
-    setFechaInicio(
-      ciclo.fecha_inicio
-    );
+    setFechaInicio(ciclo.fecha_inicio);
     setFechaFin(ciclo.fecha_fin);
     setEstado(ciclo.estado);
-    setErrorFormulario('');
+    setErrorFormulario("");
     setFormularioVisible(true);
   };
 
@@ -331,89 +242,66 @@ export default function AdminCiclosScreen() {
   };
 
   const validarFormulario = () => {
-    const nombreLimpio =
-      nombre.trim();
+    const nombreLimpio = nombre.trim();
 
     if (!nombreLimpio) {
-      return 'Escribe el nombre del ciclo escolar.';
+      return "Escribe el nombre del ciclo escolar.";
     }
 
     if (nombreLimpio.length < 4) {
-      return 'El nombre debe tener al menos 4 caracteres.';
+      return "El nombre debe tener al menos 4 caracteres.";
     }
 
-    const expresionFecha =
-      /^\d{4}-\d{2}-\d{2}$/;
+    const expresionFecha = /^\d{4}-\d{2}-\d{2}$/;
 
-    if (
-      !expresionFecha.test(
-        fechaInicio
-      )
-    ) {
-      return 'La fecha de inicio debe tener el formato AAAA-MM-DD.';
+    if (!expresionFecha.test(fechaInicio)) {
+      return "La fecha de inicio debe tener el formato AAAA-MM-DD.";
     }
 
-    if (
-      !expresionFecha.test(fechaFin)
-    ) {
-      return 'La fecha final debe tener el formato AAAA-MM-DD.';
+    if (!expresionFecha.test(fechaFin)) {
+      return "La fecha final debe tener el formato AAAA-MM-DD.";
     }
 
     if (fechaInicio >= fechaFin) {
-      return 'La fecha final debe ser posterior a la fecha de inicio.';
+      return "La fecha final debe ser posterior a la fecha de inicio.";
     }
 
-    return '';
+    return "";
   };
 
   const guardarCiclo = async () => {
-    const mensajeValidacion =
-      validarFormulario();
+    const mensajeValidacion = validarFormulario();
 
     if (mensajeValidacion) {
-      setErrorFormulario(
-        mensajeValidacion
-      );
+      setErrorFormulario(mensajeValidacion);
       return;
     }
 
     try {
       setGuardando(true);
-      setErrorFormulario('');
+      setErrorFormulario("");
 
-      const editando =
-        cicloEditando !== null;
+      const editando = cicloEditando !== null;
 
       const url = editando
         ? `${API_URL}/academico/ciclos/${cicloEditando.id_ciclo}`
         : `${API_URL}/academico/ciclos`;
 
-      const respuesta = await fetch(
-        url,
-        {
-          method: editando
-            ? 'PUT'
-            : 'POST',
-          headers: {
-            'Content-Type':
-              'application/json',
-            Authorization:
-              `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            nombre: nombre
-              .trim()
-              .replace(/\s+/g, ' '),
-            fecha_inicio:
-              fechaInicio,
-            fecha_fin: fechaFin,
-            estado,
-          }),
-        }
-      );
+      const respuesta = await fetch(url, {
+        method: editando ? "PUT" : "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          nombre: nombre.trim().replace(/\s+/g, " "),
+          fecha_inicio: fechaInicio,
+          fecha_fin: fechaFin,
+          estado,
+        }),
+      });
 
-      const datos =
-        (await respuesta.json()) as RespuestaApi;
+      const datos = (await respuesta.json()) as RespuestaApi;
 
       if (respuesta.status === 401) {
         setFormularioVisible(false);
@@ -422,10 +310,7 @@ export default function AdminCiclosScreen() {
       }
 
       if (!respuesta.ok) {
-        setErrorFormulario(
-          datos.mensaje ||
-            'No se pudo guardar el ciclo.'
-        );
+        setErrorFormulario(datos.mensaje || "No se pudo guardar el ciclo.");
 
         return;
       }
@@ -434,90 +319,64 @@ export default function AdminCiclosScreen() {
       limpiarFormulario();
 
       Alert.alert(
-        'Operación correcta',
-        datos.mensaje ||
-          'El ciclo escolar se guardó correctamente.'
+        "Operación correcta",
+        datos.mensaje || "El ciclo escolar se guardó correctamente.",
       );
 
       await cargarCiclos(token);
     } catch (error) {
-      console.error(
-        'Error al guardar ciclo:',
-        error
-      );
+      console.error("Error al guardar ciclo:", error);
 
-      setErrorFormulario(
-        'No fue posible conectarse con la API.'
-      );
+      setErrorFormulario("No fue posible conectarse con la API.");
     } finally {
       setGuardando(false);
     }
   };
 
-  const confirmarCambioEstado = (
-    ciclo: CicloEscolar
-  ) => {
-    const nuevoEstado:
-      EstadoCiclo =
-      ciclo.estado === 'Activo'
-        ? 'Cerrado'
-        : 'Activo';
+  const confirmarCambioEstado = (ciclo: CicloEscolar) => {
+    const nuevoEstado: EstadoCiclo =
+      ciclo.estado === "Activo" ? "Cerrado" : "Activo";
 
-    const accion =
-      nuevoEstado === 'Activo'
-        ? 'activar'
-        : 'cerrar';
+    const accion = nuevoEstado === "Activo" ? "activar" : "cerrar";
 
     Alert.alert(
-      `${accion === 'activar' ? 'Activar' : 'Cerrar'} ciclo`,
+      `${accion === "activar" ? "Activar" : "Cerrar"} ciclo`,
       `¿Deseas ${accion} el ciclo "${ciclo.nombre}"?`,
       [
         {
-          text: 'Cancelar',
-          style: 'cancel',
+          text: "Cancelar",
+          style: "cancel",
         },
         {
-          text:
-            nuevoEstado === 'Activo'
-              ? 'Activar'
-              : 'Cerrar',
-          onPress: () =>
-            cambiarEstadoCiclo(
-              ciclo,
-              nuevoEstado
-            ),
+          text: nuevoEstado === "Activo" ? "Activar" : "Cerrar",
+          onPress: () => cambiarEstadoCiclo(ciclo, nuevoEstado),
         },
-      ]
+      ],
     );
   };
 
   const cambiarEstadoCiclo = async (
     ciclo: CicloEscolar,
-    nuevoEstado: EstadoCiclo
+    nuevoEstado: EstadoCiclo,
   ) => {
     try {
-      setActualizandoId(
-        ciclo.id_ciclo
-      );
+      setActualizandoId(ciclo.id_ciclo);
 
       const respuesta = await fetch(
         `${API_URL}/academico/ciclos/${ciclo.id_ciclo}/estado`,
         {
-          method: 'PATCH',
+          method: "PATCH",
           headers: {
-            'Content-Type':
-              'application/json',
-            Authorization:
-              `Bearer ${token}`,
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({
             estado: nuevoEstado,
           }),
-        }
+        },
       );
 
-      const datos =
-        (await respuesta.json()) as RespuestaApi;
+      const datos = (await respuesta.json()) as RespuestaApi;
 
       if (respuesta.status === 401) {
         await cerrarSesionVencida();
@@ -526,106 +385,76 @@ export default function AdminCiclosScreen() {
 
       if (!respuesta.ok) {
         Alert.alert(
-          'No se pudo cambiar el estado',
-          datos.mensaje ||
-            'Inténtalo nuevamente.'
+          "No se pudo cambiar el estado",
+          datos.mensaje || "Inténtalo nuevamente.",
         );
 
         return;
       }
 
       Alert.alert(
-        'Estado actualizado',
-        datos.mensaje ||
-          'El estado se actualizó correctamente.'
+        "Estado actualizado",
+        datos.mensaje || "El estado se actualizó correctamente.",
       );
 
       await cargarCiclos(token);
     } catch (error) {
-      console.error(
-        'Error al cambiar estado:',
-        error
-      );
+      console.error("Error al cambiar estado:", error);
 
       Alert.alert(
-        'Error de conexión',
-        'No fue posible cambiar el estado del ciclo.'
+        "Error de conexión",
+        "No fue posible cambiar el estado del ciclo.",
       );
     } finally {
       setActualizandoId(null);
     }
   };
 
-  const formatearFecha = (
-    fecha: string
-  ) => {
-    const fechaLocal = new Date(
-      `${fecha}T00:00:00`
-    );
+  const formatearFecha = (fecha: string) => {
+    const fechaLocal = new Date(`${fecha}T00:00:00`);
 
-    if (
-      Number.isNaN(
-        fechaLocal.getTime()
-      )
-    ) {
+    if (Number.isNaN(fechaLocal.getTime())) {
       return fecha;
     }
 
-    return fechaLocal.toLocaleDateString(
-      'es-MX',
-      {
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric',
-      }
-    );
+    return fechaLocal.toLocaleDateString("es-MX", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
   };
 
-  const obtenerColorEstado = (
-    estadoActual: EstadoCiclo
-  ) => {
+  const obtenerColorEstado = (estadoActual: EstadoCiclo) => {
     if (altoContraste) {
       return colores.primario;
     }
 
     switch (estadoActual) {
-      case 'Activo':
-        return temaOscuro
-          ? '#4ADE80'
-          : '#16A34A';
+      case "Activo":
+        return temaOscuro ? "#4ADE80" : "#16A34A";
 
-      case 'Cerrado':
-        return temaOscuro
-          ? '#FBBF24'
-          : '#D97706';
+      case "Cerrado":
+        return temaOscuro ? "#FBBF24" : "#D97706";
 
       default:
         return colores.textoSecundario;
     }
   };
 
-  const obtenerFondoEstado = (
-    estadoActual: EstadoCiclo
-  ) => {
+  const obtenerFondoEstado = (estadoActual: EstadoCiclo) => {
     if (altoContraste) {
       return colores.fondo;
     }
 
     switch (estadoActual) {
-      case 'Activo':
-        return temaOscuro
-          ? '#052E16'
-          : '#DCFCE7';
+      case "Activo":
+        return temaOscuro ? "#052E16" : "#DCFCE7";
 
-      case 'Cerrado':
-        return temaOscuro
-          ? '#451A03'
-          : '#FEF3C7';
+      case "Cerrado":
+        return temaOscuro ? "#451A03" : "#FEF3C7";
 
       default:
-        return temaOscuro
-          ? '#334155'
-          : '#F1F5F9';
+        return temaOscuro ? "#334155" : "#F1F5F9";
     }
   };
 
@@ -635,24 +464,18 @@ export default function AdminCiclosScreen() {
         style={[
           styles.loading,
           {
-            backgroundColor:
-              colores.fondo,
+            backgroundColor: colores.fondo,
           },
         ]}
       >
-        <ActivityIndicator
-          size="large"
-          color={colores.primario}
-        />
+        <ActivityIndicator size="large" color={colores.primario} />
 
         <Text
           style={[
             styles.loadingText,
             {
-              color:
-                colores.textoSecundario,
-              fontSize:
-                14 * escalaTexto,
+              color: colores.textoSecundario,
+              fontSize: 14 * escalaTexto,
             },
           ]}
         >
@@ -664,11 +487,11 @@ export default function AdminCiclosScreen() {
 
   return (
     <SafeAreaView
+      edges={["top", "left", "right"]}
       style={[
         styles.safeArea,
         {
-          backgroundColor:
-            colores.fondo,
+          backgroundColor: colores.fondo,
         },
       ]}
     >
@@ -676,25 +499,16 @@ export default function AdminCiclosScreen() {
         contentContainerStyle={[
           styles.container,
           {
-            backgroundColor:
-              colores.fondo,
+            backgroundColor: colores.fondo,
+            paddingBottom: altoBarraInferior + Math.max(insets.bottom, 5) + 30,
           },
         ]}
         refreshControl={
           <RefreshControl
             refreshing={refrescando}
-            onRefresh={() =>
-              cargarCiclos(
-                token,
-                true
-              )
-            }
-            colors={[
-              colores.primario,
-            ]}
-            tintColor={
-              colores.primario
-            }
+            onRefresh={() => cargarCiclos(token, true)}
+            colors={[colores.primario]}
+            tintColor={colores.primario}
           />
         }
         showsVerticalScrollIndicator={false}
@@ -705,23 +519,15 @@ export default function AdminCiclosScreen() {
               style={[
                 styles.headerButton,
                 {
-                  backgroundColor:
-                    colores.tarjeta,
-                  borderColor:
-                    colores.borde,
+                  backgroundColor: colores.tarjeta,
+                  borderColor: colores.borde,
                 },
               ]}
-              onPress={() =>
-                router.back()
-              }
+              onPress={() => router.back()}
               accessibilityRole="button"
               accessibilityLabel="Regresar"
             >
-              <Ionicons
-                name="arrow-back"
-                size={23}
-                color={colores.texto}
-              />
+              <Ionicons name="arrow-back" size={23} color={colores.texto} />
             </TouchableOpacity>
 
             <View style={styles.headerText}>
@@ -730,8 +536,7 @@ export default function AdminCiclosScreen() {
                   styles.headerTitle,
                   {
                     color: colores.texto,
-                    fontSize:
-                      20 * escalaTexto,
+                    fontSize: 20 * escalaTexto,
                   },
                 ]}
                 accessibilityRole="header"
@@ -743,10 +548,8 @@ export default function AdminCiclosScreen() {
                 style={[
                   styles.headerSubtitle,
                   {
-                    color:
-                      colores.textoSecundario,
-                    fontSize:
-                      12 * escalaTexto,
+                    color: colores.textoSecundario,
+                    fontSize: 12 * escalaTexto,
                   },
                 ]}
               >
@@ -761,14 +564,12 @@ export default function AdminCiclosScreen() {
             style={[
               styles.summaryCard,
               {
-                backgroundColor:
-                  altoContraste
-                    ? colores.tarjeta
-                    : temaOscuro
-                      ? '#1E293B'
-                      : '#EEF2FF',
-                borderColor:
-                  colores.borde,
+                backgroundColor: altoContraste
+                  ? colores.tarjeta
+                  : temaOscuro
+                    ? "#1E293B"
+                    : "#EEF2FF",
+                borderColor: colores.borde,
               },
             ]}
           >
@@ -776,18 +577,12 @@ export default function AdminCiclosScreen() {
               style={[
                 styles.summaryIcon,
                 {
-                  backgroundColor:
-                    colores.tarjeta,
-                  borderColor:
-                    colores.borde,
+                  backgroundColor: colores.tarjeta,
+                  borderColor: colores.borde,
                 },
               ]}
             >
-              <Ionicons
-                name="calendar"
-                size={29}
-                color={colorPrincipal}
-              />
+              <Ionicons name="calendar" size={29} color={colorPrincipal} />
             </View>
 
             <View style={styles.summaryContent}>
@@ -795,10 +590,8 @@ export default function AdminCiclosScreen() {
                 style={[
                   styles.summaryLabel,
                   {
-                    color:
-                      colores.textoSecundario,
-                    fontSize:
-                      12 * escalaTexto,
+                    color: colores.textoSecundario,
+                    fontSize: 12 * escalaTexto,
                   },
                 ]}
               >
@@ -810,31 +603,26 @@ export default function AdminCiclosScreen() {
                   styles.summaryTitle,
                   {
                     color: colores.texto,
-                    fontSize:
-                      18 * escalaTexto,
+                    fontSize: 18 * escalaTexto,
                   },
                 ]}
               >
-                {cicloActivo
-                  ? cicloActivo.nombre
-                  : 'Sin ciclo activo'}
+                {cicloActivo ? cicloActivo.nombre : "Sin ciclo activo"}
               </Text>
 
               <Text
                 style={[
                   styles.summaryText,
                   {
-                    color:
-                      colores.textoSecundario,
-                    fontSize:
-                      12 * escalaTexto,
+                    color: colores.textoSecundario,
+                    fontSize: 12 * escalaTexto,
                   },
                 ]}
               >
-                {ciclos.length}{' '}
+                {ciclos.length}{" "}
                 {ciclos.length === 1
-                  ? 'ciclo registrado'
-                  : 'ciclos registrados'}
+                  ? "ciclo registrado"
+                  : "ciclos registrados"}
               </Text>
             </View>
           </View>
@@ -846,8 +634,7 @@ export default function AdminCiclosScreen() {
                   styles.sectionTitle,
                   {
                     color: colores.texto,
-                    fontSize:
-                      21 * escalaTexto,
+                    fontSize: 21 * escalaTexto,
                   },
                 ]}
               >
@@ -858,10 +645,8 @@ export default function AdminCiclosScreen() {
                 style={[
                   styles.sectionSubtitle,
                   {
-                    color:
-                      colores.textoSecundario,
-                    fontSize:
-                      13 * escalaTexto,
+                    color: colores.textoSecundario,
+                    fontSize: 13 * escalaTexto,
                   },
                 ]}
               >
@@ -873,8 +658,7 @@ export default function AdminCiclosScreen() {
               style={[
                 styles.addButton,
                 {
-                  backgroundColor:
-                    colorPrincipal,
+                  backgroundColor: colorPrincipal,
                 },
               ]}
               onPress={abrirNuevoCiclo}
@@ -884,23 +668,15 @@ export default function AdminCiclosScreen() {
               <Ionicons
                 name="add"
                 size={22}
-                color={
-                  altoContraste
-                    ? '#000000'
-                    : '#FFFFFF'
-                }
+                color={altoContraste ? "#000000" : "#FFFFFF"}
               />
 
               <Text
                 style={[
                   styles.addButtonText,
                   {
-                    color:
-                      altoContraste
-                        ? '#000000'
-                        : '#FFFFFF',
-                    fontSize:
-                      13 * escalaTexto,
+                    color: altoContraste ? "#000000" : "#FFFFFF",
+                    fontSize: 13 * escalaTexto,
                   },
                 ]}
               >
@@ -914,10 +690,8 @@ export default function AdminCiclosScreen() {
               style={[
                 styles.emptyCard,
                 {
-                  backgroundColor:
-                    colores.tarjeta,
-                  borderColor:
-                    colores.borde,
+                  backgroundColor: colores.tarjeta,
+                  borderColor: colores.borde,
                 },
               ]}
             >
@@ -925,8 +699,7 @@ export default function AdminCiclosScreen() {
                 style={[
                   styles.emptyIcon,
                   {
-                    backgroundColor:
-                      colores.fondoPrimario,
+                    backgroundColor: colores.fondoPrimario,
                   },
                 ]}
               >
@@ -942,8 +715,7 @@ export default function AdminCiclosScreen() {
                   styles.emptyTitle,
                   {
                     color: colores.texto,
-                    fontSize:
-                      17 * escalaTexto,
+                    fontSize: 17 * escalaTexto,
                   },
                 ]}
               >
@@ -954,34 +726,24 @@ export default function AdminCiclosScreen() {
                 style={[
                   styles.emptyText,
                   {
-                    color:
-                      colores.textoSecundario,
-                    fontSize:
-                      13 * escalaTexto,
-                    lineHeight:
-                      19 * escalaTexto,
+                    color: colores.textoSecundario,
+                    fontSize: 13 * escalaTexto,
+                    lineHeight: 19 * escalaTexto,
                   },
                 ]}
               >
-                Crea el primer ciclo para comenzar a organizar la información académica.
+                Crea el primer ciclo para comenzar a organizar la información
+                académica.
               </Text>
             </View>
           ) : (
             <View style={styles.cyclesList}>
               {ciclos.map((ciclo) => {
-                const colorEstado =
-                  obtenerColorEstado(
-                    ciclo.estado
-                  );
+                const colorEstado = obtenerColorEstado(ciclo.estado);
 
-                const fondoEstado =
-                  obtenerFondoEstado(
-                    ciclo.estado
-                  );
+                const fondoEstado = obtenerFondoEstado(ciclo.estado);
 
-                const actualizando =
-                  actualizandoId ===
-                  ciclo.id_ciclo;
+                const actualizando = actualizandoId === ciclo.id_ciclo;
 
                 return (
                   <View
@@ -989,33 +751,22 @@ export default function AdminCiclosScreen() {
                     style={[
                       styles.cycleCard,
                       {
-                        backgroundColor:
-                          colores.tarjeta,
+                        backgroundColor: colores.tarjeta,
                         borderColor:
-                          ciclo.estado ===
-                          'Activo'
+                          ciclo.estado === "Activo"
                             ? colorEstado
                             : colores.borde,
                       },
                     ]}
                   >
-                    <View
-                      style={styles.cycleHeader}
-                    >
-                      <View
-                        style={
-                          styles.cycleHeaderText
-                        }
-                      >
+                    <View style={styles.cycleHeader}>
+                      <View style={styles.cycleHeaderText}>
                         <Text
                           style={[
                             styles.cycleName,
                             {
-                              color:
-                                colores.texto,
-                              fontSize:
-                                17 *
-                                escalaTexto,
+                              color: colores.texto,
+                              fontSize: 17 * escalaTexto,
                             },
                           ]}
                         >
@@ -1026,11 +777,8 @@ export default function AdminCiclosScreen() {
                           style={[
                             styles.cycleId,
                             {
-                              color:
-                                colores.textoSecundario,
-                              fontSize:
-                                11 *
-                                escalaTexto,
+                              color: colores.textoSecundario,
+                              fontSize: 11 * escalaTexto,
                             },
                           ]}
                         >
@@ -1042,10 +790,8 @@ export default function AdminCiclosScreen() {
                         style={[
                           styles.statusBadge,
                           {
-                            backgroundColor:
-                              fondoEstado,
-                            borderColor:
-                              colorEstado,
+                            backgroundColor: fondoEstado,
+                            borderColor: colorEstado,
                           },
                         ]}
                       >
@@ -1053,8 +799,7 @@ export default function AdminCiclosScreen() {
                           style={[
                             styles.statusDot,
                             {
-                              backgroundColor:
-                                colorEstado,
+                              backgroundColor: colorEstado,
                             },
                           ]}
                         />
@@ -1063,11 +808,8 @@ export default function AdminCiclosScreen() {
                           style={[
                             styles.statusText,
                             {
-                              color:
-                                colorEstado,
-                              fontSize:
-                                11 *
-                                escalaTexto,
+                              color: colorEstado,
+                              fontSize: 11 * escalaTexto,
                             },
                           ]}
                         >
@@ -1080,16 +822,12 @@ export default function AdminCiclosScreen() {
                       style={[
                         styles.dateBox,
                         {
-                          backgroundColor:
-                            colores.fondo,
-                          borderColor:
-                            colores.borde,
+                          backgroundColor: colores.fondo,
+                          borderColor: colores.borde,
                         },
                       ]}
                     >
-                      <View
-                        style={styles.dateItem}
-                      >
+                      <View style={styles.dateItem}>
                         <Ionicons
                           name="play-circle-outline"
                           size={20}
@@ -1101,11 +839,8 @@ export default function AdminCiclosScreen() {
                             style={[
                               styles.dateLabel,
                               {
-                                color:
-                                  colores.textoSecundario,
-                                fontSize:
-                                  10 *
-                                  escalaTexto,
+                                color: colores.textoSecundario,
+                                fontSize: 10 * escalaTexto,
                               },
                             ]}
                           >
@@ -1116,17 +851,12 @@ export default function AdminCiclosScreen() {
                             style={[
                               styles.dateValue,
                               {
-                                color:
-                                  colores.texto,
-                                fontSize:
-                                  12 *
-                                  escalaTexto,
+                                color: colores.texto,
+                                fontSize: 12 * escalaTexto,
                               },
                             ]}
                           >
-                            {formatearFecha(
-                              ciclo.fecha_inicio
-                            )}
+                            {formatearFecha(ciclo.fecha_inicio)}
                           </Text>
                         </View>
                       </View>
@@ -1135,15 +865,12 @@ export default function AdminCiclosScreen() {
                         style={[
                           styles.dateDivider,
                           {
-                            backgroundColor:
-                              colores.borde,
+                            backgroundColor: colores.borde,
                           },
                         ]}
                       />
 
-                      <View
-                        style={styles.dateItem}
-                      >
+                      <View style={styles.dateItem}>
                         <Ionicons
                           name="flag-outline"
                           size={20}
@@ -1155,11 +882,8 @@ export default function AdminCiclosScreen() {
                             style={[
                               styles.dateLabel,
                               {
-                                color:
-                                  colores.textoSecundario,
-                                fontSize:
-                                  10 *
-                                  escalaTexto,
+                                color: colores.textoSecundario,
+                                fontSize: 10 * escalaTexto,
                               },
                             ]}
                           >
@@ -1170,41 +894,25 @@ export default function AdminCiclosScreen() {
                             style={[
                               styles.dateValue,
                               {
-                                color:
-                                  colores.texto,
-                                fontSize:
-                                  12 *
-                                  escalaTexto,
+                                color: colores.texto,
+                                fontSize: 12 * escalaTexto,
                               },
                             ]}
                           >
-                            {formatearFecha(
-                              ciclo.fecha_fin
-                            )}
+                            {formatearFecha(ciclo.fecha_fin)}
                           </Text>
                         </View>
                       </View>
                     </View>
 
-                    <View
-                      style={
-                        styles.statistics
-                      }
-                    >
-                      <View
-                        style={
-                          styles.statistic
-                        }
-                      >
+                    <View style={styles.statistics}>
+                      <View style={styles.statistic}>
                         <Text
                           style={[
                             styles.statisticNumber,
                             {
-                              color:
-                                colores.texto,
-                              fontSize:
-                                16 *
-                                escalaTexto,
+                              color: colores.texto,
+                              fontSize: 16 * escalaTexto,
                             },
                           ]}
                         >
@@ -1215,11 +923,8 @@ export default function AdminCiclosScreen() {
                           style={[
                             styles.statisticLabel,
                             {
-                              color:
-                                colores.textoSecundario,
-                              fontSize:
-                                10 *
-                                escalaTexto,
+                              color: colores.textoSecundario,
+                              fontSize: 10 * escalaTexto,
                             },
                           ]}
                         >
@@ -1227,20 +932,13 @@ export default function AdminCiclosScreen() {
                         </Text>
                       </View>
 
-                      <View
-                        style={
-                          styles.statistic
-                        }
-                      >
+                      <View style={styles.statistic}>
                         <Text
                           style={[
                             styles.statisticNumber,
                             {
-                              color:
-                                colores.texto,
-                              fontSize:
-                                16 *
-                                escalaTexto,
+                              color: colores.texto,
+                              fontSize: 16 * escalaTexto,
                             },
                           ]}
                         >
@@ -1251,11 +949,8 @@ export default function AdminCiclosScreen() {
                           style={[
                             styles.statisticLabel,
                             {
-                              color:
-                                colores.textoSecundario,
-                              fontSize:
-                                10 *
-                                escalaTexto,
+                              color: colores.textoSecundario,
+                              fontSize: 10 * escalaTexto,
                             },
                           ]}
                         >
@@ -1263,20 +958,13 @@ export default function AdminCiclosScreen() {
                         </Text>
                       </View>
 
-                      <View
-                        style={
-                          styles.statistic
-                        }
-                      >
+                      <View style={styles.statistic}>
                         <Text
                           style={[
                             styles.statisticNumber,
                             {
-                              color:
-                                colores.texto,
-                              fontSize:
-                                16 *
-                                escalaTexto,
+                              color: colores.texto,
+                              fontSize: 16 * escalaTexto,
                             },
                           ]}
                         >
@@ -1287,11 +975,8 @@ export default function AdminCiclosScreen() {
                           style={[
                             styles.statisticLabel,
                             {
-                              color:
-                                colores.textoSecundario,
-                              fontSize:
-                                10 *
-                                escalaTexto,
+                              color: colores.textoSecundario,
+                              fontSize: 10 * escalaTexto,
                             },
                           ]}
                         >
@@ -1300,24 +985,16 @@ export default function AdminCiclosScreen() {
                       </View>
                     </View>
 
-                    <View
-                      style={styles.actions}
-                    >
+                    <View style={styles.actions}>
                       <TouchableOpacity
                         style={[
                           styles.editButton,
                           {
-                            backgroundColor:
-                              colores.fondo,
-                            borderColor:
-                              colores.borde,
+                            backgroundColor: colores.fondo,
+                            borderColor: colores.borde,
                           },
                         ]}
-                        onPress={() =>
-                          abrirEditarCiclo(
-                            ciclo
-                          )
-                        }
+                        onPress={() => abrirEditarCiclo(ciclo)}
                         accessibilityRole="button"
                         accessibilityLabel={`Editar ${ciclo.nombre}`}
                       >
@@ -1331,11 +1008,8 @@ export default function AdminCiclosScreen() {
                           style={[
                             styles.editButtonText,
                             {
-                              color:
-                                colorPrincipal,
-                              fontSize:
-                                12 *
-                                escalaTexto,
+                              color: colorPrincipal,
+                              fontSize: 12 * escalaTexto,
                             },
                           ]}
                         >
@@ -1347,22 +1021,15 @@ export default function AdminCiclosScreen() {
                         style={[
                           styles.stateButton,
                           {
-                            backgroundColor:
-                              fondoEstado,
-                            borderColor:
-                              colorEstado,
+                            backgroundColor: fondoEstado,
+                            borderColor: colorEstado,
                           },
                         ]}
-                        onPress={() =>
-                          confirmarCambioEstado(
-                            ciclo
-                          )
-                        }
+                        onPress={() => confirmarCambioEstado(ciclo)}
                         disabled={actualizando}
                         accessibilityRole="button"
                         accessibilityLabel={
-                          ciclo.estado ===
-                          'Activo'
+                          ciclo.estado === "Activo"
                             ? `Cerrar ${ciclo.nombre}`
                             : `Activar ${ciclo.nombre}`
                         }
@@ -1371,43 +1038,31 @@ export default function AdminCiclosScreen() {
                         }}
                       >
                         {actualizando ? (
-                          <ActivityIndicator
-                            size="small"
-                            color={
-                              colorEstado
-                            }
-                          />
+                          <ActivityIndicator size="small" color={colorEstado} />
                         ) : (
                           <>
                             <Ionicons
                               name={
-                                ciclo.estado ===
-                                'Activo'
-                                  ? 'lock-closed-outline'
-                                  : 'checkmark-circle-outline'
+                                ciclo.estado === "Activo"
+                                  ? "lock-closed-outline"
+                                  : "checkmark-circle-outline"
                               }
                               size={18}
-                              color={
-                                colorEstado
-                              }
+                              color={colorEstado}
                             />
 
                             <Text
                               style={[
                                 styles.stateButtonText,
                                 {
-                                  color:
-                                    colorEstado,
-                                  fontSize:
-                                    12 *
-                                    escalaTexto,
+                                  color: colorEstado,
+                                  fontSize: 12 * escalaTexto,
                                 },
                               ]}
                             >
-                              {ciclo.estado ===
-                              'Activo'
-                                ? 'Cerrar ciclo'
-                                : 'Activar'}
+                              {ciclo.estado === "Activo"
+                                ? "Cerrar ciclo"
+                                : "Activar"}
                             </Text>
                           </>
                         )}
@@ -1421,30 +1076,72 @@ export default function AdminCiclosScreen() {
         </View>
       </ScrollView>
 
+      <View
+        style={[
+          styles.bottomNavigation,
+          {
+            height: altoBarraInferior + Math.max(insets.bottom, 5),
+            paddingBottom: Math.max(insets.bottom, 5),
+            backgroundColor: colores.tarjeta,
+            borderTopColor: colores.borde,
+          },
+        ]}
+      >
+        <View style={styles.bottomContent}>
+          <BottomNavigationItem
+            icon="home-outline"
+            activeIcon="home"
+            label="Inicio"
+            onPress={() => router.push("/inicio-admin" as any)}
+          />
+
+          <BottomNavigationItem
+            icon="calendar-outline"
+            activeIcon="calendar"
+            label="Ciclos"
+            active
+            onPress={() => {}}
+          />
+
+          <BottomNavigationItem
+            icon="book-outline"
+            activeIcon="book"
+            label="Materias"
+            onPress={() => router.push("/admin-materias" as any)}
+          />
+
+          <BottomNavigationItem
+            icon="people-outline"
+            activeIcon="people"
+            label="Grupos"
+            onPress={() => router.push("/admin-grupos" as any)}
+          />
+
+          <BottomNavigationItem
+            icon="grid-outline"
+            activeIcon="grid"
+            label="Cursos"
+            onPress={() => router.push("/admin-cursos" as any)}
+          />
+        </View>
+      </View>
+
       <Modal
         visible={formularioVisible}
         transparent
         animationType="fade"
-        onRequestClose={
-          cerrarFormulario
-        }
+        onRequestClose={cerrarFormulario}
       >
         <KeyboardAvoidingView
           style={styles.modalOverlay}
-          behavior={
-            Platform.OS === 'ios'
-              ? 'padding'
-              : 'height'
-          }
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
         >
           <View
             style={[
               styles.modalContent,
               {
-                backgroundColor:
-                  colores.tarjeta,
-                borderColor:
-                  colores.borde,
+                backgroundColor: colores.tarjeta,
+                borderColor: colores.borde,
               },
             ]}
           >
@@ -1452,37 +1149,27 @@ export default function AdminCiclosScreen() {
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
             >
-              <View
-                style={styles.modalHeader}
-              >
+              <View style={styles.modalHeader}>
                 <View>
                   <Text
                     style={[
                       styles.modalTitle,
                       {
-                        color:
-                          colores.texto,
-                        fontSize:
-                          20 *
-                          escalaTexto,
+                        color: colores.texto,
+                        fontSize: 20 * escalaTexto,
                       },
                     ]}
                     accessibilityRole="header"
                   >
-                    {cicloEditando
-                      ? 'Editar ciclo'
-                      : 'Nuevo ciclo'}
+                    {cicloEditando ? "Editar ciclo" : "Nuevo ciclo"}
                   </Text>
 
                   <Text
                     style={[
                       styles.modalSubtitle,
                       {
-                        color:
-                          colores.textoSecundario,
-                        fontSize:
-                          12 *
-                          escalaTexto,
+                        color: colores.textoSecundario,
+                        fontSize: 12 * escalaTexto,
                       },
                     ]}
                   >
@@ -1494,24 +1181,16 @@ export default function AdminCiclosScreen() {
                   style={[
                     styles.closeButton,
                     {
-                      backgroundColor:
-                        colores.fondo,
-                      borderColor:
-                        colores.borde,
+                      backgroundColor: colores.fondo,
+                      borderColor: colores.borde,
                     },
                   ]}
-                  onPress={
-                    cerrarFormulario
-                  }
+                  onPress={cerrarFormulario}
                   disabled={guardando}
                   accessibilityRole="button"
                   accessibilityLabel="Cerrar formulario"
                 >
-                  <Ionicons
-                    name="close"
-                    size={22}
-                    color={colores.texto}
-                  />
+                  <Ionicons name="close" size={22} color={colores.texto} />
                 </TouchableOpacity>
               </View>
 
@@ -1520,8 +1199,7 @@ export default function AdminCiclosScreen() {
                   style={[
                     styles.errorBox,
                     {
-                      borderColor:
-                        colores.peligro,
+                      borderColor: colores.peligro,
                     },
                   ]}
                   accessibilityLiveRegion="polite"
@@ -1536,11 +1214,8 @@ export default function AdminCiclosScreen() {
                     style={[
                       styles.errorText,
                       {
-                        color:
-                          colores.peligro,
-                        fontSize:
-                          12 *
-                          escalaTexto,
+                        color: colores.peligro,
+                        fontSize: 12 * escalaTexto,
                       },
                     ]}
                   >
@@ -1554,9 +1229,7 @@ export default function AdminCiclosScreen() {
                   styles.label,
                   {
                     color: colores.texto,
-                    fontSize:
-                      13 *
-                      escalaTexto,
+                    fontSize: 13 * escalaTexto,
                   },
                 ]}
               >
@@ -1567,23 +1240,16 @@ export default function AdminCiclosScreen() {
                 style={[
                   styles.input,
                   {
-                    backgroundColor:
-                      colores.fondo,
-                    borderColor:
-                      colores.borde,
-                    color:
-                      colores.texto,
-                    fontSize:
-                      14 *
-                      escalaTexto,
+                    backgroundColor: colores.fondo,
+                    borderColor: colores.borde,
+                    color: colores.texto,
+                    fontSize: 14 * escalaTexto,
                   },
                 ]}
                 value={nombre}
                 onChangeText={setNombre}
                 placeholder="Ej. Ciclo escolar 2026-2027"
-                placeholderTextColor={
-                  colores.textoSecundario
-                }
+                placeholderTextColor={colores.textoSecundario}
                 maxLength={100}
                 autoCapitalize="sentences"
                 editable={!guardando}
@@ -1595,9 +1261,7 @@ export default function AdminCiclosScreen() {
                   styles.label,
                   {
                     color: colores.texto,
-                    fontSize:
-                      13 *
-                      escalaTexto,
+                    fontSize: 13 * escalaTexto,
                   },
                 ]}
               >
@@ -1608,25 +1272,16 @@ export default function AdminCiclosScreen() {
                 style={[
                   styles.input,
                   {
-                    backgroundColor:
-                      colores.fondo,
-                    borderColor:
-                      colores.borde,
-                    color:
-                      colores.texto,
-                    fontSize:
-                      14 *
-                      escalaTexto,
+                    backgroundColor: colores.fondo,
+                    borderColor: colores.borde,
+                    color: colores.texto,
+                    fontSize: 14 * escalaTexto,
                   },
                 ]}
                 value={fechaInicio}
-                onChangeText={
-                  setFechaInicio
-                }
+                onChangeText={setFechaInicio}
                 placeholder="AAAA-MM-DD"
-                placeholderTextColor={
-                  colores.textoSecundario
-                }
+                placeholderTextColor={colores.textoSecundario}
                 maxLength={10}
                 editable={!guardando}
                 accessibilityLabel="Fecha de inicio en formato año mes día"
@@ -1637,9 +1292,7 @@ export default function AdminCiclosScreen() {
                   styles.label,
                   {
                     color: colores.texto,
-                    fontSize:
-                      13 *
-                      escalaTexto,
+                    fontSize: 13 * escalaTexto,
                   },
                 ]}
               >
@@ -1650,23 +1303,16 @@ export default function AdminCiclosScreen() {
                 style={[
                   styles.input,
                   {
-                    backgroundColor:
-                      colores.fondo,
-                    borderColor:
-                      colores.borde,
-                    color:
-                      colores.texto,
-                    fontSize:
-                      14 *
-                      escalaTexto,
+                    backgroundColor: colores.fondo,
+                    borderColor: colores.borde,
+                    color: colores.texto,
+                    fontSize: 14 * escalaTexto,
                   },
                 ]}
                 value={fechaFin}
                 onChangeText={setFechaFin}
                 placeholder="AAAA-MM-DD"
-                placeholderTextColor={
-                  colores.textoSecundario
-                }
+                placeholderTextColor={colores.textoSecundario}
                 maxLength={10}
                 editable={!guardando}
                 accessibilityLabel="Fecha de finalización en formato año mes día"
@@ -1677,105 +1323,74 @@ export default function AdminCiclosScreen() {
                   styles.label,
                   {
                     color: colores.texto,
-                    fontSize:
-                      13 *
-                      escalaTexto,
+                    fontSize: 13 * escalaTexto,
                   },
                 ]}
               >
                 Estado
               </Text>
 
-              <View
-                style={
-                  styles.statesContainer
-                }
-              >
-                {ESTADOS.map(
-                  (opcionEstado) => {
-                    const seleccionado =
-                      estado ===
-                      opcionEstado;
+              <View style={styles.statesContainer}>
+                {ESTADOS.map((opcionEstado) => {
+                  const seleccionado = estado === opcionEstado;
 
-                    return (
-                      <TouchableOpacity
-                        key={opcionEstado}
+                  return (
+                    <TouchableOpacity
+                      key={opcionEstado}
+                      style={[
+                        styles.stateOption,
+                        {
+                          backgroundColor: seleccionado
+                            ? colores.fondoPrimario
+                            : colores.fondo,
+                          borderColor: seleccionado
+                            ? colores.primario
+                            : colores.borde,
+                        },
+                      ]}
+                      onPress={() => setEstado(opcionEstado)}
+                      disabled={guardando}
+                      accessibilityRole="radio"
+                      accessibilityState={{
+                        selected: seleccionado,
+                      }}
+                    >
+                      <Text
                         style={[
-                          styles.stateOption,
+                          styles.stateOptionText,
                           {
-                            backgroundColor:
-                              seleccionado
-                                ? colores.fondoPrimario
-                                : colores.fondo,
-                            borderColor:
-                              seleccionado
-                                ? colores.primario
-                                : colores.borde,
+                            color: seleccionado
+                              ? colores.primario
+                              : colores.textoSecundario,
+                            fontSize: 12 * escalaTexto,
                           },
                         ]}
-                        onPress={() =>
-                          setEstado(
-                            opcionEstado
-                          )
-                        }
-                        disabled={guardando}
-                        accessibilityRole="radio"
-                        accessibilityState={{
-                          selected:
-                            seleccionado,
-                        }}
                       >
-                        <Text
-                          style={[
-                            styles.stateOptionText,
-                            {
-                              color:
-                                seleccionado
-                                  ? colores.primario
-                                  : colores.textoSecundario,
-                              fontSize:
-                                12 *
-                                escalaTexto,
-                            },
-                          ]}
-                        >
-                          {opcionEstado}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  }
-                )}
+                        {opcionEstado}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
 
-              <View
-                style={
-                  styles.modalActions
-                }
-              >
+              <View style={styles.modalActions}>
                 <TouchableOpacity
                   style={[
                     styles.cancelButton,
                     {
-                      backgroundColor:
-                        colores.fondo,
-                      borderColor:
-                        colores.borde,
+                      backgroundColor: colores.fondo,
+                      borderColor: colores.borde,
                     },
                   ]}
-                  onPress={
-                    cerrarFormulario
-                  }
+                  onPress={cerrarFormulario}
                   disabled={guardando}
                 >
                   <Text
                     style={[
                       styles.cancelText,
                       {
-                        color:
-                          colores.texto,
-                        fontSize:
-                          13 *
-                          escalaTexto,
+                        color: colores.texto,
+                        fontSize: 13 * escalaTexto,
                       },
                     ]}
                   >
@@ -1787,8 +1402,7 @@ export default function AdminCiclosScreen() {
                   style={[
                     styles.saveButton,
                     {
-                      backgroundColor:
-                        colorPrincipal,
+                      backgroundColor: colorPrincipal,
                     },
                     guardando && {
                       opacity: 0.7,
@@ -1803,35 +1417,22 @@ export default function AdminCiclosScreen() {
                 >
                   {guardando ? (
                     <ActivityIndicator
-                      color={
-                        altoContraste
-                          ? '#000000'
-                          : '#FFFFFF'
-                      }
+                      color={altoContraste ? "#000000" : "#FFFFFF"}
                     />
                   ) : (
                     <>
                       <Ionicons
                         name="save-outline"
                         size={19}
-                        color={
-                          altoContraste
-                            ? '#000000'
-                            : '#FFFFFF'
-                        }
+                        color={altoContraste ? "#000000" : "#FFFFFF"}
                       />
 
                       <Text
                         style={[
                           styles.saveText,
                           {
-                            color:
-                              altoContraste
-                                ? '#000000'
-                                : '#FFFFFF',
-                            fontSize:
-                              13 *
-                              escalaTexto,
+                            color: altoContraste ? "#000000" : "#FFFFFF",
+                            fontSize: 13 * escalaTexto,
                           },
                         ]}
                       >
@@ -1849,6 +1450,66 @@ export default function AdminCiclosScreen() {
   );
 }
 
+type BottomNavigationItemProps = {
+  icon: IoniconName;
+  activeIcon: IoniconName;
+  label: string;
+  active?: boolean;
+  onPress: () => void;
+};
+
+function BottomNavigationItem({
+  icon,
+  activeIcon,
+  label,
+  active = false,
+  onPress,
+}: BottomNavigationItemProps) {
+  const { colores, escalaTexto } = useAccessibility();
+
+  return (
+    <TouchableOpacity
+      style={styles.bottomItem}
+      onPress={onPress}
+      activeOpacity={0.7}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{
+        selected: active,
+      }}
+    >
+      <View
+        style={[
+          styles.bottomIconContainer,
+          active && {
+            backgroundColor: colores.fondoPrimario,
+          },
+        ]}
+      >
+        <Ionicons
+          name={active ? activeIcon : icon}
+          size={22}
+          color={active ? colores.primario : colores.textoSecundario}
+        />
+      </View>
+
+      <Text
+        numberOfLines={1}
+        style={[
+          styles.bottomLabel,
+          {
+            color: active ? colores.primario : colores.textoSecundario,
+            fontSize: Math.min(10 * escalaTexto, 13),
+          },
+          active && styles.bottomLabelActive,
+        ]}
+      >
+        {label}
+      </Text>
+    </TouchableOpacity>
+  );
+}
+
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
@@ -1856,13 +1517,13 @@ const styles = StyleSheet.create({
 
   loading: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   loadingText: {
     marginTop: 12,
-    fontWeight: '600',
+    fontWeight: "600",
   },
 
   container: {
@@ -1873,14 +1534,14 @@ const styles = StyleSheet.create({
   },
 
   content: {
-    width: '100%',
+    width: "100%",
     maxWidth: 800,
-    alignSelf: 'center',
+    alignSelf: "center",
   },
 
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
 
   headerButton: {
@@ -1888,8 +1549,8 @@ const styles = StyleSheet.create({
     height: 44,
     borderWidth: 1,
     borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   headerText: {
@@ -1898,17 +1559,17 @@ const styles = StyleSheet.create({
   },
 
   headerTitle: {
-    fontWeight: '900',
+    fontWeight: "900",
   },
 
   headerSubtitle: {
     marginTop: 2,
-    fontWeight: '500',
+    fontWeight: "500",
   },
 
   summaryCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     borderWidth: 1,
     borderRadius: 21,
     padding: 17,
@@ -1920,8 +1581,8 @@ const styles = StyleSheet.create({
     height: 57,
     borderWidth: 1,
     borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     marginRight: 14,
   },
 
@@ -1930,23 +1591,22 @@ const styles = StyleSheet.create({
   },
 
   summaryLabel: {
-    fontWeight: '600',
+    fontWeight: "600",
   },
-
   summaryTitle: {
     marginTop: 2,
-    fontWeight: '900',
+    fontWeight: "900",
   },
 
   summaryText: {
     marginTop: 4,
-    fontWeight: '500',
+    fontWeight: "500",
   },
 
   titleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     gap: 12,
     marginTop: 27,
     marginBottom: 16,
@@ -1957,30 +1617,30 @@ const styles = StyleSheet.create({
   },
 
   sectionTitle: {
-    fontWeight: '900',
+    fontWeight: "900",
   },
 
   sectionSubtitle: {
     marginTop: 4,
-    fontWeight: '500',
+    fontWeight: "500",
   },
 
   addButton: {
     minHeight: 44,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     borderRadius: 14,
     paddingHorizontal: 14,
     gap: 5,
   },
 
   addButtonText: {
-    fontWeight: '800',
+    fontWeight: "800",
   },
 
   emptyCard: {
-    alignItems: 'center',
+    alignItems: "center",
     borderWidth: 1,
     borderRadius: 20,
     padding: 28,
@@ -1990,20 +1650,20 @@ const styles = StyleSheet.create({
     width: 68,
     height: 68,
     borderRadius: 21,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   emptyTitle: {
     marginTop: 15,
-    fontWeight: '900',
+    fontWeight: "900",
   },
 
   emptyText: {
     maxWidth: 350,
     marginTop: 7,
-    textAlign: 'center',
-    fontWeight: '500',
+    textAlign: "center",
+    fontWeight: "500",
   },
 
   cyclesList: {
@@ -2017,9 +1677,9 @@ const styles = StyleSheet.create({
   },
 
   cycleHeader: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
     gap: 10,
   },
 
@@ -2028,17 +1688,17 @@ const styles = StyleSheet.create({
   },
 
   cycleName: {
-    fontWeight: '900',
+    fontWeight: "900",
   },
 
   cycleId: {
     marginTop: 3,
-    fontWeight: '500',
+    fontWeight: "500",
   },
 
   statusBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     borderWidth: 1,
     borderRadius: 12,
     paddingHorizontal: 9,
@@ -2053,12 +1713,12 @@ const styles = StyleSheet.create({
   },
 
   statusText: {
-    fontWeight: '800',
+    fontWeight: "800",
   },
 
   dateBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     borderWidth: 1,
     borderRadius: 14,
     padding: 12,
@@ -2067,8 +1727,8 @@ const styles = StyleSheet.create({
 
   dateItem: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 8,
   },
 
@@ -2079,35 +1739,35 @@ const styles = StyleSheet.create({
   },
 
   dateLabel: {
-    fontWeight: '600',
+    fontWeight: "600",
   },
 
   dateValue: {
     marginTop: 2,
-    fontWeight: '800',
+    fontWeight: "800",
   },
 
   statistics: {
-    flexDirection: 'row',
+    flexDirection: "row",
     marginTop: 15,
   },
 
   statistic: {
     flex: 1,
-    alignItems: 'center',
+    alignItems: "center",
   },
 
   statisticNumber: {
-    fontWeight: '900',
+    fontWeight: "900",
   },
 
   statisticLabel: {
     marginTop: 2,
-    fontWeight: '600',
+    fontWeight: "600",
   },
 
   actions: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 10,
     marginTop: 16,
   },
@@ -2115,64 +1775,64 @@ const styles = StyleSheet.create({
   editButton: {
     flex: 1,
     minHeight: 43,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     borderWidth: 1,
     borderRadius: 13,
     gap: 6,
   },
 
   editButtonText: {
-    fontWeight: '800',
+    fontWeight: "800",
   },
 
   stateButton: {
     flex: 1,
     minHeight: 43,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     borderWidth: 1,
     borderRadius: 13,
     gap: 6,
   },
 
   stateButtonText: {
-    fontWeight: '800',
+    fontWeight: "800",
   },
 
   modalOverlay: {
     flex: 1,
-    justifyContent: 'center',
+    justifyContent: "center",
     padding: 18,
-    backgroundColor: 'rgba(15,23,42,0.60)',
+    backgroundColor: "rgba(15,23,42,0.60)",
   },
 
   modalContent: {
-    width: '100%',
+    width: "100%",
     maxWidth: 540,
-    maxHeight: '90%',
-    alignSelf: 'center',
+    maxHeight: "90%",
+    alignSelf: "center",
     borderWidth: 1,
     borderRadius: 22,
     padding: 20,
   },
 
   modalHeader: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
     marginBottom: 18,
   },
 
   modalTitle: {
-    fontWeight: '900',
+    fontWeight: "900",
   },
 
   modalSubtitle: {
     marginTop: 4,
-    fontWeight: '500',
+    fontWeight: "500",
   },
 
   closeButton: {
@@ -2180,13 +1840,13 @@ const styles = StyleSheet.create({
     height: 40,
     borderWidth: 1,
     borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   errorBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     borderWidth: 1,
     borderRadius: 13,
     padding: 11,
@@ -2196,11 +1856,11 @@ const styles = StyleSheet.create({
   errorText: {
     flex: 1,
     marginLeft: 8,
-    fontWeight: '700',
+    fontWeight: "700",
   },
 
   label: {
-    fontWeight: '800',
+    fontWeight: "800",
     marginBottom: 7,
   },
 
@@ -2213,8 +1873,8 @@ const styles = StyleSheet.create({
   },
 
   statesContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: "row",
+    flexWrap: "wrap",
     gap: 8,
     marginBottom: 20,
   },
@@ -2224,17 +1884,17 @@ const styles = StyleSheet.create({
     minHeight: 43,
     borderWidth: 1,
     borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     paddingHorizontal: 11,
   },
 
   stateOptionText: {
-    fontWeight: '800',
+    fontWeight: "800",
   },
 
   modalActions: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 10,
   },
 
@@ -2243,25 +1903,76 @@ const styles = StyleSheet.create({
     minHeight: 49,
     borderWidth: 1,
     borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   cancelText: {
-    fontWeight: '800',
+    fontWeight: "800",
   },
 
   saveButton: {
     flex: 1.4,
     minHeight: 49,
-    flexDirection: 'row',
+    flexDirection: "row",
     borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     gap: 7,
   },
 
   saveText: {
-    fontWeight: '900',
+    fontWeight: "900",
+  },
+
+  bottomNavigation: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderTopWidth: 1,
+    shadowColor: "#000000",
+    shadowOffset: {
+      width: 0,
+      height: -3,
+    },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 12,
+  },
+
+  bottomContent: {
+    flex: 1,
+    width: "100%",
+    maxWidth: 520,
+    alignSelf: "center",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-around",
+  },
+
+  bottomItem: {
+    flex: 1,
+    height: "100%",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 2,
+  },
+
+  bottomIconContainer: {
+    minWidth: 35,
+    height: 28,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  bottomLabel: {
+    marginTop: 2,
+    fontWeight: "600",
+  },
+
+  bottomLabelActive: {
+    fontWeight: "900",
   },
 });
