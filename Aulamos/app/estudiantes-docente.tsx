@@ -1,11 +1,7 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Ionicons } from '@expo/vector-icons';
-import { router, useFocusEffect } from 'expo-router';
-import {
-  useCallback,
-  useMemo,
-  useState,
-} from 'react';
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Ionicons } from "@expo/vector-icons";
+import { router, useFocusEffect } from "expo-router";
+import { useCallback, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -16,12 +12,12 @@ import {
   TextInput,
   TouchableOpacity,
   View,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
-import BotonAccesibilidad from '../components/BotonAccesibilidad';
-import { useAccessibility } from '../contexts/AccessibilityContext';
-import { API_URL } from '../services/api';
+import BotonAccesibilidad from "../components/BotonAccesibilidad";
+import { useAccessibility } from "../contexts/AccessibilityContext";
+import { API_URL } from "../services/api";
 
 type Estudiante = {
   id_alumno: number;
@@ -33,11 +29,16 @@ type Estudiante = {
   id_grupo: number;
   grupo: string;
   grado?: string | null;
-  curso?: string | null;
+  id_curso: number;
+  curso: string;
+  id_materia: number;
+  materia: string;
 };
 
-type GrupoFiltro = {
-  id_grupo: number | 'todos';
+type TipoFiltro = "materias" | "cursos";
+
+type OpcionFiltro = {
+  id: number | "todos";
   nombre: string;
   cantidad: number;
 };
@@ -49,24 +50,18 @@ type RespuestaEstudiantes = {
 };
 
 export default function EstudiantesDocenteScreen() {
-  const {
-    preferencias,
-    colores,
-    escalaTexto,
-    leerTexto,
-  } = useAccessibility();
+  const { preferencias, colores, escalaTexto, leerTexto } = useAccessibility();
 
-  const [estudiantes, setEstudiantes] = useState<
-    Estudiante[]
-  >([]);
+  const [estudiantes, setEstudiantes] = useState<Estudiante[]>([]);
 
-  const [busqueda, setBusqueda] = useState('');
-  const [grupoSeleccionado, setGrupoSeleccionado] =
-    useState<number | 'todos'>('todos');
+  const [busqueda, setBusqueda] = useState("");
+  const [tipoFiltro, setTipoFiltro] = useState<TipoFiltro>("materias");
+  const [filtroSeleccionado, setFiltroSeleccionado] = useState<
+    number | "todos"
+  >("todos");
 
   const [cargando, setCargando] = useState(true);
-  const [actualizando, setActualizando] =
-    useState(false);
+  const [actualizando, setActualizando] = useState(false);
 
   const anunciar = useCallback(
     (mensaje: string) => {
@@ -74,7 +69,7 @@ export default function EstudiantesDocenteScreen() {
         leerTexto(mensaje);
       }
     },
-    [preferencias.lectorPantalla, leerTexto]
+    [preferencias.lectorPantalla, leerTexto],
   );
 
   const cargarEstudiantes = useCallback(
@@ -84,176 +79,159 @@ export default function EstudiantesDocenteScreen() {
           setCargando(true);
         }
 
-        const usuarioGuardado =
-          await AsyncStorage.getItem('usuario');
+        const token = await AsyncStorage.getItem("token");
 
-        const token =
-          await AsyncStorage.getItem('token');
-
-        if (!usuarioGuardado) {
-          throw new Error(
-            'No se encontró la sesión del docente.'
-          );
+        if (!token) {
+          throw new Error("No se encontró la sesión del docente.");
         }
 
-        const usuario = JSON.parse(usuarioGuardado);
+        const respuesta = await fetch(`${API_URL}/docente/estudiantes`, {
+          headers: {
+            Accept: "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        });
 
-        const idDocente =
-          usuario.id_usuario ??
-          usuario.id_docente ??
-          usuario.id;
-
-        if (!idDocente) {
-          throw new Error(
-            'No se encontró el identificador del docente.'
-          );
-        }
-
-        const respuesta = await fetch(
-          `${API_URL}/docente/estudiantes?id_docente=${idDocente}`,
-          {
-            headers: {
-              Accept: 'application/json',
-              ...(token
-                ? {
-                    Authorization: `Bearer ${token}`,
-                  }
-                : {}),
-            },
-          }
-        );
-
-        const resultado =
-          (await respuesta.json()) as RespuestaEstudiantes;
+        const resultado = (await respuesta.json()) as RespuestaEstudiantes;
 
         if (!respuesta.ok) {
           throw new Error(
-            resultado.mensaje ||
-              'No se pudieron obtener los estudiantes.'
+            resultado.mensaje || "No se pudieron obtener los estudiantes.",
           );
         }
 
-        const lista = Array.isArray(
-          resultado.estudiantes
-        )
+        const lista = Array.isArray(resultado.estudiantes)
           ? resultado.estudiantes
           : [];
 
         setEstudiantes(lista);
 
+        const totalUnicos = new Set(
+          lista.map((estudiante) => estudiante.id_alumno),
+        ).size;
+
         anunciar(
-          `Lista actualizada. Se encontraron ${lista.length} estudiantes.`
+          `Lista actualizada. Se encontraron ${totalUnicos} estudiantes.`,
         );
       } catch (error) {
-        console.error(
-          'Error al cargar estudiantes:',
-          error
-        );
+        console.error("Error al cargar estudiantes:", error);
 
         setEstudiantes([]);
 
         const mensaje =
           error instanceof Error
             ? error.message
-            : 'Ocurrió un error inesperado.';
+            : "Ocurrió un error inesperado.";
 
-        Alert.alert('Error', mensaje);
+        Alert.alert("Error", mensaje);
         anunciar(`Error. ${mensaje}`);
       } finally {
         setCargando(false);
         setActualizando(false);
       }
     },
-    [anunciar]
+    [anunciar],
   );
 
   useFocusEffect(
     useCallback(() => {
       cargarEstudiantes();
-    }, [cargarEstudiantes])
+    }, [cargarEstudiantes]),
   );
 
-  const grupos = useMemo<GrupoFiltro[]>(() => {
+  const filtros = useMemo<OpcionFiltro[]>(() => {
     const mapa = new Map<
       number,
       {
         nombre: string;
-        cantidad: number;
+        estudiantes: Set<number>;
       }
     >();
 
     estudiantes.forEach((estudiante) => {
-      const grupoActual = mapa.get(
-        estudiante.id_grupo
-      );
+      const id =
+        tipoFiltro === "materias" ? estudiante.id_materia : estudiante.id_curso;
 
-      if (grupoActual) {
-        mapa.set(estudiante.id_grupo, {
-          ...grupoActual,
-          cantidad: grupoActual.cantidad + 1,
-        });
+      const nombre =
+        tipoFiltro === "materias" ? estudiante.materia : estudiante.curso;
+
+      const filtroActual = mapa.get(id);
+
+      if (filtroActual) {
+        filtroActual.estudiantes.add(estudiante.id_alumno);
       } else {
-        mapa.set(estudiante.id_grupo, {
-          nombre: estudiante.grupo,
-          cantidad: 1,
+        mapa.set(id, {
+          nombre,
+          estudiantes: new Set([estudiante.id_alumno]),
         });
       }
     });
 
+    const totalUnicos = new Set(
+      estudiantes.map((estudiante) => estudiante.id_alumno),
+    ).size;
+
     return [
       {
-        id_grupo: 'todos',
-        nombre: 'Todos',
-        cantidad: estudiantes.length,
+        id: "todos",
+        nombre: "Todos",
+        cantidad: totalUnicos,
       },
-      ...Array.from(mapa.entries()).map(
-        ([idGrupo, datos]) => ({
-          id_grupo: idGrupo,
+      ...Array.from(mapa.entries())
+        .map(([id, datos]) => ({
+          id,
           nombre: datos.nombre,
-          cantidad: datos.cantidad,
-        })
-      ),
+          cantidad: datos.estudiantes.size,
+        }))
+        .sort((a, b) => a.nombre.localeCompare(b.nombre, "es")),
     ];
-  }, [estudiantes]);
+  }, [estudiantes, tipoFiltro]);
 
   const estudiantesFiltrados = useMemo(() => {
-    const textoBusqueda = busqueda
-      .trim()
-      .toLowerCase();
+    const textoBusqueda = busqueda.trim().toLowerCase();
 
-    return estudiantes.filter((estudiante) => {
-      const perteneceGrupo =
-        grupoSeleccionado === 'todos' ||
-        estudiante.id_grupo === grupoSeleccionado;
+    const coincidencias = estudiantes.filter((estudiante) => {
+      const perteneceFiltro =
+        filtroSeleccionado === "todos" ||
+        (tipoFiltro === "materias"
+          ? estudiante.id_materia === filtroSeleccionado
+          : estudiante.id_curso === filtroSeleccionado);
 
       const coincideBusqueda =
         !textoBusqueda ||
-        estudiante.nombre_completo
-          .toLowerCase()
-          .includes(textoBusqueda) ||
-        estudiante.correo
-          .toLowerCase()
-          .includes(textoBusqueda) ||
-        estudiante.grupo
-          .toLowerCase()
-          .includes(textoBusqueda);
+        estudiante.nombre_completo.toLowerCase().includes(textoBusqueda) ||
+        estudiante.correo.toLowerCase().includes(textoBusqueda) ||
+        estudiante.grupo.toLowerCase().includes(textoBusqueda) ||
+        estudiante.materia.toLowerCase().includes(textoBusqueda) ||
+        estudiante.curso.toLowerCase().includes(textoBusqueda);
 
-      return perteneceGrupo && coincideBusqueda;
+      return perteneceFiltro && coincideBusqueda;
     });
-  }, [
-    estudiantes,
-    busqueda,
-    grupoSeleccionado,
-  ]);
 
-  const seleccionarGrupo = (
-    grupo: GrupoFiltro
-  ) => {
-    setGrupoSeleccionado(grupo.id_grupo);
+    /* Un alumno puede estar inscrito en más de un curso.
+     * Para que no aparezca repetido, se conserva una sola
+     * tarjeta por alumno dentro del filtro seleccionado.
+     */
+    return Array.from(
+      new Map(
+        coincidencias.map((estudiante) => [estudiante.id_alumno, estudiante]),
+      ).values(),
+    );
+  }, [estudiantes, busqueda, filtroSeleccionado, tipoFiltro]);
+
+  const cambiarTipoFiltro = (nuevoTipo: TipoFiltro) => {
+    setTipoFiltro(nuevoTipo);
+    setFiltroSeleccionado("todos");
 
     anunciar(
-      `Filtro ${grupo.nombre}. ${grupo.cantidad} estudiantes.`
+      nuevoTipo === "materias" ? "Filtros por materia." : "Filtros por curso.",
     );
+  };
+
+  const seleccionarFiltro = (filtro: OpcionFiltro) => {
+    setFiltroSeleccionado(filtro.id);
+
+    anunciar(`Filtro ${filtro.nombre}. ${filtro.cantidad} estudiantes.`);
   };
 
   const actualizar = () => {
@@ -261,15 +239,11 @@ export default function EstudiantesDocenteScreen() {
     cargarEstudiantes(false);
   };
 
-  const abrirEstudiante = (
-    estudiante: Estudiante
-  ) => {
+  const abrirEstudiante = (estudiante: Estudiante) => {
     router.push({
-      pathname: '/detalle-estudiante',
+      pathname: "/detalle-estudiante",
       params: {
-        id_alumno: String(
-          estudiante.id_alumno
-        ),
+        id_alumno: String(estudiante.id_alumno),
       },
     } as never);
   };
@@ -299,11 +273,7 @@ export default function EstudiantesDocenteScreen() {
           accessibilityLabel="Regresar"
           accessibilityHint="Regresa a la pantalla anterior"
         >
-          <Ionicons
-            name="arrow-back"
-            size={24}
-            color={colores.texto}
-          />
+          <Ionicons name="arrow-back" size={24} color={colores.texto} />
         </TouchableOpacity>
 
         <View style={styles.encabezadoTexto}>
@@ -324,8 +294,7 @@ export default function EstudiantesDocenteScreen() {
             style={[
               styles.subtituloPantalla,
               {
-                color:
-                  colores.textoSecundario,
+                color: colores.textoSecundario,
                 fontSize: 11 * escalaTexto,
               },
             ]}
@@ -374,50 +343,134 @@ export default function EstudiantesDocenteScreen() {
             ]}
             value={busqueda}
             onChangeText={setBusqueda}
-            placeholder="Buscar estudiante..."
-            placeholderTextColor={
-              colores.textoSecundario
-            }
+            placeholder="Buscar estudiante, materia o curso..."
+            placeholderTextColor={colores.textoSecundario}
             autoCapitalize="none"
             autoCorrect={false}
             accessibilityLabel="Buscar estudiante"
-            accessibilityHint="Escribe el nombre, correo o grupo del estudiante"
+            accessibilityHint="Escribe el nombre, correo, grupo, materia o curso"
           />
 
           {busqueda.length > 0 && (
             <TouchableOpacity
               style={styles.botonLimpiar}
-              onPress={() => setBusqueda('')}
+              onPress={() => setBusqueda("")}
               accessibilityRole="button"
               accessibilityLabel="Limpiar búsqueda"
             >
               <Ionicons
                 name="close-circle"
                 size={20}
-                color={
-                  colores.textoSecundario
-                }
+                color={colores.textoSecundario}
               />
             </TouchableOpacity>
           )}
         </View>
 
+        <View
+          style={styles.selectorTipo}
+          accessibilityRole="tablist"
+          accessibilityLabel="Tipo de filtro"
+        >
+          <TouchableOpacity
+            style={[
+              styles.botonTipo,
+              {
+                borderColor:
+                  tipoFiltro === "materias" ? colores.primario : colores.borde,
+                backgroundColor:
+                  tipoFiltro === "materias"
+                    ? colores.fondoPrimario
+                    : colores.tarjeta,
+              },
+            ]}
+            onPress={() => cambiarTipoFiltro("materias")}
+            accessibilityRole="tab"
+            accessibilityState={{
+              selected: tipoFiltro === "materias",
+            }}
+          >
+            <Ionicons
+              name="library-outline"
+              size={18}
+              color={
+                tipoFiltro === "materias"
+                  ? colores.primario
+                  : colores.textoSecundario
+              }
+            />
+            <Text
+              style={[
+                styles.textoTipo,
+                {
+                  color:
+                    tipoFiltro === "materias"
+                      ? colores.primario
+                      : colores.textoSecundario,
+                  fontSize: 12 * escalaTexto,
+                },
+              ]}
+            >
+              Materias
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.botonTipo,
+              {
+                borderColor:
+                  tipoFiltro === "cursos" ? colores.primario : colores.borde,
+                backgroundColor:
+                  tipoFiltro === "cursos"
+                    ? colores.fondoPrimario
+                    : colores.tarjeta,
+              },
+            ]}
+            onPress={() => cambiarTipoFiltro("cursos")}
+            accessibilityRole="tab"
+            accessibilityState={{
+              selected: tipoFiltro === "cursos",
+            }}
+          >
+            <Ionicons
+              name="school-outline"
+              size={18}
+              color={
+                tipoFiltro === "cursos"
+                  ? colores.primario
+                  : colores.textoSecundario
+              }
+            />
+            <Text
+              style={[
+                styles.textoTipo,
+                {
+                  color:
+                    tipoFiltro === "cursos"
+                      ? colores.primario
+                      : colores.textoSecundario,
+                  fontSize: 12 * escalaTexto,
+                },
+              ]}
+            >
+              Cursos
+            </Text>
+          </TouchableOpacity>
+        </View>
+
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={
-            styles.contenedorFiltros
-          }
-          accessibilityLabel="Filtros por grupo"
+          contentContainerStyle={styles.contenedorFiltros}
+          accessibilityLabel={`Filtros por ${tipoFiltro}`}
         >
-          {grupos.map((grupo) => {
-            const seleccionado =
-              grupoSeleccionado ===
-              grupo.id_grupo;
+          {filtros.map((filtro) => {
+            const seleccionado = filtroSeleccionado === filtro.id;
 
             return (
               <TouchableOpacity
-                key={String(grupo.id_grupo)}
+                key={String(filtro.id)}
                 style={[
                   styles.filtro,
                   {
@@ -429,11 +482,9 @@ export default function EstudiantesDocenteScreen() {
                       : colores.tarjeta,
                   },
                 ]}
-                onPress={() =>
-                  seleccionarGrupo(grupo)
-                }
+                onPress={() => seleccionarFiltro(filtro)}
                 accessibilityRole="radio"
-                accessibilityLabel={`${grupo.nombre}, ${grupo.cantidad} estudiantes`}
+                accessibilityLabel={`${filtro.nombre}, ${filtro.cantidad} estudiantes`}
                 accessibilityState={{
                   checked: seleccionado,
                   selected: seleccionado,
@@ -446,13 +497,11 @@ export default function EstudiantesDocenteScreen() {
                       color: seleccionado
                         ? colores.primario
                         : colores.textoSecundario,
-                      fontSize:
-                        10 * escalaTexto,
+                      fontSize: 10 * escalaTexto,
                     },
                   ]}
                 >
-                  {grupo.nombre} (
-                  {grupo.cantidad})
+                  {filtro.nombre} ({filtro.cantidad})
                 </Text>
               </TouchableOpacity>
             );
@@ -461,19 +510,14 @@ export default function EstudiantesDocenteScreen() {
 
         {cargando ? (
           <View style={styles.cargando}>
-            <ActivityIndicator
-              size="large"
-              color={colores.primario}
-            />
+            <ActivityIndicator size="large" color={colores.primario} />
 
             <Text
               style={[
                 styles.textoCargando,
                 {
-                  color:
-                    colores.textoSecundario,
-                  fontSize:
-                    13 * escalaTexto,
+                  color: colores.textoSecundario,
+                  fontSize: 13 * escalaTexto,
                 },
               ]}
             >
@@ -485,8 +529,7 @@ export default function EstudiantesDocenteScreen() {
             style={[
               styles.estadoVacio,
               {
-                backgroundColor:
-                  colores.tarjeta,
+                backgroundColor: colores.tarjeta,
                 borderColor: colores.borde,
               },
             ]}
@@ -502,8 +545,7 @@ export default function EstudiantesDocenteScreen() {
                 styles.tituloVacio,
                 {
                   color: colores.texto,
-                  fontSize:
-                    15 * escalaTexto,
+                  fontSize: 15 * escalaTexto,
                 },
               ]}
             >
@@ -514,15 +556,12 @@ export default function EstudiantesDocenteScreen() {
               style={[
                 styles.textoVacio,
                 {
-                  color:
-                    colores.textoSecundario,
-                  fontSize:
-                    12 * escalaTexto,
+                  color: colores.textoSecundario,
+                  fontSize: 12 * escalaTexto,
                 },
               ]}
             >
-              No se encontraron estudiantes con
-              los filtros seleccionados.
+              No se encontraron estudiantes con los filtros seleccionados.
             </Text>
           </View>
         ) : (
@@ -530,103 +569,83 @@ export default function EstudiantesDocenteScreen() {
             style={[
               styles.lista,
               {
-                backgroundColor:
-                  colores.tarjeta,
+                backgroundColor: colores.tarjeta,
                 borderColor: colores.borde,
               },
             ]}
           >
-            {estudiantesFiltrados.map(
-              (estudiante, index) => (
-                <TouchableOpacity
-                  key={`${estudiante.id_alumno}-${estudiante.id_grupo}`}
+            {estudiantesFiltrados.map((estudiante, index) => (
+              <TouchableOpacity
+                key={String(estudiante.id_alumno)}
+                style={[
+                  styles.estudianteItem,
+                  {
+                    borderBottomColor: colores.borde,
+                    borderBottomWidth:
+                      index === estudiantesFiltrados.length - 1
+                        ? 0
+                        : StyleSheet.hairlineWidth,
+                  },
+                ]}
+                onPress={() => abrirEstudiante(estudiante)}
+                accessibilityRole="button"
+                accessibilityLabel={`${estudiante.nombre_completo}, materia ${estudiante.materia}, curso ${estudiante.curso}, grupo ${estudiante.grupo}`}
+                accessibilityHint="Abre la información y el avance del estudiante"
+              >
+                <View
                   style={[
-                    styles.estudianteItem,
+                    styles.avatar,
                     {
-                      borderBottomColor:
-                        colores.borde,
-                      borderBottomWidth:
-                        index ===
-                        estudiantesFiltrados.length -
-                          1
-                          ? 0
-                          : StyleSheet.hairlineWidth,
+                      backgroundColor: colores.tarjeta,
+                      borderColor: colores.texto,
                     },
                   ]}
-                  onPress={() =>
-                    abrirEstudiante(estudiante)
-                  }
-                  accessibilityRole="button"
-                  accessibilityLabel={`${estudiante.nombre_completo}, grupo ${estudiante.grupo}`}
-                  accessibilityHint="Abre la información y el avance del estudiante"
                 >
-                  <View
+                  <Ionicons
+                    name="person-outline"
+                    size={27}
+                    color={colores.texto}
+                  />
+                </View>
+
+                <View style={styles.informacionEstudiante}>
+                  <Text
                     style={[
-                      styles.avatar,
+                      styles.nombreEstudiante,
                       {
-                        backgroundColor:
-                          colores.tarjeta,
-                        borderColor:
-                          colores.texto,
+                        color: colores.texto,
+                        fontSize: 13 * escalaTexto,
+                      },
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {estudiante.nombre_completo}
+                  </Text>
+
+                  <Text
+                    style={[
+                      styles.grupoEstudiante,
+                      {
+                        color: colores.textoSecundario,
+                        fontSize: 10 * escalaTexto,
                       },
                     ]}
                   >
-                    <Ionicons
-                      name="person-outline"
-                      size={27}
-                      color={colores.texto}
-                    />
-                  </View>
+                    {estudiante.materia}
+                    {" · "}
+                    {estudiante.curso}
+                    {" · "}
+                    {estudiante.grupo}
+                  </Text>
+                </View>
 
-                  <View
-                    style={
-                      styles.informacionEstudiante
-                    }
-                  >
-                    <Text
-                      style={[
-                        styles.nombreEstudiante,
-                        {
-                          color: colores.texto,
-                          fontSize:
-                            13 * escalaTexto,
-                        },
-                      ]}
-                      numberOfLines={1}
-                    >
-                      {
-                        estudiante.nombre_completo
-                      }
-                    </Text>
-
-                    <Text
-                      style={[
-                        styles.grupoEstudiante,
-                        {
-                          color:
-                            colores.textoSecundario,
-                          fontSize:
-                            10 * escalaTexto,
-                        },
-                      ]}
-                    >
-                      {estudiante.grupo}
-                      {estudiante.curso
-                        ? ` · ${estudiante.curso}`
-                        : ''}
-                    </Text>
-                  </View>
-
-                  <Ionicons
-                    name="chevron-forward"
-                    size={23}
-                    color={
-                      colores.textoSecundario
-                    }
-                  />
-                </TouchableOpacity>
-              )
-            )}
+                <Ionicons
+                  name="chevron-forward"
+                  size={23}
+                  color={colores.textoSecundario}
+                />
+              </TouchableOpacity>
+            ))}
           </View>
         )}
       </ScrollView>
@@ -714,27 +733,19 @@ function BottomItem({
   colores,
   escalaTexto,
 }: BottomItemProps) {
-  const color = activo
-    ? colores.primario
-    : colores.textoSecundario;
+  const color = activo ? colores.primario : colores.textoSecundario;
 
   return (
     <TouchableOpacity
       style={styles.itemMenu}
-      onPress={() =>
-        router.replace(ruta as never)
-      }
+      onPress={() => router.replace(ruta as never)}
       accessibilityRole="tab"
       accessibilityLabel={texto}
       accessibilityState={{
         selected: activo,
       }}
     >
-      <Ionicons
-        name={icono}
-        size={21}
-        color={color}
-      />
+      <Ionicons name={icono} size={21} color={color} />
 
       <Text
         style={[
@@ -742,9 +753,7 @@ function BottomItem({
           {
             color,
             fontSize: 10 * escalaTexto,
-            fontWeight: activo
-              ? '800'
-              : '500',
+            fontWeight: activo ? "800" : "500",
           },
         ]}
         numberOfLines={1}
@@ -762,19 +771,18 @@ const styles = StyleSheet.create({
 
   encabezado: {
     minHeight: 67,
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: 10,
     paddingVertical: 7,
-    borderBottomWidth:
-      StyleSheet.hairlineWidth,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
 
   botonEncabezado: {
     width: 44,
     height: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   encabezadoTexto: {
@@ -782,7 +790,7 @@ const styles = StyleSheet.create({
   },
 
   tituloPantalla: {
-    fontWeight: '800',
+    fontWeight: "800",
   },
 
   subtituloPantalla: {
@@ -800,8 +808,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 9,
     paddingHorizontal: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
 
   inputBusqueda: {
@@ -813,8 +821,29 @@ const styles = StyleSheet.create({
   botonLimpiar: {
     width: 38,
     height: 38,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  selectorTipo: {
+    flexDirection: "row",
+    gap: 8,
+    marginTop: 10,
+  },
+
+  botonTipo: {
+    flex: 1,
+    minHeight: 43,
+    borderWidth: 1,
+    borderRadius: 9,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 7,
+  },
+
+  textoTipo: {
+    fontWeight: "700",
   },
 
   contenedorFiltros: {
@@ -827,18 +856,18 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 14,
     paddingHorizontal: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   textoFiltro: {
-    fontWeight: '600',
+    fontWeight: "600",
   },
 
   cargando: {
     minHeight: 350,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   textoCargando: {
@@ -848,15 +877,15 @@ const styles = StyleSheet.create({
   lista: {
     borderWidth: 1,
     borderRadius: 5,
-    overflow: 'hidden',
+    overflow: "hidden",
   },
 
   estudianteItem: {
     minHeight: 64,
     paddingHorizontal: 8,
     paddingVertical: 7,
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
 
   avatar: {
@@ -864,8 +893,8 @@ const styles = StyleSheet.create({
     height: 42,
     borderWidth: 1.5,
     borderRadius: 21,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   informacionEstudiante: {
@@ -874,7 +903,7 @@ const styles = StyleSheet.create({
   },
 
   nombreEstudiante: {
-    fontWeight: '800',
+    fontWeight: "800",
   },
 
   grupoEstudiante: {
@@ -886,26 +915,25 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 12,
     padding: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   tituloVacio: {
     marginTop: 12,
-    fontWeight: '800',
+    fontWeight: "800",
   },
 
   textoVacio: {
     marginTop: 6,
-    textAlign: 'center',
+    textAlign: "center",
     lineHeight: 18,
   },
 
   menuInferior: {
     minHeight: 65,
-    borderTopWidth:
-      StyleSheet.hairlineWidth,
-    flexDirection: 'row',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    flexDirection: "row",
     paddingHorizontal: 3,
     paddingTop: 5,
     paddingBottom: 3,
@@ -914,12 +942,12 @@ const styles = StyleSheet.create({
   itemMenu: {
     flex: 1,
     minHeight: 52,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
 
   textoMenu: {
     marginTop: 3,
-    textAlign: 'center',
+    textAlign: "center",
   },
 });
