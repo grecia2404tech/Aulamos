@@ -1137,7 +1137,7 @@ export default function InicioDocenteScreen() {
                 backgroundColor="#2563EB"
                 onPress={() =>
                   navegar(
-                    '/ver-estudiantes',
+                    '/estudiantes-docente',
                     'Ver estudiantes'
                   )
                 }
