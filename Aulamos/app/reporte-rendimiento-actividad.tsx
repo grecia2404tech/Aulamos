@@ -1,11 +1,11 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
-import { router, useFocusEffect } from 'expo-router';
 import {
-  useCallback,
-  useMemo,
-  useState,
-} from 'react';
+  router,
+  useFocusEffect,
+  useLocalSearchParams,
+} from 'expo-router';
+import { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -22,42 +22,43 @@ import BotonAccesibilidad from '../components/BotonAccesibilidad';
 import { useAccessibility } from '../contexts/AccessibilityContext';
 import { API_URL } from '../services/api';
 
-type AlumnoRendimiento = {
-  id_alumno: number;
-  nombre: string;
-  estado: string;
-  calificacion: number | null;
-  porcentaje_avance: number;
+type Actividad = {
+  id_actividad: number;
+  titulo: string;
+  tipo: string;
+  curso: string;
+  materia: string;
+  fecha_publicacion: string;
+  fecha_limite: string;
+  total_asignados: number;
+  total_entregas: number;
+  porcentaje_entregas: number;
+  promedio: number;
 };
 
-type ReporteActividad = {
-  actividad: {
-    id_actividad: number;
-    titulo: string;
-    materia: string;
-    fecha_limite: string | null;
-    puntaje_maximo: number;
-  } | null;
-  resumen: {
-    promedio: number;
-    total_alumnos: number;
-    entregadas: number;
-    pendientes: number;
-    calificadas: number;
-  };
-  alumnos: AlumnoRendimiento[];
+const obtenerParametro = (
+  valor: string | string[] | undefined,
+  valorPredeterminado: string
+) => {
+  if (Array.isArray(valor)) {
+    return valor[0] ?? valorPredeterminado;
+  }
+
+  return valor ?? valorPredeterminado;
 };
 
-const REPORTE_VACIO: ReporteActividad = {
-  actividad: null,
-  resumen: {
-    promedio: 0,
-    total_alumnos: 0,
-    entregadas: 0,
-    pendientes: 0,
-    calificadas: 0,
-  },
-  alumnos: [],
+const formatearFecha = (fecha: string) => {
+  const valor = new Date(fecha);
+
+  if (!fecha || Number.isNaN(valor.getTime())) {
+    return 'Sin fecha';
+  }
+
+  return valor.toLocaleDateString('es-MX', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  });
 };
 
 export default function ReporteRendimientoActividadScreen() {
@@ -68,12 +69,24 @@ export default function ReporteRendimientoActividadScreen() {
     leerTexto,
   } = useAccessibility();
 
-  const [reporte, setReporte] =
-    useState<ReporteActividad>(REPORTE_VACIO);
+  const parametrosRuta = useLocalSearchParams<{
+    materia?: string | string[];
+    periodo?: string | string[];
+  }>();
 
+  const materia = obtenerParametro(
+    parametrosRuta.materia,
+    'todas'
+  );
+  const periodo = obtenerParametro(
+    parametrosRuta.periodo,
+    'mes_actual'
+  );
+
+  const [actividades, setActividades] =
+    useState<Actividad[]>([]);
   const [cargando, setCargando] = useState(true);
-  const [actualizando, setActualizando] =
-    useState(false);
+  const [actualizando, setActualizando] = useState(false);
 
   const anunciar = useCallback(
     (mensaje: string) => {
@@ -84,44 +97,21 @@ export default function ReporteRendimientoActividadScreen() {
     [preferencias.lectorPantalla, leerTexto]
   );
 
-  const cargarReporte = useCallback(
-    async (cargaPrincipal = true) => {
+  const cargarActividades = useCallback(
+    async (mostrarCarga = true) => {
       try {
-        if (cargaPrincipal) {
+        if (mostrarCarga) {
           setCargando(true);
         }
 
-        const usuarioGuardado =
-          await AsyncStorage.getItem('usuario');
+        const token = await AsyncStorage.getItem('token');
+        const query = new URLSearchParams({
+          materia,
+          periodo,
+        });
 
-        const token =
-          await AsyncStorage.getItem('token');
-
-        if (!usuarioGuardado) {
-          throw new Error(
-            'No se encontró la sesión del docente.'
-          );
-        }
-
-        const usuario = JSON.parse(usuarioGuardado);
-
-        const idDocente =
-          usuario.id_usuario ??
-          usuario.id_docente ??
-          usuario.id;
-
-        if (!idDocente) {
-          throw new Error(
-            'No se encontró el identificador del docente.'
-          );
-        }
-
-        /*
-         * Este endpoint puede devolver la actividad más reciente.
-         * Después puedes agregar selectores de curso y actividad.
-         */
         const respuesta = await fetch(
-          `${API_URL}/docente/reportes/rendimiento-actividad?id_docente=${idDocente}`,
+          `${API_URL}/docente/reportes/rendimiento-actividad?${query.toString()}`,
           {
             headers: {
               Accept: 'application/json',
@@ -139,75 +129,56 @@ export default function ReporteRendimientoActividadScreen() {
         if (!respuesta.ok) {
           throw new Error(
             resultado.mensaje ||
-              'No se pudo cargar el reporte.'
+              'No se pudo cargar el rendimiento de las actividades.'
           );
         }
 
-        const datos: ReporteActividad = {
-          actividad: resultado.actividad ?? null,
-          resumen: {
-            promedio: Number(
-              resultado.resumen?.promedio ?? 0
-            ),
-            total_alumnos: Number(
-              resultado.resumen?.total_alumnos ?? 0
-            ),
-            entregadas: Number(
-              resultado.resumen?.entregadas ?? 0
-            ),
-            pendientes: Number(
-              resultado.resumen?.pendientes ?? 0
-            ),
-            calificadas: Number(
-              resultado.resumen?.calificadas ?? 0
-            ),
-          },
-          alumnos: Array.isArray(resultado.alumnos)
-            ? resultado.alumnos.map(
-                (alumno: AlumnoRendimiento) => ({
-                  id_alumno: Number(
-                    alumno.id_alumno
-                  ),
-                  nombre:
-                    alumno.nombre ||
-                    'Alumno sin nombre',
-                  estado:
-                    alumno.estado || 'Pendiente',
-                  calificacion:
-                    alumno.calificacion === null ||
-                    alumno.calificacion === undefined
-                      ? null
-                      : Number(
-                          alumno.calificacion
-                        ),
-                  porcentaje_avance: Number(
-                    alumno.porcentaje_avance ?? 0
-                  ),
-                })
-              )
-            : [],
-        };
+        const nuevosDatos = Array.isArray(
+          resultado.actividades
+        )
+          ? resultado.actividades.map(
+              (item: Partial<Actividad>) => ({
+                id_actividad: Number(
+                  item.id_actividad ?? 0
+                ),
+                titulo:
+                  item.titulo ?? 'Actividad sin título',
+                tipo: item.tipo ?? 'Actividad',
+                curso: item.curso ?? 'Sin curso',
+                materia: item.materia ?? 'Sin materia',
+                fecha_publicacion:
+                  item.fecha_publicacion ?? '',
+                fecha_limite: item.fecha_limite ?? '',
+                total_asignados: Number(
+                  item.total_asignados ?? 0
+                ),
+                total_entregas: Number(
+                  item.total_entregas ?? 0
+                ),
+                porcentaje_entregas: Number(
+                  item.porcentaje_entregas ?? 0
+                ),
+                promedio: Number(item.promedio ?? 0),
+              })
+            )
+          : [];
 
-        setReporte(datos);
-
+        setActividades(nuevosDatos);
         anunciar(
-          `Reporte de rendimiento actualizado. Promedio del grupo ${datos.resumen.promedio.toFixed(
-            1
-          )}. ${datos.resumen.entregadas} actividades entregadas y ${datos.resumen.pendientes} pendientes.`
+          `Se cargaron ${nuevosDatos.length} actividades.`
         );
       } catch (error) {
         console.error(
-          'Error al cargar rendimiento:',
+          'Error al cargar rendimiento por actividad:',
           error
         );
-
-        setReporte(REPORTE_VACIO);
 
         const mensaje =
           error instanceof Error
             ? error.message
-            : 'Ocurrió un error inesperado.';
+            : 'Ocurrió un error al cargar las actividades.';
 
+        setActividades([]);
         Alert.alert('Error', mensaje);
         anunciar(`Error. ${mensaje}`);
       } finally {
@@ -215,39 +186,48 @@ export default function ReporteRendimientoActividadScreen() {
         setActualizando(false);
       }
     },
-    [anunciar]
+    [anunciar, materia, periodo]
   );
 
   useFocusEffect(
     useCallback(() => {
-      cargarReporte();
-    }, [cargarReporte])
+      cargarActividades();
+    }, [cargarActividades])
   );
+
+  const resumen = useMemo(() => {
+    if (actividades.length === 0) {
+      return {
+        promedio: 0,
+        entregas: 0,
+      };
+    }
+
+    return {
+      promedio:
+        actividades.reduce(
+          (suma, item) => suma + item.promedio,
+          0
+        ) / actividades.length,
+      entregas:
+        actividades.reduce(
+          (suma, item) =>
+            suma + item.porcentaje_entregas,
+          0
+        ) / actividades.length,
+    };
+  }, [actividades]);
 
   const actualizar = () => {
     setActualizando(true);
-    cargarReporte(false);
+    cargarActividades(false);
   };
-
-  const porcentajeEntregadas = useMemo(() => {
-    if (reporte.resumen.total_alumnos === 0) {
-      return 0;
-    }
-
-    return Math.round(
-      (reporte.resumen.entregadas /
-        reporte.resumen.total_alumnos) *
-        100
-    );
-  }, [reporte.resumen]);
 
   return (
     <SafeAreaView
       style={[
         styles.safeArea,
-        {
-          backgroundColor: colores.fondo,
-        },
+        { backgroundColor: colores.fondo },
       ]}
     >
       <View
@@ -276,7 +256,7 @@ export default function ReporteRendimientoActividadScreen() {
         <View style={styles.encabezadoTexto}>
           <Text
             style={[
-              styles.tituloPantalla,
+              styles.titulo,
               {
                 color: colores.texto,
                 fontSize: 19 * escalaTexto,
@@ -286,17 +266,16 @@ export default function ReporteRendimientoActividadScreen() {
           >
             Rendimiento por actividad
           </Text>
-
           <Text
             style={[
-              styles.subtituloPantalla,
+              styles.subtitulo,
               {
                 color: colores.textoSecundario,
                 fontSize: 11 * escalaTexto,
               },
             ]}
           >
-            Consulta entregas y calificaciones
+            Entregas y calificaciones de las actividades
           </Text>
         </View>
 
@@ -311,205 +290,52 @@ export default function ReporteRendimientoActividadScreen() {
             refreshing={actualizando}
             onRefresh={actualizar}
             tintColor={colores.primario}
+            colors={[colores.primario]}
           />
         }
       >
         {cargando ? (
-          <View style={styles.cargando}>
+          <View style={styles.estadoCentral}>
             <ActivityIndicator
               size="large"
               color={colores.primario}
             />
-
             <Text
               style={[
-                styles.textoCargando,
+                styles.textoEstado,
                 {
                   color: colores.textoSecundario,
-                  fontSize: 14 * escalaTexto,
+                  fontSize: 13 * escalaTexto,
                 },
               ]}
             >
-              Cargando rendimiento...
+              Cargando actividades...
             </Text>
           </View>
         ) : (
           <>
-            <View
-              style={[
-                styles.tarjetaActividad,
-                {
-                  backgroundColor: colores.tarjeta,
-                  borderColor: colores.borde,
-                },
-              ]}
-            >
-              <Ionicons
-                name="reader-outline"
-                size={27}
-                color={colores.primario}
+            <View style={styles.filaResumen}>
+              <TarjetaResumen
+                titulo="Actividades"
+                valor={actividades.length.toString()}
+                icono="list-outline"
+                colores={colores}
+                escalaTexto={escalaTexto}
               />
-
-              <View style={styles.informacionActividad}>
-                <Text
-                  style={[
-                    styles.nombreActividad,
-                    {
-                      color: colores.texto,
-                      fontSize: 16 * escalaTexto,
-                    },
-                  ]}
-                >
-                  {reporte.actividad?.titulo ??
-                    'No hay actividades registradas'}
-                </Text>
-
-                <Text
-                  style={[
-                    styles.detalleActividad,
-                    {
-                      color:
-                        colores.textoSecundario,
-                      fontSize: 12 * escalaTexto,
-                    },
-                  ]}
-                >
-                  {reporte.actividad?.materia ??
-                    'Sin materia'}
-                </Text>
-
-                {reporte.actividad?.fecha_limite && (
-                  <Text
-                    style={[
-                      styles.detalleActividad,
-                      {
-                        color:
-                          colores.textoSecundario,
-                        fontSize:
-                          12 * escalaTexto,
-                      },
-                    ]}
-                  >
-                    Fecha límite:{' '}
-                    {reporte.actividad.fecha_limite}
-                  </Text>
-                )}
-              </View>
-            </View>
-
-            <Text
-              style={[
-                styles.tituloSeccion,
-                {
-                  color: colores.texto,
-                  fontSize: 15 * escalaTexto,
-                },
-              ]}
-              accessibilityRole="header"
-            >
-              Resumen del grupo
-            </Text>
-
-            <View style={styles.filaTarjetas}>
               <TarjetaResumen
                 titulo="Promedio"
-                valor={reporte.resumen.promedio.toFixed(
-                  1
-                )}
-                icono="stats-chart"
+                valor={`${resumen.promedio.toFixed(1)}/10`}
+                icono="stats-chart-outline"
                 colores={colores}
                 escalaTexto={escalaTexto}
               />
-
               <TarjetaResumen
                 titulo="Entregadas"
-                valor={String(
-                  reporte.resumen.entregadas
-                )}
-                icono="checkmark-circle-outline"
+                valor={`${Math.round(resumen.entregas)}%`}
+                icono="checkmark-done-outline"
                 colores={colores}
                 escalaTexto={escalaTexto}
               />
-            </View>
-
-            <View style={styles.filaTarjetas}>
-              <TarjetaResumen
-                titulo="Pendientes"
-                valor={String(
-                  reporte.resumen.pendientes
-                )}
-                icono="time-outline"
-                colores={colores}
-                escalaTexto={escalaTexto}
-              />
-
-              <TarjetaResumen
-                titulo="Calificadas"
-                valor={String(
-                  reporte.resumen.calificadas
-                )}
-                icono="school-outline"
-                colores={colores}
-                escalaTexto={escalaTexto}
-              />
-            </View>
-
-            <View
-              style={[
-                styles.tarjetaProgreso,
-                {
-                  backgroundColor: colores.tarjeta,
-                  borderColor: colores.borde,
-                },
-              ]}
-              accessible
-              accessibilityLabel={`${porcentajeEntregadas} por ciento de actividades entregadas`}
-            >
-              <View style={styles.filaProgreso}>
-                <Text
-                  style={[
-                    styles.textoProgreso,
-                    {
-                      color: colores.texto,
-                      fontSize: 13 * escalaTexto,
-                    },
-                  ]}
-                >
-                  Porcentaje de entregas
-                </Text>
-
-                <Text
-                  style={[
-                    styles.porcentaje,
-                    {
-                      color: colores.primario,
-                      fontSize: 14 * escalaTexto,
-                    },
-                  ]}
-                >
-                  {porcentajeEntregadas}%
-                </Text>
-              </View>
-
-              <View
-                style={[
-                  styles.barraFondo,
-                  {
-                    backgroundColor: colores.borde,
-                  },
-                ]}
-              >
-                <View
-                  style={[
-                    styles.barraValor,
-                    {
-                      backgroundColor:
-                        colores.primario,
-                      width: `${porcentajeEntregadas}%`,
-                    },
-                  ]}
-                />
-              </View>
             </View>
 
             <Text
@@ -522,13 +348,13 @@ export default function ReporteRendimientoActividadScreen() {
               ]}
               accessibilityRole="header"
             >
-              Resultados de estudiantes
+              Detalle de actividades
             </Text>
 
-            {reporte.alumnos.length === 0 ? (
+            {actividades.length === 0 ? (
               <View
                 style={[
-                  styles.estadoVacio,
+                  styles.vacio,
                   {
                     backgroundColor: colores.tarjeta,
                     borderColor: colores.borde,
@@ -536,103 +362,138 @@ export default function ReporteRendimientoActividadScreen() {
                 ]}
               >
                 <Ionicons
-                  name="people-outline"
+                  name="stats-chart-outline"
                   size={42}
-                  color={colores.textoSecundario}
+                  color={colores.primario}
                 />
-
                 <Text
                   style={[
-                    styles.textoVacio,
+                    styles.tituloVacio,
                     {
-                      color:
-                        colores.textoSecundario,
-                      fontSize: 14 * escalaTexto,
+                      color: colores.texto,
+                      fontSize: 15 * escalaTexto,
                     },
                   ]}
                 >
-                  No existen resultados para mostrar.
+                  No hay actividades
+                </Text>
+                <Text
+                  style={[
+                    styles.descripcionVacio,
+                    {
+                      color: colores.textoSecundario,
+                      fontSize: 12 * escalaTexto,
+                    },
+                  ]}
+                >
+                  No se encontraron resultados para la materia y el periodo seleccionados.
                 </Text>
               </View>
             ) : (
-              reporte.alumnos.map((alumno) => (
+              actividades.map((actividad) => (
                 <View
-                  key={alumno.id_alumno}
+                  key={actividad.id_actividad}
                   style={[
-                    styles.tarjetaAlumno,
+                    styles.tarjetaActividad,
                     {
-                      backgroundColor:
-                        colores.tarjeta,
+                      backgroundColor: colores.tarjeta,
                       borderColor: colores.borde,
                     },
                   ]}
                   accessible
-                  accessibilityLabel={`${alumno.nombre}. Estado ${alumno.estado}. Calificación ${
-                    alumno.calificacion ??
-                    'sin calificar'
-                  }`}
+                  accessibilityLabel={`${actividad.titulo}. Promedio ${actividad.promedio.toFixed(
+                    1
+                  )} de 10. ${Math.round(
+                    actividad.porcentaje_entregas
+                  )} por ciento de entregas.`}
                 >
-                  <View
-                    style={[
-                      styles.avatar,
-                      {
-                        backgroundColor:
-                          colores.fondoPrimario,
-                      },
-                    ]}
-                  >
-                    <Ionicons
-                      name="person"
-                      size={21}
-                      color={colores.primario}
-                    />
+                  <View style={styles.cabeceraTarjeta}>
+                    <View
+                      style={[
+                        styles.iconoActividad,
+                        {
+                          backgroundColor:
+                            colores.fondoPrimario,
+                        },
+                      ]}
+                    >
+                      <Ionicons
+                        name="document-text-outline"
+                        size={22}
+                        color={colores.primario}
+                      />
+                    </View>
+                    <View style={styles.textosTarjeta}>
+                      <Text
+                        style={[
+                          styles.tituloActividad,
+                          {
+                            color: colores.texto,
+                            fontSize: 14 * escalaTexto,
+                          },
+                        ]}
+                      >
+                        {actividad.titulo}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.metaActividad,
+                          {
+                            color:
+                              colores.textoSecundario,
+                            fontSize: 11 * escalaTexto,
+                          },
+                        ]}
+                      >
+                        {actividad.tipo} · {actividad.materia} · {actividad.curso}
+                      </Text>
+                    </View>
                   </View>
 
-                  <View style={styles.datosAlumno}>
-                    <Text
-                      style={[
-                        styles.nombreAlumno,
-                        {
-                          color: colores.texto,
-                          fontSize:
-                            14 * escalaTexto,
-                        },
-                      ]}
-                    >
-                      {alumno.nombre}
-                    </Text>
-
-                    <Text
-                      style={[
-                        styles.estadoAlumno,
-                        {
-                          color:
-                            colores.textoSecundario,
-                          fontSize:
-                            11 * escalaTexto,
-                        },
-                      ]}
-                    >
-                      {alumno.estado}
-                    </Text>
+                  <View
+                    style={[
+                      styles.metricas,
+                      { borderTopColor: colores.borde },
+                    ]}
+                  >
+                    <Metrica
+                      etiqueta="Promedio"
+                      valor={`${actividad.promedio.toFixed(
+                        1
+                      )}/10`}
+                      colores={colores}
+                      escalaTexto={escalaTexto}
+                    />
+                    <Metrica
+                      etiqueta="Entregadas"
+                      valor={`${Math.round(
+                        actividad.porcentaje_entregas
+                      )}%`}
+                      colores={colores}
+                      escalaTexto={escalaTexto}
+                    />
+                    <Metrica
+                      etiqueta="Entregas"
+                      valor={`${actividad.total_entregas}/${actividad.total_asignados}`}
+                      colores={colores}
+                      escalaTexto={escalaTexto}
+                    />
                   </View>
 
                   <Text
                     style={[
-                      styles.calificacion,
+                      styles.fecha,
                       {
-                        color:
-                          alumno.calificacion === null
-                            ? colores.textoSecundario
-                            : colores.primario,
-                        fontSize:
-                          16 * escalaTexto,
+                        color: colores.textoSecundario,
+                        fontSize: 10.5 * escalaTexto,
                       },
                     ]}
                   >
-                    {alumno.calificacion === null
-                      ? 'Pendiente'
-                      : alumno.calificacion.toFixed(1)}
+                    Publicada {formatearFecha(
+                      actividad.fecha_publicacion
+                    )} · Límite {formatearFecha(
+                      actividad.fecha_limite
+                    )}
                   </Text>
                 </View>
               ))
@@ -644,28 +505,19 @@ export default function ReporteRendimientoActividadScreen() {
   );
 }
 
-type TarjetaResumenProps = {
-  titulo: string;
-  valor: string;
-  icono: keyof typeof Ionicons.glyphMap;
-  colores: {
-    tarjeta: string;
-    borde: string;
-    texto: string;
-    textoSecundario: string;
-    primario: string;
-    fondoPrimario: string;
-  };
-  escalaTexto: number;
-};
-
 function TarjetaResumen({
   titulo,
   valor,
   icono,
   colores,
   escalaTexto,
-}: TarjetaResumenProps) {
+}: {
+  titulo: string;
+  valor: string;
+  icono: keyof typeof Ionicons.glyphMap;
+  colores: ReturnType<typeof useAccessibility>['colores'];
+  escalaTexto: number;
+}) {
   return (
     <View
       style={[
@@ -675,42 +527,29 @@ function TarjetaResumen({
           borderColor: colores.borde,
         },
       ]}
-      accessible
-      accessibilityLabel={`${titulo}: ${valor}`}
     >
-      <View
-        style={[
-          styles.cajaIcono,
-          {
-            backgroundColor: colores.fondoPrimario,
-          },
-        ]}
-      >
-        <Ionicons
-          name={icono}
-          size={22}
-          color={colores.primario}
-        />
-      </View>
-
+      <Ionicons
+        name={icono}
+        size={21}
+        color={colores.primario}
+      />
       <Text
         style={[
           styles.valorResumen,
           {
             color: colores.texto,
-            fontSize: 22 * escalaTexto,
+            fontSize: 17 * escalaTexto,
           },
         ]}
       >
         {valor}
       </Text>
-
       <Text
         style={[
-          styles.tituloResumen,
+          styles.etiquetaResumen,
           {
             color: colores.textoSecundario,
-            fontSize: 11 * escalaTexto,
+            fontSize: 10 * escalaTexto,
           },
         ]}
       >
@@ -720,191 +559,153 @@ function TarjetaResumen({
   );
 }
 
-const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-  },
+function Metrica({
+  etiqueta,
+  valor,
+  colores,
+  escalaTexto,
+}: {
+  etiqueta: string;
+  valor: string;
+  colores: ReturnType<typeof useAccessibility>['colores'];
+  escalaTexto: number;
+}) {
+  return (
+    <View style={styles.metrica}>
+      <Text
+        style={[
+          styles.valorMetrica,
+          {
+            color: colores.primario,
+            fontSize: 14 * escalaTexto,
+          },
+        ]}
+      >
+        {valor}
+      </Text>
+      <Text
+        style={[
+          styles.etiquetaMetrica,
+          {
+            color: colores.textoSecundario,
+            fontSize: 9.5 * escalaTexto,
+          },
+        ]}
+      >
+        {etiqueta}
+      </Text>
+    </View>
+  );
+}
 
+const styles = StyleSheet.create({
+  safeArea: { flex: 1 },
   encabezado: {
-    minHeight: 66,
+    minHeight: 68,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 10,
-    paddingVertical: 7,
+    paddingVertical: 8,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
-
   botonEncabezado: {
     width: 44,
     height: 44,
     alignItems: 'center',
     justifyContent: 'center',
   },
-
-  encabezadoTexto: {
-    flex: 1,
-  },
-
-  tituloPantalla: {
-    fontWeight: '800',
-  },
-
-  subtituloPantalla: {
-    marginTop: 3,
-  },
-
+  encabezadoTexto: { flex: 1 },
+  titulo: { fontWeight: '800' },
+  subtitulo: { marginTop: 3 },
   contenido: {
+    flexGrow: 1,
     padding: 14,
-    paddingBottom: 35,
+    paddingBottom: 30,
   },
-
-  cargando: {
-    minHeight: 400,
+  estadoCentral: {
+    flex: 1,
+    minHeight: 260,
     alignItems: 'center',
     justifyContent: 'center',
   },
-
-  textoCargando: {
-    marginTop: 12,
-  },
-
-  tarjetaActividad: {
-    borderWidth: 1,
-    borderRadius: 14,
-    padding: 14,
+  textoEstado: { marginTop: 12 },
+  filaResumen: {
     flexDirection: 'row',
-    alignItems: 'center',
+    gap: 8,
   },
-
-  informacionActividad: {
-    flex: 1,
-    marginLeft: 12,
-  },
-
-  nombreActividad: {
-    fontWeight: '800',
-  },
-
-  detalleActividad: {
-    marginTop: 4,
-  },
-
-  tituloSeccion: {
-    marginTop: 18,
-    marginBottom: 9,
-    fontWeight: '800',
-  },
-
-  filaTarjetas: {
-    flexDirection: 'row',
-    gap: 9,
-    marginBottom: 9,
-  },
-
   tarjetaResumen: {
     flex: 1,
-    minHeight: 120,
+    minHeight: 105,
     borderWidth: 1,
     borderRadius: 14,
-    padding: 12,
-  },
-
-  cajaIcono: {
-    width: 39,
-    height: 39,
-    borderRadius: 11,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  valorResumen: {
-    marginTop: 9,
-    fontWeight: '800',
-  },
-
-  tituloResumen: {
-    marginTop: 3,
-    fontWeight: '600',
-  },
-
-  tarjetaProgreso: {
-    borderWidth: 1,
-    borderRadius: 14,
-    padding: 14,
-    marginTop: 3,
-  },
-
-  filaProgreso: {
-    flexDirection: 'row',
+    padding: 10,
     justifyContent: 'space-between',
   },
-
-  textoProgreso: {
-    fontWeight: '700',
+  valorResumen: {
+    fontWeight: '900',
+    marginTop: 6,
   },
-
-  porcentaje: {
+  etiquetaResumen: { fontWeight: '600' },
+  tituloSeccion: {
     fontWeight: '800',
+    marginTop: 20,
+    marginBottom: 10,
   },
-
-  barraFondo: {
-    height: 8,
-    borderRadius: 5,
-    overflow: 'hidden',
-    marginTop: 12,
-  },
-
-  barraValor: {
-    height: '100%',
-    borderRadius: 5,
-  },
-
-  estadoVacio: {
-    minHeight: 170,
+  vacio: {
+    minHeight: 210,
     borderWidth: 1,
-    borderRadius: 14,
+    borderRadius: 16,
+    padding: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 18,
   },
-
-  textoVacio: {
-    marginTop: 10,
+  tituloVacio: {
+    marginTop: 12,
+    fontWeight: '800',
+  },
+  descripcionVacio: {
+    marginTop: 7,
+    lineHeight: 18,
     textAlign: 'center',
   },
-
-  tarjetaAlumno: {
-    minHeight: 68,
+  tarjetaActividad: {
     borderWidth: 1,
-    borderRadius: 13,
-    paddingHorizontal: 12,
-    marginBottom: 9,
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 10,
+  },
+  cabeceraTarjeta: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-
-  avatar: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+  iconoActividad: {
+    width: 44,
+    height: 44,
+    borderRadius: 13,
     alignItems: 'center',
     justifyContent: 'center',
+    marginRight: 11,
   },
-
-  datosAlumno: {
+  textosTarjeta: { flex: 1 },
+  tituloActividad: { fontWeight: '800' },
+  metaActividad: { marginTop: 3 },
+  metricas: {
+    flexDirection: 'row',
+    marginTop: 14,
+    paddingTop: 12,
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
+  metrica: {
     flex: 1,
-    marginHorizontal: 11,
+    alignItems: 'center',
   },
-
-  nombreAlumno: {
-    fontWeight: '800',
+  valorMetrica: { fontWeight: '900' },
+  etiquetaMetrica: {
+    marginTop: 2,
+    fontWeight: '600',
   },
-
-  estadoAlumno: {
-    marginTop: 3,
-  },
-
-  calificacion: {
-    fontWeight: '800',
+  fecha: {
+    marginTop: 12,
+    lineHeight: 16,
   },
 });

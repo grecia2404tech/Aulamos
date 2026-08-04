@@ -764,7 +764,7 @@ export default function CrearEvaluacionScreen() {
         <BottomItem
           icono="home"
           texto="Inicio"
-          ruta="/inicio-docentes"
+          ruta="/inicio-docente"
           activo={false}
           colorTexto={
             colores.textoSecundario
@@ -792,7 +792,7 @@ export default function CrearEvaluacionScreen() {
         <BottomItem
           icono="list"
           texto="Actividades"
-          ruta="/crear-actividad"
+          ruta="/actividades-docente"
           activo={false}
           colorTexto={
             colores.textoSecundario

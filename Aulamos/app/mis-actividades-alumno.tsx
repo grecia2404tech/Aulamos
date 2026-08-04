@@ -443,10 +443,10 @@ export default function MisActividadesAlumnoScreen() {
           />
 
           <BottomItem
-            icon="menu-outline"
+            icon="help-circle-outline"
             activeIcon="menu"
-            label="Más"
-            onPress={() => router.push("/menu-alumno" as never)}
+            label="Chatbot"
+            onPress={() => router.push("/chatbot" as never)}
           />
         </View>
       </View>

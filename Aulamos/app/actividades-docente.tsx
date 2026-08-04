@@ -840,13 +840,10 @@ export default function ActividadesDocenteScreen() {
           onPress={() => {}}
         />
         <BottomItem
-          icon="document-text-outline"
+          icon="book-outline"
           label="Evaluaciones"
           onPress={() =>
-            Alert.alert(
-              'Evaluaciones',
-              'Esta pantalla todavía está pendiente.',
-            )
+            router.push('/crear-evaluacion' as any)
           }
         />
         <BottomItem

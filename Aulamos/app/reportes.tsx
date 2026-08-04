@@ -7,7 +7,6 @@ import {
 } from 'expo-router';
 import {
   useCallback,
-  useEffect,
   useMemo,
   useState,
 } from 'react';
@@ -20,6 +19,7 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -83,14 +83,14 @@ const DATOS_VACIOS: DatosReportes = {
 };
 
 export default function ReportesScreen() {
- 
-
   const {
     preferencias,
     colores,
     escalaTexto,
     leerTexto,
   } = useAccessibility();
+
+  const { width } = useWindowDimensions();
 
   const [materias, setMaterias] = useState<Materia[]>([]);
   const [materiaSeleccionada, setMateriaSeleccionada] =
@@ -141,6 +141,9 @@ export default function ReportesScreen() {
 
     return periodo?.etiqueta ?? 'Este mes';
   }, [periodoSeleccionado]);
+
+  const vistaCompacta =
+    width < 390 || escalaTexto > 1.15;
 
   const cargarMaterias = useCallback(async () => {
     try {
@@ -200,32 +203,7 @@ export default function ReportesScreen() {
         const token =
           await AsyncStorage.getItem('token');
 
-        const usuarioGuardado =
-          await AsyncStorage.getItem('usuario');
-
-        if (!usuarioGuardado) {
-          throw new Error(
-            'No se encontró la sesión del docente.'
-          );
-        }
-
-        const usuario = JSON.parse(
-          usuarioGuardado
-        );
-
-        const idDocente =
-          usuario.id_usuario ??
-          usuario.id_docente ??
-          usuario.id;
-
-        if (!idDocente) {
-          throw new Error(
-            'No se encontró el identificador del docente.'
-          );
-        }
-
         const parametros = new URLSearchParams({
-          id_docente: String(idDocente),
           materia: materiaSeleccionada,
           periodo: periodoSeleccionado,
         });
@@ -340,13 +318,6 @@ export default function ReportesScreen() {
     }, [cargarMaterias, cargarReportes])
   );
 
-  useEffect(() => {
-    cargarReportes();
-  }, [
-    materiaSeleccionada,
-    periodoSeleccionado,
-  ]);
-
   const actualizarPantalla = () => {
     setActualizando(true);
     cargarReportes(false);
@@ -439,52 +410,106 @@ export default function ReportesScreen() {
           />
         }
       >
-        <Text
+        <View
           style={[
-            styles.etiqueta,
+            styles.panelFiltros,
             {
-              color: colores.texto,
-              fontSize: 11 * escalaTexto,
+              backgroundColor: colores.tarjeta,
+              borderColor: colores.borde,
             },
           ]}
         >
-          Seleccionar materia
-        </Text>
+          <View style={styles.tituloPanelFila}>
+            <View
+              style={[
+                styles.iconoPanel,
+                {
+                  backgroundColor: colores.fondoPrimario,
+                },
+              ]}
+            >
+              <Ionicons
+                name="options-outline"
+                size={20}
+                color={colores.primario}
+              />
+            </View>
 
-        <SelectorButton
-          texto={nombreMateriaSeleccionada}
-          onPress={() =>
-            setSelectorMateriaVisible(true)
-          }
-          colores={colores}
-          escalaTexto={escalaTexto}
-          accessibilityLabel={`Materia seleccionada: ${nombreMateriaSeleccionada}`}
-          accessibilityHint="Abre la lista de materias"
-        />
+            <View style={styles.textoPanelFiltros}>
+              <Text
+                style={[
+                  styles.tituloPanel,
+                  {
+                    color: colores.texto,
+                    fontSize: 15 * escalaTexto,
+                  },
+                ]}
+                accessibilityRole="header"
+              >
+                Filtros del reporte
+              </Text>
 
-        <Text
-          style={[
-            styles.etiqueta,
-            styles.etiquetaPeriodo,
-            {
-              color: colores.texto,
-              fontSize: 11 * escalaTexto,
-            },
-          ]}
-        >
-          Periodo
-        </Text>
+              <Text
+                style={[
+                  styles.descripcionPanel,
+                  {
+                    color: colores.textoSecundario,
+                    fontSize: 11 * escalaTexto,
+                  },
+                ]}
+              >
+                Los resultados cambian automáticamente al elegir una opción.
+              </Text>
+            </View>
+          </View>
 
-        <SelectorButton
-          texto={nombrePeriodoSeleccionado}
-          onPress={() =>
-            setSelectorPeriodoVisible(true)
-          }
-          colores={colores}
-          escalaTexto={escalaTexto}
-          accessibilityLabel={`Periodo seleccionado: ${nombrePeriodoSeleccionado}`}
-          accessibilityHint="Abre la lista de periodos"
-        />
+          <Text
+            style={[
+              styles.etiqueta,
+              {
+                color: colores.texto,
+                fontSize: 12 * escalaTexto,
+              },
+            ]}
+          >
+            Materia
+          </Text>
+
+          <SelectorButton
+            texto={nombreMateriaSeleccionada}
+            onPress={() =>
+              setSelectorMateriaVisible(true)
+            }
+            colores={colores}
+            escalaTexto={escalaTexto}
+            accessibilityLabel={`Materia seleccionada: ${nombreMateriaSeleccionada}`}
+            accessibilityHint="Abre la lista de materias"
+          />
+
+          <Text
+            style={[
+              styles.etiqueta,
+              styles.etiquetaPeriodo,
+              {
+                color: colores.texto,
+                fontSize: 12 * escalaTexto,
+              },
+            ]}
+          >
+            Periodo
+          </Text>
+
+          <SelectorButton
+            texto={nombrePeriodoSeleccionado}
+            onPress={() =>
+              setSelectorPeriodoVisible(true)
+            }
+            colores={colores}
+            escalaTexto={escalaTexto}
+            accessibilityLabel={`Periodo seleccionado: ${nombrePeriodoSeleccionado}`}
+            accessibilityHint="Abre la lista de periodos"
+          />
+        </View>
 
         <Text
           style={[
@@ -520,7 +545,13 @@ export default function ReportesScreen() {
           </View>
         ) : (
           <>
-            <View style={styles.filaTarjetas}>
+            <View
+              style={[
+                styles.filaTarjetas,
+                vistaCompacta &&
+                  styles.columnaTarjetas,
+              ]}
+            >
               <TarjetaPromedio
                 titulo="Promedio general"
                 valor={datos.promedioGeneral}
@@ -541,7 +572,13 @@ export default function ReportesScreen() {
               />
             </View>
 
-            <View style={styles.filaTarjetas}>
+            <View
+              style={[
+                styles.filaTarjetas,
+                vistaCompacta &&
+                  styles.columnaTarjetas,
+              ]}
+            >
               <TarjetaPorcentajeBarra
                 titulo="Actividades entregadas"
                 porcentaje={
@@ -595,7 +632,13 @@ export default function ReportesScreen() {
   escalaTexto={escalaTexto}
   onPress={() =>
     router.push(
-      '/reporte-rendimiento-actividad' as Href
+      {
+        pathname: '/reporte-rendimiento-actividad',
+        params: {
+          materia: materiaSeleccionada,
+          periodo: periodoSeleccionado,
+        },
+      } as Href
     )
   }
 />
@@ -608,7 +651,13 @@ export default function ReportesScreen() {
   escalaTexto={escalaTexto}
   onPress={() =>
     router.push(
-      '/reporte-rendimiento-evaluacion' as Href
+      {
+        pathname: '/reporte-rendimiento-evaluacion',
+        params: {
+          materia: materiaSeleccionada,
+          periodo: periodoSeleccionado,
+        },
+      } as Href
     )
   }
 />
@@ -659,7 +708,7 @@ export default function ReportesScreen() {
 <BottomItem
   icono="list"
   texto="Actividades"
-  ruta={'/crear-actividad' as Href}
+  ruta={'/actividades-docente' as Href}
   activo={false}
   colores={colores}
   escalaTexto={escalaTexto}
@@ -1070,7 +1119,7 @@ function TarjetaEvaluaciones({
             },
           ]}
         >
-          este mes
+          en el periodo
         </Text>
       </View>
     </View>
@@ -1234,11 +1283,21 @@ function ReporteItem({
       accessibilityLabel={titulo}
       accessibilityHint={`Abre el reporte ${titulo}`}
     >
-      <Ionicons
-        name={icono}
-        size={20}
-        color={colores.primario}
-      />
+      <View
+        style={[
+          styles.iconoReporte,
+          {
+            backgroundColor: colores.tarjeta,
+            borderColor: colores.borde,
+          },
+        ]}
+      >
+        <Ionicons
+          name={icono}
+          size={20}
+          color={colores.primario}
+        />
+      </View>
 
       <Text
         style={[
@@ -1416,7 +1475,12 @@ function BottomItem({
 
   return (
     <TouchableOpacity
-      style={styles.itemMenu}
+      style={[
+        styles.itemMenu,
+        activo && {
+          backgroundColor: colores.fondoPrimario,
+        },
+      ]}
       onPress={() => router.replace(ruta)}
       accessibilityRole="tab"
       accessibilityLabel={texto}
@@ -1453,11 +1517,11 @@ const styles = StyleSheet.create({
   },
 
   encabezado: {
-    minHeight: 65,
+    minHeight: 72,
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    paddingHorizontal: 10,
-    paddingVertical: 7,
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 9,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
 
@@ -1471,7 +1535,7 @@ const styles = StyleSheet.create({
 
   encabezadoTexto: {
     flex: 1,
-    paddingTop: 2,
+    paddingHorizontal: 4,
   },
 
   tituloPantalla: {
@@ -1479,13 +1543,56 @@ const styles = StyleSheet.create({
   },
 
   subtituloPantalla: {
-    marginTop: 4,
+    marginTop: 3,
+    lineHeight: 16,
   },
 
   contenido: {
-    paddingHorizontal: 12,
-    paddingTop: 11,
-    paddingBottom: 30,
+    paddingHorizontal: 14,
+    paddingTop: 14,
+    paddingBottom: 34,
+  },
+
+  panelFiltros: {
+    borderWidth: 1,
+    borderRadius: 18,
+    padding: 15,
+    elevation: 2,
+    shadowColor: '#000000',
+    shadowOpacity: 0.06,
+    shadowRadius: 5,
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+  },
+
+  tituloPanelFila: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+
+  iconoPanel: {
+    width: 42,
+    height: 42,
+    borderRadius: 13,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 11,
+  },
+
+  textoPanelFiltros: {
+    flex: 1,
+  },
+
+  tituloPanel: {
+    fontWeight: '800',
+  },
+
+  descripcionPanel: {
+    marginTop: 3,
+    lineHeight: 16,
   },
 
   etiqueta: {
@@ -1498,10 +1605,10 @@ const styles = StyleSheet.create({
   },
 
   selector: {
-    minHeight: 45,
+    minHeight: 50,
     borderWidth: 1,
-    borderRadius: 10,
-    paddingHorizontal: 13,
+    borderRadius: 13,
+    paddingHorizontal: 14,
     flexDirection: 'row',
     alignItems: 'center',
   },
@@ -1511,27 +1618,31 @@ const styles = StyleSheet.create({
   },
 
   tituloSeccion: {
-    marginTop: 15,
-    marginBottom: 8,
+    marginTop: 21,
+    marginBottom: 10,
     fontWeight: '800',
   },
 
   filaTarjetas: {
     flexDirection: 'row',
-    gap: 8,
-    marginBottom: 8,
+    gap: 10,
+    marginBottom: 10,
+  },
+
+  columnaTarjetas: {
+    flexDirection: 'column',
   },
 
   tarjetaResumen: {
     flex: 1,
-    minHeight: 91,
+    minHeight: 116,
     borderWidth: 1,
-    borderRadius: 10,
-    padding: 9,
+    borderRadius: 16,
+    padding: 14,
     elevation: 2,
     shadowColor: '#000000',
-    shadowOpacity: 0.08,
-    shadowRadius: 3,
+    shadowOpacity: 0.07,
+    shadowRadius: 5,
     shadowOffset: {
       width: 0,
       height: 2,
@@ -1539,8 +1650,9 @@ const styles = StyleSheet.create({
   },
 
   tituloTarjeta: {
-    fontWeight: '600',
-    marginBottom: 6,
+    fontWeight: '700',
+    marginBottom: 10,
+    lineHeight: 16,
   },
 
   contenidoPromedio: {
@@ -1558,10 +1670,10 @@ const styles = StyleSheet.create({
   },
 
   barraFondo: {
-    height: 5,
-    borderRadius: 3,
+    height: 8,
+    borderRadius: 4,
     overflow: 'hidden',
-    marginTop: 6,
+    marginTop: 10,
   },
 
   barraValor: {
@@ -1576,7 +1688,9 @@ const styles = StyleSheet.create({
   },
 
   textoMes: {
+    maxWidth: 75,
     marginBottom: 4,
+    textAlign: 'right',
   },
 
   cargando: {
@@ -1591,15 +1705,24 @@ const styles = StyleSheet.create({
 
   listaReportes: {
     borderWidth: 1,
-    borderRadius: 10,
-    padding: 5,
+    borderRadius: 16,
+    padding: 7,
   },
 
   reporteItem: {
-    minHeight: 44,
-    borderRadius: 10,
-    paddingHorizontal: 12,
+    minHeight: 58,
+    borderRadius: 13,
+    paddingHorizontal: 10,
     flexDirection: 'row',
+    alignItems: 'center',
+  },
+
+  iconoReporte: {
+    width: 38,
+    height: 38,
+    borderWidth: 1,
+    borderRadius: 12,
+    justifyContent: 'center',
     alignItems: 'center',
   },
 
@@ -1610,17 +1733,18 @@ const styles = StyleSheet.create({
   },
 
   menuInferior: {
-    minHeight: 65,
+    minHeight: 72,
     borderTopWidth: StyleSheet.hairlineWidth,
     flexDirection: 'row',
     paddingTop: 6,
-    paddingBottom: 3,
-    paddingHorizontal: 3,
+    paddingBottom: 5,
+    paddingHorizontal: 4,
   },
 
   itemMenu: {
     flex: 1,
-    minHeight: 52,
+    minHeight: 56,
+    borderRadius: 13,
     justifyContent: 'center',
     alignItems: 'center',
   },

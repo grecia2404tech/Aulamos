@@ -933,9 +933,9 @@ export default function CrearRecursoScreen() {
           ]}
         >
           <NavItem icon="home-outline" label="Inicio" onPress={() => router.replace("/inicio-docente" as any)} color={colores.textoSecundario} />
-          <NavItem icon="book" label="Recursos" active onPress={() => router.replace("/recursos-docente" as any)} color={colores.textoSecundario} />
+          <NavItem icon="book" label="Recursos" active onPress={() => router.replace("/crear-recurso" as any)} color={colores.textoSecundario} />
           <NavItem icon="reader-outline" label="Actividades" onPress={() => router.push("/actividades-docente" as any)} color={colores.textoSecundario} />
-          <NavItem icon="document-text-outline" label="Evaluaciones" onPress={() => router.push("/evaluaciones-docente" as any)} color={colores.textoSecundario} />
+          <NavItem icon="document-text-outline" label="Evaluaciones" onPress={() => router.push("/crear-evaluacion" as any)} color={colores.textoSecundario} />
           <NavItem icon="menu-outline" label="Más" onPress={() => router.push("/menu-docente" as any)} color={colores.textoSecundario} />
         </View>
       </View>

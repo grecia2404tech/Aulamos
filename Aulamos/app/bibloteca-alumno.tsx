@@ -486,8 +486,8 @@ export default function BibliotecaAlumnoScreen() {
           <StudentNav icon="home-outline" label="Inicio" onPress={() => router.replace("/inicio-alumno" as any)} color={colores.textoSecundario} />
           <StudentNav icon="list-outline" label="Actividades" onPress={() => router.push("/mis-actividades-alumno" as any)} color={colores.textoSecundario} />
           <StudentNav icon="book" label="Biblioteca" active onPress={() => {}} color={colores.textoSecundario} />
-          <StudentNav icon="stats-chart-outline" label="Avances" onPress={() => Alert.alert("Mis avances", "Esta sección estará disponible próximamente.")} color={colores.textoSecundario} />
-          <StudentNav icon="help-circle-outline" label="Chatbot" onPress={() => Alert.alert("Chatbot", "Esta sección estará disponible próximamente.")} color={colores.textoSecundario} />
+          <StudentNav icon="stats-chart-outline" label="Avances"  onPress={() => router.push("/mis-avances" as any)} color={colores.textoSecundario} />
+          <StudentNav icon="help-circle-outline" label="Chatbot" onPress={() => router.push("/chatbot" as any)} color={colores.textoSecundario} />
         </View>
       </View>
     </SafeAreaView>

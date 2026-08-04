@@ -1153,7 +1153,7 @@ export default function InicioDocenteScreen() {
                 backgroundColor="#9F3A38"
                 onPress={() =>
                   navegar(
-                    '/reportes-docente',
+                    '/reportes',
                     'Reportes'
                   )
                 }
@@ -1508,8 +1508,9 @@ export default function InicioDocenteScreen() {
               label="Evaluaciones"
               onPress={() =>
                 navegar(
-                  '/evaluaciones-docente',
-                  'Evaluaciones'
+                  '/crear-evaluacion',
+                  'Crear-Evaluacion'
+
                 )
               }
             />
