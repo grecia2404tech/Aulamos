@@ -1,19 +1,16 @@
 import AsyncStorage from
   '@react-native-async-storage/async-storage';
-
 import { Ionicons } from
   '@expo/vector-icons';
-
-import { router } from
-  'expo-router';
-
+import {
+  router,
+  useFocusEffect,
+} from 'expo-router';
 import React, {
   useCallback,
-  useEffect,
   useMemo,
   useState,
 } from 'react';
-
 import {
   ActivityIndicator,
   Alert,
@@ -30,20 +27,15 @@ import {
   View,
   useWindowDimensions,
 } from 'react-native';
-
-import {
-  SafeAreaView,
-  useSafeAreaInsets,
-} from 'react-native-safe-area-context';
+import { SafeAreaView } from
+  'react-native-safe-area-context';
 
 import BotonAccesibilidad from
   '../components/BotonAccesibilidad';
-
-import { useAccessibility } from
-  '../contexts/AccessibilityContext';
-
 import { API_URL } from
   '../services/api';
+import { useAccessibility } from
+  '../contexts/AccessibilityContext';
 
 type EstadoCurso =
   | 'Activo'
@@ -59,21 +51,11 @@ type Curso = {
   nombre: string;
   descripcion: string | null;
   estado: EstadoCurso;
-  materia?: string;
-  grupo?: string;
-  grado?: string;
-  turno?: string;
-  modalidad?: string;
-  docente?: string;
-  ciclo?: string;
 };
 
 type RegistroCatalogo = {
   [clave: string]: unknown;
 };
-
-type IoniconName =
-  keyof typeof Ionicons.glyphMap;
 
 type FormularioCurso = {
   idCurso: number | null;
@@ -103,7 +85,7 @@ const extraerLista = (
   clave: string
 ): RegistroCatalogo[] => {
   if (Array.isArray(respuesta)) {
-    return respuesta;
+    return respuesta as RegistroCatalogo[];
   }
 
   if (
@@ -111,14 +93,9 @@ const extraerLista = (
     typeof respuesta === 'object'
   ) {
     const objeto =
-      respuesta as Record<
-        string,
-        unknown
-      >;
+      respuesta as Record<string, unknown>;
 
-    if (
-      Array.isArray(objeto[clave])
-    ) {
+    if (Array.isArray(objeto[clave])) {
       return objeto[
         clave
       ] as RegistroCatalogo[];
@@ -160,18 +137,13 @@ const nombrePersona = (
 
   const partes = [
     textoSeguro(persona.nombre),
-
     textoSeguro(
       persona.apellido_paterno
     ),
-
     textoSeguro(
       persona.apellido_materno
     ),
-
-    textoSeguro(
-      persona.apellidos
-    ),
+    textoSeguro(persona.apellidos),
   ].filter(Boolean);
 
   if (partes.length > 0) {
@@ -189,9 +161,7 @@ const hacerPeticion = async (
   opciones: RequestInit = {}
 ) => {
   const token =
-    await AsyncStorage.getItem(
-      'token'
-    );
+    await AsyncStorage.getItem('token');
 
   if (!token) {
     throw new Error(
@@ -203,16 +173,12 @@ const hacerPeticion = async (
     `${API_URL}${ruta}`,
     {
       ...opciones,
-
       headers: {
         Accept: 'application/json',
-
         'Content-Type':
           'application/json',
-
         Authorization:
           `Bearer ${token}`,
-
         ...(opciones.headers || {}),
       },
     }
@@ -224,10 +190,7 @@ const hacerPeticion = async (
 
   if (!respuesta.ok) {
     const objeto =
-      datos as Record<
-        string,
-        unknown
-      >;
+      datos as Record<string, unknown>;
 
     throw new Error(
       textoSeguro(objeto.mensaje) ||
@@ -241,13 +204,10 @@ const hacerPeticion = async (
 
 export default function
 AdminCursosScreen() {
-  const insets =
-    useSafeAreaInsets();
-
   const accesibilidad =
     useAccessibility() as any;
 
-  const colores =
+  const coloresAccesibilidad =
     accesibilidad.colores || {};
 
   const escalaTexto =
@@ -266,62 +226,52 @@ AdminCursosScreen() {
   const { width } =
     useWindowDimensions();
 
-  const dosColumnas =
-    width >= 760;
+  const dosColumnas = width >= 760;
 
   const tema = {
     fondo:
-      colores.fondo ||
-      (
-        temaOscuro
-          ? '#0F172A'
-          : '#F8FAFC'
-      ),
+      coloresAccesibilidad.fondo ||
+      (temaOscuro
+        ? '#0F172A'
+        : '#F8FAFC'),
 
     tarjeta:
-      colores.fondoTarjeta ||
-      colores.tarjeta ||
-      (
-        temaOscuro
-          ? '#1E293B'
-          : '#FFFFFF'
-      ),
+      coloresAccesibilidad
+        .fondoTarjeta ||
+      coloresAccesibilidad.tarjeta ||
+      (temaOscuro
+        ? '#1E293B'
+        : '#FFFFFF'),
 
     texto:
-      colores.texto ||
-      (
-        temaOscuro
-          ? '#F8FAFC'
-          : '#0F172A'
-      ),
+      coloresAccesibilidad.texto ||
+      (temaOscuro
+        ? '#F8FAFC'
+        : '#0F172A'),
 
     textoSecundario:
-      colores.textoSecundario ||
-      (
-        temaOscuro
-          ? '#CBD5E1'
-          : '#64748B'
-      ),
+      coloresAccesibilidad
+        .textoSecundario ||
+      (temaOscuro
+        ? '#CBD5E1'
+        : '#64748B'),
 
     borde:
-      colores.borde ||
-      (
-        temaOscuro
-          ? '#475569'
-          : '#E2E8F0'
-      ),
+      coloresAccesibilidad.borde ||
+      (temaOscuro
+        ? '#475569'
+        : '#E2E8F0'),
 
     primario:
-      colores.primario ||
+      coloresAccesibilidad.primario ||
       '#2D5BFF',
 
     fondoPrimario:
-      colores.fondoPrimario ||
-      (
-        temaOscuro
-          ? '#172554'
-          : '#EEF2FF'
-      ),
+      coloresAccesibilidad
+        .fondoPrimario ||
+      (temaOscuro
+        ? '#172554'
+        : '#EEF2FF'),
 
     entrada:
       temaOscuro
@@ -329,83 +279,45 @@ AdminCursosScreen() {
         : '#F8FAFC',
   };
 
-  const tamano = (
-    base: number
-  ) => {
-    return Math.round(
-      base * escalaTexto
-    );
-  };
+  const tamano = (base: number) =>
+    Math.round(base * escalaTexto);
 
-  const altoBarraInferior =
-    escalaTexto > 1.2
-      ? 94
-      : 66;
+  const [cursos, setCursos] =
+    useState<Curso[]>([]);
 
-  const [
-    cursos,
-    setCursos,
-  ] = useState<Curso[]>([]);
+  const [materias, setMaterias] =
+    useState<RegistroCatalogo[]>([]);
 
-  const [
-    materias,
-    setMaterias,
-  ] = useState<
-    RegistroCatalogo[]
-  >([]);
+  const [grupos, setGrupos] =
+    useState<RegistroCatalogo[]>([]);
 
-  const [
-    grupos,
-    setGrupos,
-  ] = useState<
-    RegistroCatalogo[]
-  >([]);
+  const [docentes, setDocentes] =
+    useState<RegistroCatalogo[]>([]);
 
-  const [
-    docentes,
-    setDocentes,
-  ] = useState<
-    RegistroCatalogo[]
-  >([]);
+  const [ciclos, setCiclos] =
+    useState<RegistroCatalogo[]>([]);
 
-  const [
-    ciclos,
-    setCiclos,
-  ] = useState<
-    RegistroCatalogo[]
-  >([]);
+  const [busqueda, setBusqueda] =
+    useState('');
 
-  const [
-    busqueda,
-    setBusqueda,
-  ] = useState('');
+  const [cargando, setCargando] =
+    useState(true);
 
-  const [
-    cargando,
-    setCargando,
-  ] = useState(true);
+  const [actualizando, setActualizando] =
+    useState(false);
 
-  const [
-    actualizando,
-    setActualizando,
-  ] = useState(false);
-
-  const [
-    guardando,
-    setGuardando,
-  ] = useState(false);
+  const [guardando, setGuardando] =
+    useState(false);
 
   const [
     modalVisible,
     setModalVisible,
   ] = useState(false);
 
-  const [
-    formulario,
-    setFormulario,
-  ] = useState<FormularioCurso>(
-    FORMULARIO_INICIAL
-  );
+  const [formulario, setFormulario] =
+    useState<FormularioCurso>(
+      FORMULARIO_INICIAL
+    );
 
   const idDocenteDe = (
     docente: RegistroCatalogo
@@ -417,283 +329,216 @@ AdminCursosScreen() {
   };
 
   const cargarDatos =
-    useCallback(
-      async (
-        esActualizacion = false
-      ) => {
-        if (esActualizacion) {
-          setActualizando(true);
-        } else {
-          setCargando(true);
-        }
+    useCallback(async (
+      esActualizacion = false
+    ) => {
+      if (esActualizacion) {
+        setActualizando(true);
+      } else {
+        setCargando(true);
+      }
 
-        try {
-          const [
+      try {
+        const [
+          respuestaCursos,
+          respuestaMaterias,
+          respuestaGrupos,
+          respuestaDocentes,
+          respuestaCiclos,
+        ] = await Promise.all([
+          hacerPeticion('/academico/cursos'),
+          hacerPeticion(
+            '/academico/materias/activas'
+          ),
+          hacerPeticion(
+            '/academico/grupos/activos'
+          ),
+          hacerPeticion(
+            '/academico/docentes/activos'
+          ),
+          hacerPeticion(
+            '/academico/ciclos'
+          ),
+        ]);
+
+        const listaCursos =
+          extraerLista(
             respuestaCursos,
+            'cursos'
+          ).map((curso) => ({
+            id_curso: numeroSeguro(
+              curso.id_curso
+            ),
+            id_materia: numeroSeguro(
+              curso.id_materia
+            ),
+            id_grupo: numeroSeguro(
+              curso.id_grupo
+            ),
+            id_docente: numeroSeguro(
+              curso.id_docente
+            ),
+            id_ciclo: numeroSeguro(
+              curso.id_ciclo
+            ),
+            nombre:
+              textoSeguro(
+                curso.nombre
+              ),
+            descripcion:
+              textoSeguro(
+                curso.descripcion
+              ) || null,
+            estado: (
+              textoSeguro(
+                curso.estado
+              ) || 'Activo'
+            ) as EstadoCurso,
+          }));
+
+        setCursos(listaCursos);
+
+        setMaterias(
+          extraerLista(
             respuestaMaterias,
+            'materias'
+          )
+        );
+
+        setGrupos(
+          extraerLista(
             respuestaGrupos,
+            'grupos'
+          )
+        );
+
+        const listaDocentes =
+          extraerLista(
             respuestaDocentes,
+            'docentes'
+          );
+
+        setDocentes(
+          listaDocentes.length > 0
+            ? listaDocentes
+            : extraerLista(
+                respuestaDocentes,
+                'usuarios'
+              )
+        );
+
+        setCiclos(
+          extraerLista(
             respuestaCiclos,
-          ] = await Promise.all([
-            hacerPeticion(
-              '/academico/cursos'
-            ),
+            'ciclos'
+          )
+        );
+      } catch (error) {
+        Alert.alert(
+          'No se pudieron cargar los cursos',
+          error instanceof Error
+            ? error.message
+            : 'Ocurrió un error inesperado.'
+        );
+      } finally {
+        setCargando(false);
+        setActualizando(false);
+      }
+    }, []);
 
-            hacerPeticion(
-              '/academico/materias/activas'
-            ),
-
-            hacerPeticion(
-              '/academico/grupos/activos'
-            ),
-
-            hacerPeticion(
-              '/academico/docentes/activos'
-            ),
-
-            hacerPeticion(
-              '/academico/ciclos'
-            ),
-          ]);
-
-          const listaCursos =
-            extraerLista(
-              respuestaCursos,
-              'cursos'
-            ).map((curso) => ({
-              id_curso:
-                numeroSeguro(
-                  curso.id_curso
-                ),
-
-              id_materia:
-                numeroSeguro(
-                  curso.id_materia
-                ),
-
-              id_grupo:
-                numeroSeguro(
-                  curso.id_grupo
-                ),
-
-              id_docente:
-                numeroSeguro(
-                  curso.id_docente
-                ),
-
-              id_ciclo:
-                numeroSeguro(
-                  curso.id_ciclo
-                ),
-
-              nombre:
-                textoSeguro(
-                  curso.nombre
-                ),
-
-              descripcion:
-                textoSeguro(
-                  curso.descripcion
-                ) || null,
-
-              estado: (
-                textoSeguro(
-                  curso.estado
-                ) || 'Activo'
-              ) as EstadoCurso,
-
-              materia:
-                textoSeguro(
-                  curso.materia
-                ),
-
-              grupo:
-                textoSeguro(
-                  curso.grupo
-                ),
-
-              grado:
-                textoSeguro(
-                  curso.grado
-                ),
-
-              turno:
-                textoSeguro(
-                  curso.turno
-                ),
-
-              modalidad:
-                textoSeguro(
-                  curso.modalidad
-                ),
-
-              docente:
-                textoSeguro(
-                  curso.docente
-                ),
-
-              ciclo:
-                textoSeguro(
-                  curso.ciclo
-                ),
-            }));
-
-          setCursos(listaCursos);
-
-          setMaterias(
-            extraerLista(
-              respuestaMaterias,
-              'materias'
-            )
-          );
-
-          setGrupos(
-            extraerLista(
-              respuestaGrupos,
-              'grupos'
-            )
-          );
-
-          const listaDocentes =
-            extraerLista(
-              respuestaDocentes,
-              'docentes'
-            );
-
-          setDocentes(
-            listaDocentes.length > 0
-              ? listaDocentes
-              : extraerLista(
-                  respuestaDocentes,
-                  'usuarios'
-                )
-          );
-
-          setCiclos(
-            extraerLista(
-              respuestaCiclos,
-              'ciclos'
-            )
-          );
-        } catch (error) {
-          Alert.alert(
-            'No se pudieron cargar los cursos',
-
-            error instanceof Error
-              ? error.message
-              : 'Ocurrió un error inesperado.'
-          );
-        } finally {
-          setCargando(false);
-          setActualizando(false);
-        }
-      },
-      []
-    );
-
-  useEffect(() => {
-    cargarDatos();
-  }, [cargarDatos]);
+  useFocusEffect(
+    useCallback(() => {
+      void cargarDatos(true);
+    }, [cargarDatos])
+  );
 
   const nombreMateria = (
-    curso: Curso
+    idMateria: number
   ) => {
-    if (curso.materia) {
-      return curso.materia;
-    }
-
     const materia = materias.find(
       (item) =>
         numeroSeguro(
           item.id_materia
-        ) === curso.id_materia
+        ) === idMateria
     );
 
     return materia
-      ? textoSeguro(
-          materia.nombre
-        )
-      : `Materia #${curso.id_materia}`;
+      ? textoSeguro(materia.nombre) ||
+          `Materia #${idMateria}`
+      : `Materia #${idMateria}`;
   };
 
   const nombreGrupo = (
-    curso: Curso
+    idGrupo: number
   ) => {
-    if (
-      curso.grupo ||
-      curso.grado
-    ) {
-      return [
-        curso.grado,
-        curso.grupo,
-      ]
-        .filter(Boolean)
-        .join('° ');
-    }
-
     const grupo = grupos.find(
       (item) =>
         numeroSeguro(
           item.id_grupo
-        ) === curso.id_grupo
+        ) === idGrupo
     );
 
     if (!grupo) {
-      return (
-        `Grupo #${curso.id_grupo}`
-      );
+      return `Grupo #${idGrupo}`;
     }
 
-    return [
-      textoSeguro(grupo.grado),
-      textoSeguro(grupo.nombre),
-    ]
+    const nombre =
+      textoSeguro(grupo.nombre);
+
+    const grado =
+      textoSeguro(grupo.grado);
+
+    return [grado, nombre]
       .filter(Boolean)
-      .join(' - ');
+      .join(' - ') ||
+      `Grupo #${idGrupo}`;
   };
 
   const nombreDocente = (
-    curso: Curso
+    idDocente: number
   ) => {
-    if (curso.docente) {
-      return curso.docente;
-    }
-
     const docente = docentes.find(
       (item) =>
         idDocenteDe(item) ===
-        curso.id_docente
+        idDocente
     );
 
     return docente
       ? nombrePersona(docente)
-      : `Docente #${curso.id_docente}`;
+      : `Docente #${idDocente}`;
   };
 
   const nombreCiclo = (
-    curso: Curso
+    idCiclo: number
   ) => {
-    if (curso.ciclo) {
-      return curso.ciclo;
-    }
-
     const ciclo = ciclos.find(
       (item) =>
         numeroSeguro(
           item.id_ciclo
-        ) === curso.id_ciclo
+        ) === idCiclo
     );
 
-    return ciclo
-      ? (
-          textoSeguro(
-            ciclo.nombre
-          ) ||
-          textoSeguro(
-            ciclo.nombre_ciclo
-          )
-        )
-      : `Ciclo #${curso.id_ciclo}`;
+    if (!ciclo) {
+      return `Ciclo #${idCiclo}`;
+    }
+
+    return (
+      textoSeguro(ciclo.nombre) ||
+      textoSeguro(
+        ciclo.nombre_ciclo
+      ) ||
+      [
+        textoSeguro(
+          ciclo.fecha_inicio
+        ),
+        textoSeguro(
+          ciclo.fecha_fin
+        ),
+      ]
+        .filter(Boolean)
+        .join(' a ') ||
+      `Ciclo #${idCiclo}`
+    );
   };
 
   const cursosFiltrados =
@@ -706,25 +551,31 @@ AdminCursosScreen() {
         return cursos;
       }
 
-      return cursos.filter(
-        (curso) => {
-          const contenido = [
-            curso.nombre,
-            curso.descripcion || '',
-            curso.estado,
-            nombreMateria(curso),
-            nombreGrupo(curso),
-            nombreDocente(curso),
-            nombreCiclo(curso),
-          ]
-            .join(' ')
-            .toLowerCase();
+      return cursos.filter((curso) => {
+        const contenido = [
+          curso.nombre,
+          curso.descripcion || '',
+          curso.estado,
+          nombreMateria(
+            curso.id_materia
+          ),
+          nombreGrupo(
+            curso.id_grupo
+          ),
+          nombreDocente(
+            curso.id_docente
+          ),
+          nombreCiclo(
+            curso.id_ciclo
+          ),
+        ]
+          .join(' ')
+          .toLowerCase();
 
-          return contenido.includes(
-            termino
-          );
-        }
-      );
+        return contenido.includes(
+          termino
+        );
+      });
     }, [
       busqueda,
       cursos,
@@ -734,27 +585,20 @@ AdminCursosScreen() {
       ciclos,
     ]);
 
-  const totalActivos =
-    cursos.filter(
-      (curso) =>
-        curso.estado === 'Activo'
-    ).length;
+  const totalActivos = cursos.filter(
+    (curso) =>
+      curso.estado === 'Activo'
+  ).length;
 
   const abrirNuevoCurso = () => {
-    const cicloActivo =
-      ciclos.find(
-        (ciclo) =>
-          textoSeguro(
-            ciclo.estado
-          ) === 'Activo'
-      );
-
     setFormulario({
       ...FORMULARIO_INICIAL,
-
-      idCiclo: numeroSeguro(
-        cicloActivo?.id_ciclo
-      ),
+      idCiclo:
+        ciclos.length === 1
+          ? numeroSeguro(
+              ciclos[0].id_ciclo
+            )
+          : 0,
     });
 
     setModalVisible(true);
@@ -764,51 +608,59 @@ AdminCursosScreen() {
     curso: Curso
   ) => {
     setFormulario({
-      idCurso:
-        curso.id_curso,
-
-      idMateria:
-        curso.id_materia,
-
-      idGrupo:
-        curso.id_grupo,
-
-      idDocente:
-        curso.id_docente,
-
-      idCiclo:
-        curso.id_ciclo,
-
-      nombre:
-        curso.nombre,
-
+      idCurso: curso.id_curso,
+      idMateria: curso.id_materia,
+      idGrupo: curso.id_grupo,
+      idDocente: curso.id_docente,
+      idCiclo: curso.id_ciclo,
+      nombre: curso.nombre,
       descripcion:
         curso.descripcion || '',
-
-      estado:
-        curso.estado,
+      estado: curso.estado,
     });
 
     setModalVisible(true);
   };
 
   const cerrarModal = () => {
-    if (!guardando) {
-      setModalVisible(false);
+    if (guardando) {
+      return;
     }
+
+    setModalVisible(false);
+  };
+
+  const seleccionarGrupo = (
+    grupo: RegistroCatalogo
+  ) => {
+    const idGrupo = numeroSeguro(
+      grupo.id_grupo
+    );
+
+    const idCiclo = numeroSeguro(
+      grupo.id_ciclo
+    );
+
+    setFormulario((anterior) => ({
+      ...anterior,
+      idGrupo,
+      idCiclo:
+        idCiclo ||
+        anterior.idCiclo,
+    }));
   };
 
   const validarFormulario = () => {
-    const nombre =
-      formulario.nombre.trim();
-
-    if (nombre.length < 2) {
+    if (!formulario.nombre.trim()) {
       return (
         'Escribe el nombre del curso.'
       );
     }
 
-    if (nombre.length > 150) {
+    if (
+      formulario.nombre.trim()
+        .length > 150
+    ) {
       return (
         'El nombre no puede superar los 150 caracteres.'
       );
@@ -821,9 +673,7 @@ AdminCursosScreen() {
     }
 
     if (!formulario.idGrupo) {
-      return (
-        'Selecciona un grupo.'
-      );
+      return 'Selecciona un grupo.';
     }
 
     if (!formulario.idDocente) {
@@ -840,15 +690,14 @@ AdminCursosScreen() {
 
     if (
       formulario.descripcion
-        .trim()
-        .length > 1000
+        .trim().length > 1000
     ) {
       return (
         'La descripción no puede superar los 1000 caracteres.'
       );
     }
 
-    return '';
+    return null;
   };
 
   const guardarCurso = async () => {
@@ -874,44 +723,32 @@ AdminCursosScreen() {
         ? `/academico/cursos/${formulario.idCurso}`
         : '/academico/cursos';
 
-      const respuesta =
-        await hacerPeticion(
-          ruta,
-          {
-            method:
-              esEdicion
-                ? 'PUT'
-                : 'POST',
-
-            body: JSON.stringify({
-              id_materia:
-                formulario.idMateria,
-
-              id_grupo:
-                formulario.idGrupo,
-
-              /*
-               * Este valor es
-               * usuarios.id_usuario
-               */
-              id_docente:
-                formulario.idDocente,
-
-              id_ciclo:
-                formulario.idCiclo,
-
-              nombre:
-                formulario.nombre.trim(),
-
-              descripcion:
-                formulario.descripcion
-                  .trim() || null,
-
-              estado:
-                formulario.estado,
-            }),
-          }
-        );
+      const datos = await hacerPeticion(
+        ruta,
+        {
+          method:
+            esEdicion
+              ? 'PUT'
+              : 'POST',
+          body: JSON.stringify({
+            id_materia:
+              formulario.idMateria,
+            id_grupo:
+              formulario.idGrupo,
+            id_docente:
+              formulario.idDocente,
+            id_ciclo:
+              formulario.idCiclo,
+            nombre:
+              formulario.nombre.trim(),
+            descripcion:
+              formulario.descripcion
+                .trim() || null,
+            estado:
+              formulario.estado,
+          }),
+        }
+      );
 
       setModalVisible(false);
 
@@ -919,23 +756,21 @@ AdminCursosScreen() {
         esEdicion
           ? 'Curso actualizado'
           : 'Curso creado',
-
         textoSeguro(
           (
-            respuesta as Record<
+            datos as Record<
               string,
               unknown
             >
           ).mensaje
         ) ||
-        'La información se guardó correctamente.'
+          'La información se guardó correctamente.'
       );
 
       await cargarDatos(true);
     } catch (error) {
       Alert.alert(
         'No se pudo guardar',
-
         error instanceof Error
           ? error.message
           : 'Ocurrió un error inesperado.'
@@ -945,7 +780,7 @@ AdminCursosScreen() {
     }
   };
 
-  const cambiarEstado = (
+  const solicitarCambioEstado = (
     curso: Curso
   ) => {
     const nuevoEstado:
@@ -958,9 +793,7 @@ AdminCursosScreen() {
       nuevoEstado === 'Activo'
         ? 'Activar curso'
         : 'Desactivar curso',
-
-      `¿Deseas cambiar "${curso.nombre}" a ${nuevoEstado}?`,
-
+      `¿Deseas cambiar el curso "${curso.nombre}" a ${nuevoEstado.toLowerCase()}?`,
       [
         {
           text: 'Cancelar',
@@ -971,22 +804,18 @@ AdminCursosScreen() {
             nuevoEstado === 'Activo'
               ? 'Activar'
               : 'Desactivar',
-
           style:
             nuevoEstado === 'Activo'
               ? 'default'
               : 'destructive',
-
           onPress: async () => {
             try {
               await hacerPeticion(
                 `/academico/cursos/${curso.id_curso}/estado`,
                 {
                   method: 'PATCH',
-
                   body: JSON.stringify({
-                    estado:
-                      nuevoEstado,
+                    estado: nuevoEstado,
                   }),
                 }
               );
@@ -995,7 +824,6 @@ AdminCursosScreen() {
             } catch (error) {
               Alert.alert(
                 'No se cambió el estado',
-
                 error instanceof Error
                   ? error.message
                   : 'Ocurrió un error inesperado.'
@@ -1007,15 +835,40 @@ AdminCursosScreen() {
     );
   };
 
-  const gruposDisponibles =
-    formulario.idCiclo
-      ? grupos.filter(
-          (grupo) =>
-            numeroSeguro(
-              grupo.id_ciclo
-            ) === formulario.idCiclo
-        )
-      : grupos;
+  const colorEstado = (
+    estado: EstadoCurso
+  ) => {
+    if (estado === 'Activo') {
+      return {
+        fondo: temaOscuro
+          ? '#14532D'
+          : '#DCFCE7',
+        texto: temaOscuro
+          ? '#BBF7D0'
+          : '#166534',
+      };
+    }
+
+    if (estado === 'Finalizado') {
+      return {
+        fondo: temaOscuro
+          ? '#713F12'
+          : '#FEF3C7',
+        texto: temaOscuro
+          ? '#FDE68A'
+          : '#92400E',
+      };
+    }
+
+    return {
+      fondo: temaOscuro
+        ? '#450A0A'
+        : '#FEE2E2',
+      texto: temaOscuro
+        ? '#FECACA'
+        : '#991B1B',
+    };
+  };
 
   const Selector = ({
     titulo,
@@ -1029,19 +882,15 @@ AdminCursosScreen() {
     titulo: string;
     opciones: RegistroCatalogo[];
     valor: number;
-
     obtenerId: (
       item: RegistroCatalogo
     ) => number;
-
     obtenerEtiqueta: (
       item: RegistroCatalogo
     ) => string;
-
     onSelect: (
       item: RegistroCatalogo
     ) => void;
-
     mensajeVacio: string;
   }) => {
     return (
@@ -1061,16 +910,11 @@ AdminCursosScreen() {
         {opciones.length === 0 ? (
           <Text
             style={[
-              styles.mensajeVacio,
+              styles.emptyOptionText,
               {
                 color:
                   tema.textoSecundario,
-
-                borderColor:
-                  tema.borde,
-
-                fontSize:
-                  tamano(13),
+                fontSize: tamano(13),
               },
             ]}
           >
@@ -1078,73 +922,65 @@ AdminCursosScreen() {
           </Text>
         ) : (
           <View
-            style={
-              styles.opciones
-            }
+            style={styles.optionsWrap}
           >
-            {opciones.map(
-              (item) => {
-                const id =
-                  obtenerId(item);
+            {opciones.map((item) => {
+              const id =
+                obtenerId(item);
 
-                const seleccionado =
-                  valor === id;
+              const seleccionado =
+                valor === id;
 
-                return (
-                  <TouchableOpacity
-                    key={
-                      `${titulo}-${id}`
-                    }
-                    accessibilityRole="button"
-                    accessibilityState={{
-                      selected:
-                        seleccionado,
+              return (
+                <TouchableOpacity
+                  key={`${titulo}-${id}`}
+                  style={[
+                    styles.selectionButton,
+                    {
+                      borderColor:
+                        seleccionado
+                          ? tema.primario
+                          : tema.borde,
+                      backgroundColor:
+                        seleccionado
+                          ? tema.fondoPrimario
+                          : tema.entrada,
+                    },
+                  ]}
+                  onPress={() =>
+                    onSelect(item)
+                  }
+                  accessibilityRole="button"
+                  accessibilityState={{
+                    selected:
+                      seleccionado,
+                  }}
+                  accessibilityLabel={`${titulo}: ${obtenerEtiqueta(
+                    item
+                  )}`}
+                >
+                  <Text
+                    style={{
+                      color:
+                        seleccionado
+                          ? tema.primario
+                          : tema.texto,
+                      fontWeight:
+                        seleccionado
+                          ? '800'
+                          : '600',
+                      fontSize:
+                        tamano(13),
+                      textAlign: 'center',
                     }}
-                    onPress={() =>
-                      onSelect(item)
-                    }
-                    style={[
-                      styles.opcion,
-                      {
-                        borderColor:
-                          seleccionado
-                            ? tema.primario
-                            : tema.borde,
-
-                        backgroundColor:
-                          seleccionado
-                            ? tema.fondoPrimario
-                            : tema.entrada,
-                      },
-                    ]}
                   >
-                    <Text
-                      style={{
-                        color:
-                          seleccionado
-                            ? tema.primario
-                            : tema.texto,
-
-                        fontWeight:
-                          seleccionado
-                            ? '800'
-                            : '600',
-
-                        fontSize:
-                          tamano(13),
-
-                        textAlign:
-                          'center',
-                      }}
-                    >
-                      {obtenerEtiqueta(
-                        item
-                      )}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              }
-            )}
+                    {obtenerEtiqueta(
+                      item
+                    )}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
         )}
       </View>
@@ -1155,28 +991,36 @@ AdminCursosScreen() {
     return (
       <SafeAreaView
         style={[
-          styles.cargando,
+          styles.loadingScreen,
           {
             backgroundColor:
               tema.fondo,
           },
         ]}
       >
+        <StatusBar
+          barStyle={
+            temaOscuro
+              ? 'light-content'
+              : 'dark-content'
+          }
+          backgroundColor={tema.fondo}
+        />
+
         <ActivityIndicator
-          color={tema.primario}
           size="large"
+          color={tema.primario}
         />
 
         <Text
-          style={{
-            color:
-              tema.textoSecundario,
-
-            fontSize:
-              tamano(15),
-
-            marginTop: 14,
-          }}
+          style={[
+            styles.loadingText,
+            {
+              color:
+                tema.textoSecundario,
+              fontSize: tamano(15),
+            },
+          ]}
         >
           Cargando cursos...
         </Text>
@@ -1186,16 +1030,10 @@ AdminCursosScreen() {
 
   return (
     <SafeAreaView
-      edges={[
-        'top',
-        'left',
-        'right',
-      ]}
       style={[
-        styles.pantalla,
+        styles.safeArea,
         {
-          backgroundColor:
-            tema.fondo,
+          backgroundColor: tema.fondo,
         },
       ]}
     >
@@ -1205,79 +1043,57 @@ AdminCursosScreen() {
             ? 'light-content'
             : 'dark-content'
         }
+        backgroundColor={tema.fondo}
       />
 
       <ScrollView
-        contentContainerStyle={[
-          styles.contenido,
-          {
-            paddingBottom:
-              altoBarraInferior +
-              Math.max(
-                insets.bottom,
-                5
-              ) +
-              30,
-          },
-        ]}
+        contentContainerStyle={
+          styles.container
+        }
+        showsVerticalScrollIndicator={
+          false
+        }
         refreshControl={
           <RefreshControl
-            refreshing={
-              actualizando
-            }
+            refreshing={actualizando}
             onRefresh={() =>
               cargarDatos(true)
             }
-            colors={[
-              tema.primario,
-            ]}
-            tintColor={
-              tema.primario
-            }
+            tintColor={tema.primario}
+            colors={[tema.primario]}
           />
         }
       >
-        <View
-          style={
-            styles.encabezado
-          }
-        >
+        <View style={styles.topBar}>
           <TouchableOpacity
-            accessibilityLabel="Regresar"
-            accessibilityRole="button"
-            onPress={() =>
-              router.back()
-            }
             style={[
-              styles.botonIcono,
+              styles.iconButton,
               {
+                borderColor: tema.borde,
                 backgroundColor:
                   tema.tarjeta,
-
-                borderColor:
-                  tema.borde,
               },
             ]}
+            onPress={() => router.back()}
+            accessibilityRole="button"
+            accessibilityLabel="Regresar al inicio de administración"
           >
             <Ionicons
               name="arrow-back"
+              size={22}
               color={tema.texto}
-              size={23}
             />
           </TouchableOpacity>
 
           <View
-            style={
-              styles.encabezadoTexto
-            }
+            style={styles.titleContainer}
           >
             <Text
               style={[
-                styles.titulo,
+                styles.title,
                 {
                   color: tema.texto,
-                  fontSize:
-                    tamano(24),
+                  fontSize: tamano(24),
                 },
               ]}
             >
@@ -1285,13 +1101,14 @@ AdminCursosScreen() {
             </Text>
 
             <Text
-              style={{
-                color:
-                  tema.textoSecundario,
-
-                fontSize:
-                  tamano(13),
-              }}
+              style={[
+                styles.subtitle,
+                {
+                  color:
+                    tema.textoSecundario,
+                  fontSize: tamano(13),
+                },
+              ]}
             >
               Administra las asignaciones
               académicas
@@ -1303,19 +1120,17 @@ AdminCursosScreen() {
 
         <View
           style={[
-            styles.resumen,
+            styles.summaryCard,
             {
               backgroundColor:
                 tema.tarjeta,
-
-              borderColor:
-                tema.borde,
+              borderColor: tema.borde,
             },
           ]}
         >
           <View
             style={[
-              styles.iconoResumen,
+              styles.summaryIcon,
               {
                 backgroundColor:
                   tema.fondoPrimario,
@@ -1324,22 +1139,20 @@ AdminCursosScreen() {
           >
             <Ionicons
               name="school-outline"
+              size={28}
               color={tema.primario}
-              size={27}
             />
           </View>
 
-          <View
-            style={
-              styles.textoResumen
-            }
-          >
+          <View style={styles.summaryText}>
             <Text
-              style={{
-                color: tema.texto,
-                fontSize: tamano(27),
-                fontWeight: '900',
-              }}
+              style={[
+                styles.summaryNumber,
+                {
+                  color: tema.texto,
+                  fontSize: tamano(27),
+                },
+              ]}
             >
               {cursos.length}
             </Text>
@@ -1348,9 +1161,7 @@ AdminCursosScreen() {
               style={{
                 color:
                   tema.textoSecundario,
-
-                fontSize:
-                  tamano(13),
+                fontSize: tamano(13),
               }}
             >
               {totalActivos} activos
@@ -1358,28 +1169,28 @@ AdminCursosScreen() {
           </View>
 
           <TouchableOpacity
-            accessibilityRole="button"
-            onPress={abrirNuevoCurso}
             style={[
-              styles.botonNuevo,
+              styles.newButton,
               {
                 backgroundColor:
                   tema.primario,
               },
             ]}
+            onPress={abrirNuevoCurso}
+            accessibilityRole="button"
+            accessibilityLabel="Crear un curso"
           >
             <Ionicons
               name="add"
-              color="#FFFFFF"
               size={21}
+              color="#FFFFFF"
             />
 
             <Text
               style={[
-                styles.textoBlanco,
+                styles.newButtonText,
                 {
-                  fontSize:
-                    tamano(14),
+                  fontSize: tamano(14),
                 },
               ]}
             >
@@ -1390,69 +1201,81 @@ AdminCursosScreen() {
 
         <View
           style={[
-            styles.buscador,
+            styles.searchBox,
             {
               backgroundColor:
                 tema.tarjeta,
-
-              borderColor:
-                tema.borde,
+              borderColor: tema.borde,
             },
           ]}
         >
           <Ionicons
             name="search-outline"
-            color={
-              tema.textoSecundario
-            }
             size={21}
+            color={tema.textoSecundario}
           />
 
           <TextInput
-            accessibilityLabel="Buscar cursos"
             value={busqueda}
             onChangeText={setBusqueda}
             placeholder="Buscar curso, materia, grupo o docente"
             placeholderTextColor={
               tema.textoSecundario
             }
-            style={{
-              flex: 1,
-              color: tema.texto,
-              fontSize: tamano(14),
-              marginLeft: 9,
-            }}
+            style={[
+              styles.searchInput,
+              {
+                color: tema.texto,
+                fontSize: tamano(14),
+              },
+            ]}
+            accessibilityLabel="Buscar cursos"
           />
+
+          {busqueda.length > 0 && (
+            <TouchableOpacity
+              onPress={() =>
+                setBusqueda('')
+              }
+              accessibilityRole="button"
+              accessibilityLabel="Limpiar búsqueda"
+            >
+              <Ionicons
+                name="close-circle"
+                size={21}
+                color={
+                  tema.textoSecundario
+                }
+              />
+            </TouchableOpacity>
+          )}
         </View>
 
         {cursosFiltrados.length === 0 ? (
           <View
             style={[
-              styles.vacio,
+              styles.emptyCard,
               {
                 backgroundColor:
                   tema.tarjeta,
-
-                borderColor:
-                  tema.borde,
+                borderColor: tema.borde,
               },
             ]}
           >
             <Ionicons
               name="library-outline"
-              color={
-                tema.textoSecundario
-              }
               size={54}
+              color={tema.textoSecundario}
             />
 
             <Text
-              style={{
-                color: tema.texto,
-                fontSize: tamano(18),
-                fontWeight: '900',
-                marginTop: 13,
-              }}
+              style={[
+                styles.emptyTitle,
+                {
+                  color: tema.texto,
+                  fontSize: tamano(18),
+                },
+              ]}
             >
               {busqueda
                 ? 'No hay coincidencias'
@@ -1463,441 +1286,349 @@ AdminCursosScreen() {
               style={{
                 color:
                   tema.textoSecundario,
-
-                fontSize:
-                  tamano(14),
-
-                textAlign:
-                  'center',
-
-                marginTop: 7,
+                fontSize: tamano(14),
+                textAlign: 'center',
               }}
             >
-              Registra el primer curso
-              relacionando materia, grupo,
-              docente y ciclo escolar.
+              {busqueda
+                ? 'Prueba con otro término de búsqueda.'
+                : 'Presiona “Nuevo” para registrar el primer curso.'}
             </Text>
           </View>
         ) : (
-          <View
-            style={
-              styles.lista
-            }
-          >
+          <View style={styles.cardsWrap}>
             {cursosFiltrados.map(
-              (curso) => (
-                <View
-                  key={
-                    curso.id_curso
-                  }
-                  style={[
-                    styles.tarjeta,
-                    dosColumnas &&
-                      styles.tarjetaDoble,
-                    {
-                      backgroundColor:
-                        tema.tarjeta,
+              (curso) => {
+                const estadoColor =
+                  colorEstado(
+                    curso.estado
+                  );
 
-                      borderColor:
-                        tema.borde,
-                    },
-                  ]}
-                >
+                return (
                   <View
-                    style={
-                      styles.tarjetaEncabezado
-                    }
-                  >
-                    <View
-                      style={[
-                        styles.iconoCurso,
-                        {
-                          backgroundColor:
-                            tema.fondoPrimario,
-                        },
-                      ]}
-                    >
-                      <Ionicons
-                        name="book-outline"
-                        color={
-                          tema.primario
-                        }
-                        size={24}
-                      />
-                    </View>
-
-                    <View
-                      style={{
-                        flex: 1,
-                        marginLeft: 11,
-                      }}
-                    >
-                      <Text
-                        style={{
-                          color:
-                            tema.texto,
-
-                          fontSize:
-                            tamano(17),
-
-                          fontWeight:
-                            '900',
-                        }}
-                      >
-                        {curso.nombre}
-                      </Text>
-
-                      <Text
-                        style={{
-                          color:
-                            curso.estado ===
-                            'Activo'
-                              ? '#16A34A'
-                              : curso.estado ===
-                                'Finalizado'
-                              ? '#D97706'
-                              : '#DC3438',
-
-                          fontSize:
-                            tamano(12),
-
-                          fontWeight:
-                            '800',
-
-                          marginTop: 4,
-                        }}
-                      >
-                        {curso.estado}
-                      </Text>
-                    </View>
-                  </View>
-
-                  {curso.descripcion ? (
-                    <Text
-                      numberOfLines={3}
-                      style={{
-                        color:
-                          tema.textoSecundario,
-
-                        fontSize:
-                          tamano(13),
-
-                        lineHeight:
-                          tamano(19),
-
-                        marginTop: 12,
-                      }}
-                    >
-                      {curso.descripcion}
-                    </Text>
-                  ) : null}
-
-                  <View
+                    key={curso.id_curso}
                     style={[
-                      styles.detalles,
+                      styles.courseCard,
+                      dosColumnas &&
+                        styles.cardTwoColumns,
                       {
                         backgroundColor:
-                          tema.entrada,
-
+                          tema.tarjeta,
                         borderColor:
                           tema.borde,
                       },
                     ]}
                   >
-                    <Fila
-                      icono="flask-outline"
-                      etiqueta="Materia"
-                      valor={
-                        nombreMateria(
-                          curso
-                        )
+                    <View
+                      style={
+                        styles.cardHeader
                       }
-                      tema={tema}
-                      tamano={tamano}
-                    />
+                    >
+                      <View
+                        style={[
+                          styles.courseIcon,
+                          {
+                            backgroundColor:
+                              tema.fondoPrimario,
+                          },
+                        ]}
+                      >
+                        <Ionicons
+                          name="book-outline"
+                          size={24}
+                          color={
+                            tema.primario
+                          }
+                        />
+                      </View>
 
-                    <Fila
-                      icono="people-outline"
-                      etiqueta="Grupo"
-                      valor={
-                        nombreGrupo(
-                          curso
-                        )
-                      }
-                      tema={tema}
-                      tamano={tamano}
-                    />
+                      <View
+                        style={
+                          styles.cardTitleArea
+                        }
+                      >
+                        <Text
+                          style={[
+                            styles.courseName,
+                            {
+                              color:
+                                tema.texto,
+                              fontSize:
+                                tamano(17),
+                            },
+                          ]}
+                        >
+                          {curso.nombre}
+                        </Text>
 
-                    <Fila
-                      icono="person-outline"
-                      etiqueta="Docente"
-                      valor={
-                        nombreDocente(
-                          curso
-                        )
-                      }
-                      tema={tema}
-                      tamano={tamano}
-                    />
+                        <View
+                          style={[
+                            styles.statusBadge,
+                            {
+                              backgroundColor:
+                                estadoColor.fondo,
+                            },
+                          ]}
+                        >
+                          <Text
+                            style={{
+                              color:
+                                estadoColor.texto,
+                              fontSize:
+                                tamano(11),
+                              fontWeight:
+                                '800',
+                            }}
+                          >
+                            {curso.estado}
+                          </Text>
+                        </View>
+                      </View>
+                    </View>
 
-                    <Fila
-                      icono="calendar-outline"
-                      etiqueta="Ciclo"
-                      valor={
-                        nombreCiclo(
-                          curso
-                        )
-                      }
-                      tema={tema}
-                      tamano={tamano}
-                    />
-                  </View>
+                    {curso.descripcion && (
+                      <Text
+                        numberOfLines={3}
+                        style={[
+                          styles.description,
+                          {
+                            color:
+                              tema.textoSecundario,
+                            fontSize:
+                              tamano(13),
+                          },
+                        ]}
+                      >
+                        {curso.descripcion}
+                      </Text>
+                    )}
 
-                  <View
-                    style={
-                      styles.acciones
-                    }
-                  >
-                    <TouchableOpacity
-                      accessibilityRole="button"
-                      onPress={() =>
-                        abrirEdicion(
-                          curso
-                        )
-                      }
+                    <View
                       style={[
-                        styles.botonAccion,
+                        styles.infoBox,
                         {
+                          backgroundColor:
+                            tema.entrada,
                           borderColor:
                             tema.borde,
-
-                          backgroundColor:
-                            tema.entrada,
                         },
                       ]}
                     >
-                      <Ionicons
-                        name="create-outline"
-                        color={
-                          tema.primario
+                      <InfoRow
+                        icon="flask-outline"
+                        label="Materia"
+                        value={nombreMateria(
+                          curso.id_materia
+                        )}
+                        color={tema.texto}
+                        muted={
+                          tema.textoSecundario
                         }
-                        size={18}
+                        fontSize={
+                          tamano(13)
+                        }
                       />
 
-                      <Text
-                        style={{
-                          color:
-                            tema.primario,
+                      <InfoRow
+                        icon="people-outline"
+                        label="Grupo"
+                        value={nombreGrupo(
+                          curso.id_grupo
+                        )}
+                        color={tema.texto}
+                        muted={
+                          tema.textoSecundario
+                        }
+                        fontSize={
+                          tamano(13)
+                        }
+                      />
 
-                          fontWeight:
-                            '800',
+                      <InfoRow
+                        icon="person-outline"
+                        label="Docente"
+                        value={nombreDocente(
+                          curso.id_docente
+                        )}
+                        color={tema.texto}
+                        muted={
+                          tema.textoSecundario
+                        }
+                        fontSize={
+                          tamano(13)
+                        }
+                      />
 
-                          marginLeft: 5,
-                        }}
-                      >
-                        Editar
-                      </Text>
-                    </TouchableOpacity>
+                      <InfoRow
+                        icon="calendar-outline"
+                        label="Ciclo"
+                        value={nombreCiclo(
+                          curso.id_ciclo
+                        )}
+                        color={tema.texto}
+                        muted={
+                          tema.textoSecundario
+                        }
+                        fontSize={
+                          tamano(13)
+                        }
+                      />
+                    </View>
 
-                    <TouchableOpacity
-                      accessibilityRole="button"
-                      onPress={() =>
-                        cambiarEstado(
-                          curso
-                        )
+                    <View
+                      style={
+                        styles.cardActions
                       }
-                      style={[
-                        styles.botonAccion,
-                        {
-                          borderColor:
-                            curso.estado ===
-                            'Activo'
-                              ? '#DC3438'
-                              : '#16A34A',
-
-                          backgroundColor:
-                            tema.entrada,
-                        },
-                      ]}
                     >
-                      <Ionicons
-                        name={
-                          curso.estado ===
-                          'Activo'
-                            ? 'pause-circle-outline'
-                            : 'play-circle-outline'
+                      <TouchableOpacity
+                        style={[
+                          styles.actionButton,
+                          {
+                            borderColor:
+                              tema.borde,
+                            backgroundColor:
+                              tema.entrada,
+                          },
+                        ]}
+                        onPress={() =>
+                          abrirEdicion(
+                            curso
+                          )
                         }
-                        color={
-                          curso.estado ===
-                          'Activo'
-                            ? '#DC3438'
-                            : '#16A34A'
-                        }
-                        size={18}
-                      />
+                        accessibilityRole="button"
+                        accessibilityLabel={`Editar el curso ${curso.nombre}`}
+                      >
+                        <Ionicons
+                          name="create-outline"
+                          size={18}
+                          color={
+                            tema.primario
+                          }
+                        />
 
-                      <Text
-                        style={{
-                          color:
+                        <Text
+                          style={[
+                            styles.actionText,
+                            {
+                              color:
+                                tema.primario,
+                              fontSize:
+                                tamano(13),
+                            },
+                          ]}
+                        >
+                          Editar
+                        </Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={[
+                          styles.actionButton,
+                          {
+                            borderColor:
+                              curso.estado ===
+                              'Activo'
+                                ? '#DC3438'
+                                : '#16A34A',
+                            backgroundColor:
+                              tema.entrada,
+                          },
+                        ]}
+                        onPress={() =>
+                          solicitarCambioEstado(
+                            curso
+                          )
+                        }
+                        accessibilityRole="button"
+                        accessibilityLabel={
+                          curso.estado ===
+                          'Activo'
+                            ? `Desactivar el curso ${curso.nombre}`
+                            : `Activar el curso ${curso.nombre}`
+                        }
+                      >
+                        <Ionicons
+                          name={
+                            curso.estado ===
+                            'Activo'
+                              ? 'pause-circle-outline'
+                              : 'play-circle-outline'
+                          }
+                          size={18}
+                          color={
                             curso.estado ===
                             'Activo'
                               ? '#DC3438'
-                              : '#16A34A',
+                              : '#16A34A'
+                          }
+                        />
 
-                          fontWeight:
-                            '800',
-
-                          marginLeft: 5,
-                        }}
-                      >
-                        {curso.estado ===
-                        'Activo'
-                          ? 'Desactivar'
-                          : 'Activar'}
-                      </Text>
-                    </TouchableOpacity>
+                        <Text
+                          style={[
+                            styles.actionText,
+                            {
+                              color:
+                                curso.estado ===
+                                'Activo'
+                                  ? '#DC3438'
+                                  : '#16A34A',
+                              fontSize:
+                                tamano(13),
+                            },
+                          ]}
+                        >
+                          {curso.estado ===
+                          'Activo'
+                            ? 'Desactivar'
+                            : 'Activar'}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
                   </View>
-                </View>
-              )
+                );
+              }
             )}
           </View>
         )}
       </ScrollView>
 
-      <View
-        style={[
-          styles.navegacionInferior,
-          {
-            height:
-              altoBarraInferior +
-              Math.max(
-                insets.bottom,
-                5
-              ),
-
-            paddingBottom:
-              Math.max(
-                insets.bottom,
-                5
-              ),
-
-            backgroundColor:
-              tema.tarjeta,
-
-            borderTopColor:
-              tema.borde,
-          },
-        ]}
-      >
-        <View
-          style={
-            styles.contenidoNavegacion
-          }
-        >
-          <BottomNavigationItem
-            icon="home-outline"
-            activeIcon="home"
-            label="Inicio"
-            onPress={() =>
-              router.push(
-                '/inicio-admin' as never
-              )
-            }
-            tema={tema}
-            tamano={tamano}
-          />
-
-          <BottomNavigationItem
-            icon="calendar-outline"
-            activeIcon="calendar"
-            label="Ciclos"
-            onPress={() =>
-              router.push(
-                '/admin-ciclos' as never
-              )
-            }
-            tema={tema}
-            tamano={tamano}
-          />
-
-          <BottomNavigationItem
-            icon="book-outline"
-            activeIcon="book"
-            label="Materias"
-            onPress={() =>
-              router.push(
-                '/admin-materias' as never
-              )
-            }
-            tema={tema}
-            tamano={tamano}
-          />
-
-          <BottomNavigationItem
-            icon="people-outline"
-            activeIcon="people"
-            label="Grupos"
-            onPress={() =>
-              router.push(
-                '/admin-grupos' as never
-              )
-            }
-            tema={tema}
-            tamano={tamano}
-          />
-
-          <BottomNavigationItem
-            icon="grid-outline"
-            activeIcon="grid"
-            label="Cursos"
-            active
-            onPress={() => {}}
-            tema={tema}
-            tamano={tamano}
-          />
-        </View>
-      </View>
-
       <Modal
+        visible={modalVisible}
         transparent
         animationType="slide"
-        visible={modalVisible}
         onRequestClose={cerrarModal}
       >
         <KeyboardAvoidingView
+          style={styles.modalOverlay}
           behavior={
             Platform.OS === 'ios'
               ? 'padding'
               : undefined
           }
-          style={
-            styles.fondoModal
-          }
         >
           <View
             style={[
-              styles.modal,
+              styles.modalCard,
               {
                 backgroundColor:
                   tema.tarjeta,
-
-                borderColor:
-                  tema.borde,
+                borderColor: tema.borde,
               },
             ]}
           >
             <View
-              style={
-                styles.modalEncabezado
-              }
+              style={styles.modalHeader}
             >
               <View>
                 <Text
-                  style={{
-                    color: tema.texto,
-                    fontSize: tamano(21),
-                    fontWeight: '900',
-                  }}
+                  style={[
+                    styles.modalTitle,
+                    {
+                      color: tema.texto,
+                      fontSize:
+                        tamano(21),
+                    },
+                  ]}
                 >
                   {formulario.idCurso
                     ? 'Editar curso'
@@ -1908,11 +1639,8 @@ AdminCursosScreen() {
                   style={{
                     color:
                       tema.textoSecundario,
-
                     fontSize:
                       tamano(13),
-
-                    marginTop: 3,
                   }}
                 >
                   Completa la información
@@ -1921,33 +1649,35 @@ AdminCursosScreen() {
               </View>
 
               <TouchableOpacity
-                accessibilityLabel="Cerrar formulario"
-                accessibilityRole="button"
-                onPress={cerrarModal}
                 style={[
-                  styles.botonIcono,
+                  styles.iconButton,
                   {
-                    backgroundColor:
-                      tema.entrada,
-
                     borderColor:
                       tema.borde,
+                    backgroundColor:
+                      tema.entrada,
                   },
                 ]}
+                onPress={cerrarModal}
+                accessibilityRole="button"
+                accessibilityLabel="Cerrar formulario"
               >
                 <Ionicons
                   name="close"
-                  color={tema.texto}
                   size={22}
+                  color={tema.texto}
                 />
               </TouchableOpacity>
             </View>
 
             <ScrollView
+              showsVerticalScrollIndicator={
+                false
+              }
               keyboardShouldPersistTaps="handled"
-              contentContainerStyle={{
-                paddingBottom: 28,
-              }}
+              contentContainerStyle={
+                styles.modalContent
+              }
             >
               <Text
                 style={[
@@ -1959,42 +1689,54 @@ AdminCursosScreen() {
                   },
                 ]}
               >
-                Nombre del curso *
+                Nombre del curso
               </Text>
 
-              <TextInput
-                accessibilityLabel="Nombre del curso"
-                value={
-                  formulario.nombre
-                }
-                maxLength={150}
-                placeholder="Ejemplo: Matemáticas 1° A"
-                placeholderTextColor={
-                  tema.textoSecundario
-                }
-                onChangeText={(
-                  nombre
-                ) =>
-                  setFormulario(
-                    (anterior) => ({
-                      ...anterior,
-                      nombre,
-                    })
-                  )
-                }
+              <View
                 style={[
-                  styles.entrada,
+                  styles.inputBox,
                   {
-                    color: tema.texto,
                     borderColor:
                       tema.borde,
                     backgroundColor:
                       tema.entrada,
-                    fontSize:
-                      tamano(14),
                   },
                 ]}
-              />
+              >
+                <Ionicons
+                  name="school-outline"
+                  size={20}
+                  color={
+                    tema.textoSecundario
+                  }
+                />
+
+                <TextInput
+                  value={formulario.nombre}
+                  onChangeText={(nombre) =>
+                    setFormulario(
+                      (anterior) => ({
+                        ...anterior,
+                        nombre,
+                      })
+                    )
+                  }
+                  maxLength={150}
+                  placeholder="Ejemplo: Matemáticas 1° A"
+                  placeholderTextColor={
+                    tema.textoSecundario
+                  }
+                  style={[
+                    styles.input,
+                    {
+                      color: tema.texto,
+                      fontSize:
+                        tamano(14),
+                    },
+                  ]}
+                  accessibilityLabel="Nombre del curso"
+                />
+              </View>
 
               <Text
                 style={[
@@ -2010,16 +1752,8 @@ AdminCursosScreen() {
               </Text>
 
               <TextInput
-                accessibilityLabel="Descripción del curso"
                 value={
                   formulario.descripcion
-                }
-                maxLength={1000}
-                multiline
-                textAlignVertical="top"
-                placeholder="Descripción opcional"
-                placeholderTextColor={
-                  tema.textoSecundario
                 }
                 onChangeText={(
                   descripcion
@@ -2031,8 +1765,16 @@ AdminCursosScreen() {
                     })
                   )
                 }
+                maxLength={1000}
+                multiline
+                numberOfLines={4}
+                textAlignVertical="top"
+                placeholder="Descripción opcional del curso"
+                placeholderTextColor={
+                  tema.textoSecundario
+                }
                 style={[
-                  styles.areaTexto,
+                  styles.textArea,
                   {
                     color: tema.texto,
                     borderColor:
@@ -2043,99 +1785,11 @@ AdminCursosScreen() {
                       tamano(14),
                   },
                 ]}
+                accessibilityLabel="Descripción del curso"
               />
 
               <Selector
-                titulo="Ciclo escolar *"
-                opciones={ciclos}
-                valor={
-                  formulario.idCiclo
-                }
-                obtenerId={(item) =>
-                  numeroSeguro(
-                    item.id_ciclo
-                  )
-                }
-                obtenerEtiqueta={(
-                  item
-                ) =>
-                  textoSeguro(
-                    item.nombre
-                  ) ||
-                  textoSeguro(
-                    item.nombre_ciclo
-                  ) ||
-                  `Ciclo #${numeroSeguro(
-                    item.id_ciclo
-                  )}`
-                }
-                onSelect={(item) =>
-                  setFormulario(
-                    (anterior) => ({
-                      ...anterior,
-
-                      idCiclo:
-                        numeroSeguro(
-                          item.id_ciclo
-                        ),
-
-                      idGrupo: 0,
-                    })
-                  )
-                }
-                mensajeVacio="Primero registra un ciclo escolar."
-              />
-
-              <Selector
-                titulo="Grupo *"
-                opciones={
-                  gruposDisponibles
-                }
-                valor={
-                  formulario.idGrupo
-                }
-                obtenerId={(item) =>
-                  numeroSeguro(
-                    item.id_grupo
-                  )
-                }
-                obtenerEtiqueta={(
-                  item
-                ) =>
-                  [
-                    textoSeguro(
-                      item.grado
-                    ),
-                    textoSeguro(
-                      item.nombre
-                    ),
-                  ]
-                    .filter(Boolean)
-                    .join(' - ')
-                }
-                onSelect={(item) =>
-                  setFormulario(
-                    (anterior) => ({
-                      ...anterior,
-
-                      idGrupo:
-                        numeroSeguro(
-                          item.id_grupo
-                        ),
-
-                      idCiclo:
-                        numeroSeguro(
-                          item.id_ciclo
-                        ) ||
-                        anterior.idCiclo,
-                    })
-                  )
-                }
-                mensajeVacio="No existen grupos activos para el ciclo seleccionado."
-              />
-
-              <Selector
-                titulo="Materia *"
+                titulo="Materia"
                 opciones={materias}
                 valor={
                   formulario.idMateria
@@ -2145,9 +1799,7 @@ AdminCursosScreen() {
                     item.id_materia
                   )
                 }
-                obtenerEtiqueta={(
-                  item
-                ) =>
+                obtenerEtiqueta={(item) =>
                   textoSeguro(
                     item.nombre
                   ) ||
@@ -2159,7 +1811,6 @@ AdminCursosScreen() {
                   setFormulario(
                     (anterior) => ({
                       ...anterior,
-
                       idMateria:
                         numeroSeguro(
                           item.id_materia
@@ -2171,7 +1822,39 @@ AdminCursosScreen() {
               />
 
               <Selector
-                titulo="Docente *"
+                titulo="Grupo"
+                opciones={grupos}
+                valor={
+                  formulario.idGrupo
+                }
+                obtenerId={(item) =>
+                  numeroSeguro(
+                    item.id_grupo
+                  )
+                }
+                obtenerEtiqueta={(item) =>
+                  [
+                    textoSeguro(
+                      item.grado
+                    ),
+                    textoSeguro(
+                      item.nombre
+                    ),
+                  ]
+                    .filter(Boolean)
+                    .join(' - ') ||
+                  `Grupo #${numeroSeguro(
+                    item.id_grupo
+                  )}`
+                }
+                onSelect={
+                  seleccionarGrupo
+                }
+                mensajeVacio="Primero registra un grupo activo."
+              />
+
+              <Selector
+                titulo="Docente"
                 opciones={docentes}
                 valor={
                   formulario.idDocente
@@ -2186,7 +1869,6 @@ AdminCursosScreen() {
                   setFormulario(
                     (anterior) => ({
                       ...anterior,
-
                       idDocente:
                         idDocenteDe(
                           item
@@ -2195,6 +1877,42 @@ AdminCursosScreen() {
                   )
                 }
                 mensajeVacio="Primero registra un docente activo."
+              />
+
+              <Selector
+                titulo="Ciclo escolar"
+                opciones={ciclos}
+                valor={
+                  formulario.idCiclo
+                }
+                obtenerId={(item) =>
+                  numeroSeguro(
+                    item.id_ciclo
+                  )
+                }
+                obtenerEtiqueta={(item) =>
+                  textoSeguro(
+                    item.nombre
+                  ) ||
+                  textoSeguro(
+                    item.nombre_ciclo
+                  ) ||
+                  `Ciclo #${numeroSeguro(
+                    item.id_ciclo
+                  )}`
+                }
+                onSelect={(item) =>
+                  setFormulario(
+                    (anterior) => ({
+                      ...anterior,
+                      idCiclo:
+                        numeroSeguro(
+                          item.id_ciclo
+                        ),
+                    })
+                  )
+                }
+                mensajeVacio="Primero registra un ciclo escolar."
               />
 
               <Text
@@ -2211,9 +1929,7 @@ AdminCursosScreen() {
               </Text>
 
               <View
-                style={
-                  styles.estados
-                }
+                style={styles.optionsRow}
               >
                 {(
                   [
@@ -2229,11 +1945,19 @@ AdminCursosScreen() {
                   return (
                     <TouchableOpacity
                       key={estado}
-                      accessibilityRole="radio"
-                      accessibilityState={{
-                        checked:
-                          seleccionado,
-                      }}
+                      style={[
+                        styles.stateOption,
+                        {
+                          borderColor:
+                            seleccionado
+                              ? tema.primario
+                              : tema.borde,
+                          backgroundColor:
+                            seleccionado
+                              ? tema.fondoPrimario
+                              : tema.entrada,
+                        },
+                      ]}
                       onPress={() =>
                         setFormulario(
                           (anterior) => ({
@@ -2242,20 +1966,11 @@ AdminCursosScreen() {
                           })
                         )
                       }
-                      style={[
-                        styles.estado,
-                        {
-                          borderColor:
-                            seleccionado
-                              ? tema.primario
-                              : tema.borde,
-
-                          backgroundColor:
-                            seleccionado
-                              ? tema.fondoPrimario
-                              : tema.entrada,
-                        },
-                      ]}
+                      accessibilityRole="button"
+                      accessibilityState={{
+                        selected:
+                          seleccionado,
+                      }}
                     >
                       <Text
                         style={{
@@ -2263,12 +1978,9 @@ AdminCursosScreen() {
                             seleccionado
                               ? tema.primario
                               : tema.texto,
-
+                          fontWeight: '700',
                           fontSize:
                             tamano(12),
-
-                          fontWeight:
-                            '800',
                         }}
                       >
                         {estado}
@@ -2279,29 +1991,28 @@ AdminCursosScreen() {
               </View>
 
               <View
-                style={
-                  styles.botonesModal
-                }
+                style={styles.modalActions}
               >
                 <TouchableOpacity
-                  accessibilityRole="button"
-                  disabled={guardando}
-                  onPress={cerrarModal}
                   style={[
-                    styles.botonCancelar,
+                    styles.cancelButton,
                     {
                       borderColor:
                         tema.borde,
-
                       backgroundColor:
                         tema.entrada,
                     },
                   ]}
+                  onPress={cerrarModal}
+                  disabled={guardando}
+                  accessibilityRole="button"
                 >
                   <Text
                     style={{
                       color: tema.texto,
                       fontWeight: '800',
+                      fontSize:
+                        tamano(14),
                     }}
                   >
                     Cancelar
@@ -2309,21 +2020,19 @@ AdminCursosScreen() {
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  accessibilityRole="button"
-                  disabled={guardando}
-                  onPress={guardarCurso}
                   style={[
-                    styles.botonGuardar,
+                    styles.saveButton,
                     {
                       backgroundColor:
                         tema.primario,
-
-                      opacity:
-                        guardando
-                          ? 0.65
-                          : 1,
+                      opacity: guardando
+                        ? 0.7
+                        : 1,
                     },
                   ]}
+                  onPress={guardarCurso}
+                  disabled={guardando}
+                  accessibilityRole="button"
                 >
                   {guardando ? (
                     <ActivityIndicator
@@ -2333,14 +2042,18 @@ AdminCursosScreen() {
                     <>
                       <Ionicons
                         name="save-outline"
-                        color="#FFFFFF"
                         size={19}
+                        color="#FFFFFF"
                       />
 
                       <Text
-                        style={
-                          styles.textoBlanco
-                        }
+                        style={[
+                          styles.saveText,
+                          {
+                            fontSize:
+                              tamano(14),
+                          },
+                        ]}
                       >
                         Guardar curso
                       </Text>
@@ -2356,213 +2069,122 @@ AdminCursosScreen() {
   );
 }
 
-type BottomNavigationItemProps = {
-  icon: IoniconName;
-  activeIcon: IoniconName;
-  label: string;
-  active?: boolean;
-  onPress: () => void;
-
-  tema: {
-    textoSecundario: string;
-    primario: string;
-    fondoPrimario: string;
-  };
-
-  tamano: (
-    base: number
-  ) => number;
-};
-
-function BottomNavigationItem({
+function InfoRow({
   icon,
-  activeIcon,
   label,
-  active = false,
-  onPress,
-  tema,
-  tamano,
-}: BottomNavigationItemProps) {
-  return (
-    <TouchableOpacity
-      style={styles.itemNavegacion}
-      onPress={onPress}
-      activeOpacity={0.7}
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      accessibilityState={{
-        selected: active,
-      }}
-    >
-      <View
-        style={[
-          styles.contenedorIconoNavegacion,
-          active && {
-            backgroundColor:
-              tema.fondoPrimario,
-          },
-        ]}
-      >
-        <Ionicons
-          name={
-            active
-              ? activeIcon
-              : icon
-          }
-          size={22}
-          color={
-            active
-              ? tema.primario
-              : tema.textoSecundario
-          }
-        />
-      </View>
-
-      <Text
-        numberOfLines={1}
-        style={[
-          styles.etiquetaNavegacion,
-          {
-            color:
-              active
-                ? tema.primario
-                : tema.textoSecundario,
-
-            fontSize:
-              Math.min(
-                tamano(10),
-                13
-              ),
-          },
-          active &&
-            styles.etiquetaNavegacionActiva,
-        ]}
-      >
-        {label}
-      </Text>
-    </TouchableOpacity>
-  );
-}
-
-function Fila({
-  icono,
-  etiqueta,
-  valor,
-  tema,
-  tamano,
+  value,
+  color,
+  muted,
+  fontSize,
 }: {
-  icono:
-    React.ComponentProps<
-      typeof Ionicons
-    >['name'];
-
-  etiqueta: string;
-  valor: string;
-
-  tema: {
-    texto: string;
-    textoSecundario: string;
-  };
-
-  tamano: (
-    base: number
-  ) => number;
+  icon: React.ComponentProps<
+    typeof Ionicons
+  >['name'];
+  label: string;
+  value: string;
+  color: string;
+  muted: string;
+  fontSize: number;
 }) {
   return (
-    <View style={styles.fila}>
+    <View style={styles.infoRow}>
       <Ionicons
-        name={icono}
-        color={
-          tema.textoSecundario
-        }
+        name={icon}
         size={17}
+        color={muted}
       />
 
       <Text
-        style={{
-          color:
-            tema.textoSecundario,
-
-          fontSize:
-            tamano(13),
-
-          marginLeft: 7,
-        }}
+        style={[
+          styles.infoLabel,
+          {
+            color: muted,
+            fontSize,
+          },
+        ]}
       >
-        {etiqueta}:
+        {label}:
       </Text>
 
       <Text
         numberOfLines={2}
-        style={{
-          flex: 1,
-          color: tema.texto,
-          fontSize: tamano(13),
-          fontWeight: '700',
-          marginLeft: 5,
-        }}
+        style={[
+          styles.infoValue,
+          {
+            color,
+            fontSize,
+          },
+        ]}
       >
-        {valor}
+        {value}
       </Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  pantalla: {
+  safeArea: {
     flex: 1,
   },
 
-  cargando: {
+  loadingScreen: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
 
-  contenido: {
+  loadingText: {
+    marginTop: 14,
+  },
+
+  container: {
     width: '100%',
     maxWidth: 1120,
     alignSelf: 'center',
     paddingHorizontal: 18,
     paddingTop: 10,
-    paddingBottom: 45,
+    paddingBottom: 40,
   },
 
-  encabezado: {
+  topBar: {
     minHeight: 64,
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 18,
   },
 
-  encabezadoTexto: {
+  iconButton: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderRadius: 14,
+  },
+
+  titleContainer: {
     flex: 1,
     marginHorizontal: 13,
   },
 
-  titulo: {
+  title: {
     fontWeight: '900',
   },
 
-  botonIcono: {
-    width: 44,
-    height: 44,
-    borderWidth: 1,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
+  subtitle: {
+    marginTop: 2,
   },
 
-  resumen: {
+  summaryCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
     borderWidth: 1,
     borderRadius: 20,
     padding: 16,
     marginBottom: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
   },
 
-  iconoResumen: {
+  summaryIcon: {
     width: 55,
     height: 55,
     borderRadius: 17,
@@ -2570,43 +2192,53 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 
-  textoResumen: {
+  summaryText: {
     flex: 1,
     marginLeft: 13,
   },
 
-  botonNuevo: {
+  summaryNumber: {
+    fontWeight: '900',
+  },
+
+  newButton: {
     minHeight: 48,
-    borderRadius: 14,
-    paddingHorizontal: 16,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    borderRadius: 14,
+    paddingHorizontal: 16,
   },
 
-  textoBlanco: {
+  newButtonText: {
     color: '#FFFFFF',
     fontWeight: '900',
-    marginLeft: 6,
+    marginLeft: 5,
   },
 
-  buscador: {
+  searchBox: {
     minHeight: 54,
+    flexDirection: 'row',
+    alignItems: 'center',
     borderWidth: 1,
     borderRadius: 16,
     paddingHorizontal: 15,
     marginBottom: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
   },
 
-  lista: {
+  searchInput: {
+    flex: 1,
+    minHeight: 50,
+    marginHorizontal: 9,
+  },
+
+  cardsWrap: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     marginHorizontal: -6,
   },
 
-  tarjeta: {
+  courseCard: {
     width: '100%',
     borderWidth: 1,
     borderRadius: 20,
@@ -2615,17 +2247,17 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
 
-  tarjetaDoble: {
+  cardTwoColumns: {
     width: '48.5%',
     flexGrow: 1,
   },
 
-  tarjetaEncabezado: {
+  cardHeader: {
     flexDirection: 'row',
     alignItems: 'flex-start',
   },
 
-  iconoCurso: {
+  courseIcon: {
     width: 48,
     height: 48,
     borderRadius: 15,
@@ -2633,53 +2265,96 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 
-  detalles: {
+  cardTitleArea: {
+    flex: 1,
+    marginLeft: 11,
+    alignItems: 'flex-start',
+  },
+
+  courseName: {
+    fontWeight: '900',
+    marginBottom: 6,
+  },
+
+  statusBadge: {
+    borderRadius: 20,
+    paddingVertical: 4,
+    paddingHorizontal: 9,
+  },
+
+  description: {
+    lineHeight: 20,
+    marginTop: 13,
+  },
+
+  infoBox: {
     borderWidth: 1,
     borderRadius: 14,
     padding: 12,
     marginTop: 14,
   },
 
-  fila: {
+  infoRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     marginVertical: 4,
   },
 
-  acciones: {
+  infoLabel: {
+    marginLeft: 7,
+    marginRight: 5,
+  },
+
+  infoValue: {
+    flex: 1,
+    fontWeight: '700',
+  },
+
+  cardActions: {
     flexDirection: 'row',
     marginTop: 14,
     marginHorizontal: -4,
   },
 
-  botonAccion: {
+  actionButton: {
     minHeight: 44,
     flex: 1,
-    borderWidth: 1,
-    borderRadius: 12,
-    marginHorizontal: 4,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderRadius: 12,
+    marginHorizontal: 4,
   },
 
-  vacio: {
+  actionText: {
+    marginLeft: 5,
+    fontWeight: '900',
+  },
+
+  emptyCard: {
     minHeight: 240,
+    alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: 1,
     borderRadius: 20,
     padding: 25,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
 
-  fondoModal: {
+  emptyTitle: {
+    fontWeight: '900',
+    marginTop: 13,
+    marginBottom: 7,
+  },
+
+  modalOverlay: {
     flex: 1,
     justifyContent: 'flex-end',
     backgroundColor:
       'rgba(15,23,42,0.62)',
   },
 
-  modal: {
+  modalCard: {
     width: '100%',
     maxWidth: 720,
     maxHeight: '94%',
@@ -2691,12 +2366,20 @@ const styles = StyleSheet.create({
     paddingTop: 20,
   },
 
-  modalEncabezado: {
+  modalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent:
-      'space-between',
+    justifyContent: 'space-between',
     paddingBottom: 12,
+  },
+
+  modalTitle: {
+    fontWeight: '900',
+    marginBottom: 3,
+  },
+
+  modalContent: {
+    paddingBottom: 28,
   },
 
   label: {
@@ -2705,14 +2388,22 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
 
-  entrada: {
+  inputBox: {
     minHeight: 54,
+    flexDirection: 'row',
+    alignItems: 'center',
     borderWidth: 1,
     borderRadius: 14,
     paddingHorizontal: 14,
   },
 
-  areaTexto: {
+  input: {
+    flex: 1,
+    minHeight: 50,
+    marginLeft: 10,
+  },
+
+  textArea: {
     minHeight: 108,
     borderWidth: 1,
     borderRadius: 14,
@@ -2720,120 +2411,75 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
 
-  mensajeVacio: {
+  emptyOptionText: {
     borderWidth: 1,
+    borderColor: '#F59E0B',
     borderRadius: 12,
     padding: 12,
   },
 
-  opciones: {
+  optionsWrap: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     marginHorizontal: -4,
   },
 
-  opcion: {
+  selectionButton: {
     minHeight: 46,
     minWidth: 115,
     flexGrow: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: 1,
     borderRadius: 13,
     margin: 4,
     paddingHorizontal: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
 
-  estados: {
+  optionsRow: {
     flexDirection: 'row',
     marginHorizontal: -4,
   },
 
-  estado: {
+  stateOption: {
     minHeight: 46,
     flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: 1,
     borderRadius: 13,
     marginHorizontal: 4,
     paddingHorizontal: 5,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
 
-  botonesModal: {
+  modalActions: {
     flexDirection: 'row',
     marginTop: 25,
   },
 
-  botonCancelar: {
+  cancelButton: {
     minHeight: 52,
     flex: 1,
     borderWidth: 1,
     borderRadius: 14,
-    marginRight: 5,
     alignItems: 'center',
     justifyContent: 'center',
+    marginRight: 5,
   },
 
-  botonGuardar: {
+  saveButton: {
     minHeight: 52,
     flex: 1.35,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     borderRadius: 14,
     marginLeft: 5,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
   },
 
-  navegacionInferior: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    borderTopWidth: 1,
-    shadowColor: '#000000',
-    shadowOffset: {
-      width: 0,
-      height: -3,
-    },
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
-    elevation: 12,
-  },
-
-  contenidoNavegacion: {
-    flex: 1,
-    width: '100%',
-    maxWidth: 520,
-    alignSelf: 'center',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent:
-      'space-around',
-  },
-
-  itemNavegacion: {
-    flex: 1,
-    height: '100%',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 2,
-  },
-
-  contenedorIconoNavegacion: {
-    minWidth: 35,
-    height: 28,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  etiquetaNavegacion: {
-    marginTop: 2,
-    fontWeight: '600',
-  },
-
-  etiquetaNavegacionActiva: {
+  saveText: {
+    color: '#FFFFFF',
     fontWeight: '900',
+    marginLeft: 6,
   },
 });

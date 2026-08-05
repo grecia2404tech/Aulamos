@@ -545,7 +545,7 @@ const listarRecursosDocente = async (req, res) => {
             g.grado,
             g.nombre
           ) AS grupo,
-          a.titulo AS actividad,
+          a.titulo AS actividad_relacionada,
           (
             SELECT COUNT(*)
             FROM uso_recursos AS ur

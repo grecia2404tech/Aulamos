@@ -830,7 +830,7 @@ export default function ActividadesDocenteScreen() {
           icon="book-outline"
           label="Recursos"
           onPress={() =>
-            router.push('/crear-recurso' as any)
+            router.push('/recursos-docente' as any)
           }
         />
         <BottomItem

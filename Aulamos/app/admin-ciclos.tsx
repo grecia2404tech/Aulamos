@@ -1,4 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import DateTimePicker, {
+  DateTimePickerEvent,
+} from "@react-native-community/datetimepicker";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
@@ -83,6 +86,10 @@ export default function AdminCiclosScreen() {
 
   const [fechaFin, setFechaFin] = useState("");
 
+  const [calendarioAbierto, setCalendarioAbierto] = useState<
+    "inicio" | "fin" | null
+  >(null);
+
   const [estado, setEstado] = useState<EstadoCiclo>("Inactivo");
 
   const [errorFormulario, setErrorFormulario] = useState("");
@@ -103,6 +110,84 @@ export default function AdminCiclosScreen() {
     () => ciclos.find((ciclo) => ciclo.estado === "Activo") || null,
     [ciclos],
   );
+
+  const convertirFechaADate = (fecha: string) => {
+    const fechaNormalizada = fecha.slice(0, 10);
+    const partes = fechaNormalizada.split("-").map(Number);
+
+    if (
+      partes.length === 3 &&
+      partes.every((parte) => Number.isFinite(parte))
+    ) {
+      const [anio, mes, dia] = partes;
+      const fechaConvertida = new Date(anio, mes - 1, dia, 12, 0, 0);
+
+      if (!Number.isNaN(fechaConvertida.getTime())) {
+        return fechaConvertida;
+      }
+    }
+
+    return new Date();
+  };
+
+  const convertirDateAFecha = (fecha: Date) => {
+    const anio = fecha.getFullYear();
+    const mes = String(fecha.getMonth() + 1).padStart(2, "0");
+    const dia = String(fecha.getDate()).padStart(2, "0");
+
+    return `${anio}-${mes}-${dia}`;
+  };
+
+  const normalizarFecha = (fecha: string) => {
+    const fechaNormalizada = fecha.slice(0, 10);
+
+    return /^\d{4}-\d{2}-\d{2}$/.test(fechaNormalizada) ? fechaNormalizada : "";
+  };
+
+  const obtenerFechaMinimaFin = () => {
+    if (!fechaInicio) {
+      return undefined;
+    }
+
+    const fechaMinima = convertirFechaADate(fechaInicio);
+    fechaMinima.setDate(fechaMinima.getDate() + 1);
+
+    return fechaMinima;
+  };
+
+  const abrirCalendario = (tipo: "inicio" | "fin") => {
+    if (guardando) {
+      return;
+    }
+
+    setErrorFormulario("");
+    setCalendarioAbierto(tipo);
+  };
+
+  const manejarCambioFecha = (
+    evento: DateTimePickerEvent,
+    fechaSeleccionada?: Date,
+  ) => {
+    if (Platform.OS === "android") {
+      setCalendarioAbierto(null);
+    }
+
+    if (evento.type === "dismissed" || !fechaSeleccionada) {
+      return;
+    }
+
+    const fechaFormateada = convertirDateAFecha(fechaSeleccionada);
+
+    if (calendarioAbierto === "inicio") {
+      setFechaInicio(fechaFormateada);
+
+      if (fechaFin && fechaFormateada >= fechaFin) {
+        setFechaFin("");
+      }
+    } else if (calendarioAbierto === "fin") {
+      setFechaFin(fechaFormateada);
+    }
+  };
 
   const cerrarSesionVencida = async () => {
     await AsyncStorage.multiRemove(["token", "usuario"]);
@@ -213,6 +298,7 @@ export default function AdminCiclosScreen() {
     setFechaInicio("");
     setFechaFin("");
     setEstado("Inactivo");
+    setCalendarioAbierto(null);
     setErrorFormulario("");
     setCicloEditando(null);
   };
@@ -225,8 +311,8 @@ export default function AdminCiclosScreen() {
   const abrirEditarCiclo = (ciclo: CicloEscolar) => {
     setCicloEditando(ciclo);
     setNombre(ciclo.nombre);
-    setFechaInicio(ciclo.fecha_inicio);
-    setFechaFin(ciclo.fecha_fin);
+    setFechaInicio(normalizarFecha(ciclo.fecha_inicio));
+    setFechaFin(normalizarFecha(ciclo.fecha_fin));
     setEstado(ciclo.estado);
     setErrorFormulario("");
     setFormularioVisible(true);
@@ -411,7 +497,7 @@ export default function AdminCiclosScreen() {
   };
 
   const formatearFecha = (fecha: string) => {
-    const fechaLocal = new Date(`${fecha}T00:00:00`);
+    const fechaLocal = convertirFechaADate(fecha);
 
     if (Number.isNaN(fechaLocal.getTime())) {
       return fecha;
@@ -1268,24 +1354,49 @@ export default function AdminCiclosScreen() {
                 Fecha de inicio
               </Text>
 
-              <TextInput
+              <TouchableOpacity
                 style={[
-                  styles.input,
+                  styles.dateInput,
                   {
                     backgroundColor: colores.fondo,
                     borderColor: colores.borde,
-                    color: colores.texto,
-                    fontSize: 14 * escalaTexto,
                   },
                 ]}
-                value={fechaInicio}
-                onChangeText={setFechaInicio}
-                placeholder="AAAA-MM-DD"
-                placeholderTextColor={colores.textoSecundario}
-                maxLength={10}
-                editable={!guardando}
-                accessibilityLabel="Fecha de inicio en formato año mes día"
-              />
+                onPress={() => abrirCalendario("inicio")}
+                disabled={guardando}
+                activeOpacity={0.75}
+                accessibilityRole="button"
+                accessibilityLabel="Seleccionar fecha de inicio"
+                accessibilityHint="Abre un calendario para elegir la fecha"
+              >
+                <Ionicons
+                  name="calendar-outline"
+                  size={21}
+                  color={colorPrincipal}
+                />
+
+                <Text
+                  style={[
+                    styles.dateInputText,
+                    {
+                      color: fechaInicio
+                        ? colores.texto
+                        : colores.textoSecundario,
+                      fontSize: 14 * escalaTexto,
+                    },
+                  ]}
+                >
+                  {fechaInicio
+                    ? formatearFecha(fechaInicio)
+                    : "Selecciona la fecha de inicio"}
+                </Text>
+
+                <Ionicons
+                  name="chevron-down"
+                  size={19}
+                  color={colores.textoSecundario}
+                />
+              </TouchableOpacity>
 
               <Text
                 style={[
@@ -1299,24 +1410,108 @@ export default function AdminCiclosScreen() {
                 Fecha de finalización
               </Text>
 
-              <TextInput
+              <TouchableOpacity
                 style={[
-                  styles.input,
+                  styles.dateInput,
                   {
                     backgroundColor: colores.fondo,
                     borderColor: colores.borde,
-                    color: colores.texto,
-                    fontSize: 14 * escalaTexto,
                   },
                 ]}
-                value={fechaFin}
-                onChangeText={setFechaFin}
-                placeholder="AAAA-MM-DD"
-                placeholderTextColor={colores.textoSecundario}
-                maxLength={10}
-                editable={!guardando}
-                accessibilityLabel="Fecha de finalización en formato año mes día"
-              />
+                onPress={() => abrirCalendario("fin")}
+                disabled={guardando || !fechaInicio}
+                activeOpacity={0.75}
+                accessibilityRole="button"
+                accessibilityLabel="Seleccionar fecha de finalización"
+                accessibilityHint="Abre un calendario para elegir la fecha"
+                accessibilityState={{
+                  disabled: guardando || !fechaInicio,
+                }}
+              >
+                <Ionicons
+                  name="calendar-outline"
+                  size={21}
+                  color={fechaInicio ? colorPrincipal : colores.textoSecundario}
+                />
+
+                <Text
+                  style={[
+                    styles.dateInputText,
+                    {
+                      color: fechaFin ? colores.texto : colores.textoSecundario,
+                      fontSize: 14 * escalaTexto,
+                    },
+                  ]}
+                >
+                  {fechaFin
+                    ? formatearFecha(fechaFin)
+                    : fechaInicio
+                      ? "Selecciona la fecha de finalización"
+                      : "Primero selecciona la fecha de inicio"}
+                </Text>
+
+                <Ionicons
+                  name="chevron-down"
+                  size={19}
+                  color={colores.textoSecundario}
+                />
+              </TouchableOpacity>
+
+              {calendarioAbierto ? (
+                <View
+                  style={[
+                    styles.calendarContainer,
+                    {
+                      backgroundColor: colores.fondo,
+                      borderColor: colores.borde,
+                    },
+                  ]}
+                >
+                  <DateTimePicker
+                    value={
+                      calendarioAbierto === "inicio"
+                        ? convertirFechaADate(fechaInicio)
+                        : convertirFechaADate(fechaFin || fechaInicio)
+                    }
+                    mode="date"
+                    display={Platform.OS === "ios" ? "inline" : "default"}
+                    minimumDate={
+                      calendarioAbierto === "fin"
+                        ? obtenerFechaMinimaFin()
+                        : undefined
+                    }
+                    onChange={manejarCambioFecha}
+                    accentColor={colorPrincipal}
+                  />
+
+                  {Platform.OS === "ios" ? (
+                    <TouchableOpacity
+                      style={[
+                        styles.closeCalendarButton,
+                        {
+                          backgroundColor: colores.fondoPrimario,
+                          borderColor: colorPrincipal,
+                        },
+                      ]}
+                      onPress={() => setCalendarioAbierto(null)}
+                      accessibilityRole="button"
+                      accessibilityLabel="Cerrar calendario"
+                    >
+                      <Text
+                        style={[
+                          styles.closeCalendarText,
+                          {
+                            color: colorPrincipal,
+                            fontSize: 13 * escalaTexto,
+                          },
+                        ]}
+                      >
+                        Aceptar fecha
+                      </Text>
+                    </TouchableOpacity>
+                  ) : null}
+                </View>
+              ) : null}
 
               <Text
                 style={[
@@ -1870,6 +2065,44 @@ const styles = StyleSheet.create({
     borderRadius: 13,
     paddingHorizontal: 13,
     marginBottom: 15,
+  },
+
+  dateInput: {
+    minHeight: 51,
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1,
+    borderRadius: 13,
+    paddingHorizontal: 13,
+    marginBottom: 15,
+  },
+
+  dateInputText: {
+    flex: 1,
+    marginHorizontal: 10,
+    fontWeight: "600",
+  },
+
+  calendarContainer: {
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: 8,
+    marginTop: -6,
+    marginBottom: 15,
+    overflow: "hidden",
+  },
+
+  closeCalendarButton: {
+    minHeight: 42,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderRadius: 11,
+    marginTop: 6,
+  },
+
+  closeCalendarText: {
+    fontWeight: "900",
   },
 
   statesContainer: {

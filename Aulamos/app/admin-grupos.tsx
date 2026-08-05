@@ -52,13 +52,34 @@ type Modalidad =
 
 type Grupo = {
   id_grupo: number;
+  id_ciclo: number;
+  id_docente: number;
   nombre: string;
   grado: number;
   turno: Turno;
   modalidad: Modalidad;
   cupo: number;
   estado: EstadoGrupo;
+  nombre_ciclo?: string;
+  nombre_docente?: string;
   total_cursos?: number | string;
+};
+
+type CicloEscolar = {
+  id_ciclo: number;
+  nombre: string;
+  fecha_inicio: string;
+  fecha_fin: string;
+  estado: 'Activo' | 'Inactivo' | 'Cerrado';
+};
+
+type Docente = {
+  id_docente: number;
+  nombre: string;
+  apellido_paterno?: string;
+  apellido_materno?: string;
+  correo: string;
+  nombre_completo: string;
 };
 
 type RespuestaApi = {
@@ -66,6 +87,8 @@ type RespuestaApi = {
   campo?: string;
   grupos?: Grupo[];
   grupo?: Grupo;
+  ciclos?: CicloEscolar[];
+  docentes?: Docente[];
 };
 
 type IoniconName = keyof typeof Ionicons.glyphMap;
@@ -129,6 +152,15 @@ export default function AdminGruposScreen() {
   const [grupos, setGrupos] =
     useState<Grupo[]>([]);
 
+  const [ciclos, setCiclos] =
+    useState<CicloEscolar[]>([]);
+
+  const [docentes, setDocentes] =
+    useState<Docente[]>([]);
+
+  const [cargandoCatalogos, setCargandoCatalogos] =
+    useState(true);
+
   const [busqueda, setBusqueda] =
     useState('');
 
@@ -167,6 +199,12 @@ export default function AdminGruposScreen() {
 
   const [nombre, setNombre] =
     useState('');
+
+  const [idCiclo, setIdCiclo] =
+    useState<number | null>(null);
+
+  const [idDocente, setIdDocente] =
+    useState<number | null>(null);
 
   const [grado, setGrado] =
     useState(1);
@@ -244,6 +282,8 @@ export default function AdminGruposScreen() {
             `${grupo.grado}`,
             grupo.turno,
             grupo.modalidad,
+            grupo.nombre_ciclo,
+            grupo.nombre_docente,
           ]
             .join(' ')
             .toLocaleLowerCase('es');
@@ -378,17 +418,140 @@ export default function AdminGruposScreen() {
     }
   };
 
+  const cargarCatalogos = async () => {
+    try {
+      setCargandoCatalogos(true);
+
+      const token =
+        await AsyncStorage.getItem(
+          'token'
+        );
+
+      if (!token) {
+        await manejarSesionInvalida();
+        return;
+      }
+
+      const [respuestaCiclos, respuestaDocentes] =
+        await Promise.all([
+          fetch(
+            `${API_URL}/academico/ciclos`,
+            {
+              headers: {
+                Authorization:
+                  `Bearer ${token}`,
+              },
+            }
+          ),
+          fetch(
+            `${API_URL}/academico/docentes/activos`,
+            {
+              headers: {
+                Authorization:
+                  `Bearer ${token}`,
+              },
+            }
+          ),
+        ]);
+
+      const [datosCiclos, datosDocentes] =
+        await Promise.all([
+          leerRespuesta(respuestaCiclos),
+          leerRespuesta(respuestaDocentes),
+        ]);
+
+      if (
+        respuestaCiclos.status === 401 ||
+        respuestaDocentes.status === 401
+      ) {
+        await manejarSesionInvalida();
+        return;
+      }
+
+      if (!respuestaCiclos.ok) {
+        throw new Error(
+          datosCiclos.mensaje ||
+            'No fue posible cargar los ciclos escolares.'
+        );
+      }
+
+      if (!respuestaDocentes.ok) {
+        throw new Error(
+          datosDocentes.mensaje ||
+            'No fue posible cargar los docentes.'
+        );
+      }
+
+      const ciclosRecibidos =
+        datosCiclos.ciclos ?? [];
+
+      const docentesRecibidos =
+        datosDocentes.docentes ?? [];
+
+      setCiclos(ciclosRecibidos);
+      setDocentes(docentesRecibidos);
+
+      setIdCiclo((actual) =>
+        actual ??
+        ciclosRecibidos.find(
+          (ciclo) =>
+            ciclo.estado === 'Activo'
+        )?.id_ciclo ??
+        ciclosRecibidos[0]?.id_ciclo ??
+        null
+      );
+
+      setIdDocente((actual) =>
+        actual ??
+        docentesRecibidos[0]?.id_docente ??
+        null
+      );
+    } catch (error) {
+      console.error(
+        'Error al cargar catálogos de grupos:',
+        error
+      );
+
+      Alert.alert(
+        'No se pudieron cargar los datos',
+        error instanceof Error
+          ? error.message
+          : 'Verifica la conexión con la API.'
+      );
+    } finally {
+      setCargandoCatalogos(false);
+    }
+  };
+
   useEffect(() => {
-    cargarGrupos();
+    void Promise.all([
+      cargarGrupos(),
+      cargarCatalogos(),
+    ]);
   }, []);
 
   const actualizar = () => {
     setActualizando(true);
-    cargarGrupos(false);
+    void Promise.all([
+      cargarGrupos(false),
+      cargarCatalogos(),
+    ]);
   };
 
   const limpiarFormulario = () => {
     setNombre('');
+    setIdCiclo(
+      ciclos.find(
+        (ciclo) =>
+          ciclo.estado === 'Activo'
+      )?.id_ciclo ??
+        ciclos[0]?.id_ciclo ??
+        null
+    );
+    setIdDocente(
+      docentes[0]?.id_docente ??
+        null
+    );
     setGrado(1);
     setTurno('Matutino');
     setModalidad('Presencial');
@@ -407,6 +570,12 @@ export default function AdminGruposScreen() {
   ) => {
     setGrupoEditando(grupo);
     setNombre(grupo.nombre);
+    setIdCiclo(
+      Number(grupo.id_ciclo)
+    );
+    setIdDocente(
+      Number(grupo.id_docente)
+    );
     setGrado(Number(grupo.grado));
     setTurno(grupo.turno);
     setModalidad(grupo.modalidad);
@@ -430,6 +599,34 @@ export default function AdminGruposScreen() {
 
     const cupoNumero =
       Number(cupo);
+
+    if (
+      !idCiclo ||
+      !Number.isInteger(idCiclo)
+    ) {
+      Alert.alert(
+        'Ciclo escolar requerido',
+        ciclos.length === 0
+          ? 'Primero registra un ciclo escolar desde la opción Ciclos.'
+          : 'Selecciona el ciclo escolar del grupo.'
+      );
+
+      return false;
+    }
+
+    if (
+      !idDocente ||
+      !Number.isInteger(idDocente)
+    ) {
+      Alert.alert(
+        'Docente requerido',
+        docentes.length === 0
+          ? 'No hay docentes activos. Registra o activa un docente antes de crear el grupo.'
+          : 'Selecciona al docente responsable del grupo.'
+      );
+
+      return false;
+    }
 
     if (!nombreLimpio) {
       Alert.alert(
@@ -507,6 +704,9 @@ export default function AdminGruposScreen() {
           },
 
           body: JSON.stringify({
+            id_ciclo: idCiclo,
+            id_docente: idDocente,
+
             nombre:
               limpiarTexto(nombre),
 
@@ -1283,6 +1483,70 @@ export default function AdminGruposScreen() {
                         }
                       >
                         <Ionicons
+                          name="calendar-outline"
+                          size={18}
+                          color={
+                            colorPrincipal
+                          }
+                        />
+
+                        <Text
+                          style={[
+                            styles.dataText,
+                            {
+                              color:
+                                colores.textoSecundario,
+
+                              fontSize:
+                                12 *
+                                escalaTexto,
+                            },
+                          ]}
+                        >
+                          Ciclo:{' '}
+                          {grupo.nombre_ciclo ||
+                            'Sin ciclo'}
+                        </Text>
+                      </View>
+
+                      <View
+                        style={
+                          styles.dataRow
+                        }
+                      >
+                        <Ionicons
+                          name="person-outline"
+                          size={18}
+                          color={
+                            colorPrincipal
+                          }
+                        />
+
+                        <Text
+                          style={[
+                            styles.dataText,
+                            {
+                              color:
+                                colores.textoSecundario,
+
+                              fontSize:
+                                12 *
+                                escalaTexto,
+                            },
+                          ]}
+                        >
+                          Docente:{' '}
+                          {grupo.nombre_docente ||
+                            'Sin docente'}
+                        </Text>
+                      </View>
+
+                      <View
+                        style={
+                          styles.dataRow
+                        }
+                      >
+                        <Ionicons
                           name="time-outline"
                           size={18}
                           color={
@@ -1700,6 +1964,351 @@ export default function AdminGruposScreen() {
                   paddingBottom: 28,
                 }}
               >
+                <Text
+                  style={[
+                    styles.label,
+                    {
+                      color:
+                        colores.texto,
+
+                      fontSize:
+                        13 *
+                        escalaTexto,
+                    },
+                  ]}
+                >
+                  Ciclo escolar
+                </Text>
+
+                {cargandoCatalogos ? (
+                  <View
+                    style={[
+                      styles.catalogMessage,
+                      {
+                        backgroundColor:
+                          colores.fondo,
+                        borderColor:
+                          colores.borde,
+                      },
+                    ]}
+                  >
+                    <ActivityIndicator
+                      size="small"
+                      color={colorPrincipal}
+                    />
+
+                    <Text
+                      style={[
+                        styles.catalogMessageText,
+                        {
+                          color:
+                            colores.textoSecundario,
+                          fontSize:
+                            12 * escalaTexto,
+                        },
+                      ]}
+                    >
+                      Cargando ciclos y docentes...
+                    </Text>
+                  </View>
+                ) : ciclos.length === 0 ? (
+                  <View
+                    style={[
+                      styles.catalogEmpty,
+                      {
+                        backgroundColor:
+                          colores.fondo,
+                        borderColor:
+                          colores.borde,
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={{
+                        color:
+                          colores.textoSecundario,
+                        fontSize:
+                          12 * escalaTexto,
+                        lineHeight:
+                          18 * escalaTexto,
+                      }}
+                    >
+                      No hay ciclos escolares registrados.
+                    </Text>
+
+                    <TouchableOpacity
+                      style={[
+                        styles.catalogAction,
+                        {
+                          borderColor:
+                            colorPrincipal,
+                        },
+                      ]}
+                      onPress={() => {
+                        setModalVisible(false);
+                        router.push(
+                          '/admin-ciclos' as any
+                        );
+                      }}
+                      disabled={guardando}
+                    >
+                      <Ionicons
+                        name="add-circle-outline"
+                        size={18}
+                        color={colorPrincipal}
+                      />
+
+                      <Text
+                        style={{
+                          color:
+                            colorPrincipal,
+                          fontSize:
+                            12 * escalaTexto,
+                          fontWeight: '900',
+                          marginLeft: 6,
+                        }}
+                      >
+                        Crear ciclo escolar
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  <View
+                    style={
+                      styles.catalogList
+                    }
+                  >
+                    {ciclos.map(
+                      (ciclo) => {
+                        const seleccionado =
+                          idCiclo ===
+                          ciclo.id_ciclo;
+
+                        return (
+                          <TouchableOpacity
+                            key={
+                              ciclo.id_ciclo
+                            }
+                            style={[
+                              styles.catalogOption,
+                              {
+                                backgroundColor:
+                                  seleccionado
+                                    ? fondoSuave
+                                    : colores.fondo,
+                                borderColor:
+                                  seleccionado
+                                    ? colorPrincipal
+                                    : colores.borde,
+                              },
+                            ]}
+                            onPress={() =>
+                              setIdCiclo(
+                                ciclo.id_ciclo
+                              )
+                            }
+                            disabled={guardando}
+                            accessibilityRole="radio"
+                            accessibilityState={{
+                              selected:
+                                seleccionado,
+                            }}
+                          >
+                            <Ionicons
+                              name={
+                                seleccionado
+                                  ? 'radio-button-on'
+                                  : 'radio-button-off'
+                              }
+                              size={20}
+                              color={
+                                seleccionado
+                                  ? colorPrincipal
+                                  : colores.textoSecundario
+                              }
+                            />
+
+                            <View
+                              style={
+                                styles.catalogOptionInfo
+                              }
+                            >
+                              <Text
+                                style={{
+                                  color:
+                                    colores.texto,
+                                  fontSize:
+                                    13 * escalaTexto,
+                                  fontWeight:
+                                    '900',
+                                }}
+                              >
+                                {ciclo.nombre}
+                              </Text>
+
+                              <Text
+                                style={{
+                                  color:
+                                    colores.textoSecundario,
+                                  fontSize:
+                                    10 * escalaTexto,
+                                  marginTop: 2,
+                                }}
+                              >
+                                Estado: {ciclo.estado}
+                              </Text>
+                            </View>
+                          </TouchableOpacity>
+                        );
+                      }
+                    )}
+                  </View>
+                )}
+
+                <Text
+                  style={[
+                    styles.label,
+                    {
+                      color:
+                        colores.texto,
+
+                      fontSize:
+                        13 *
+                        escalaTexto,
+                    },
+                  ]}
+                >
+                  Docente responsable
+                </Text>
+
+                {!cargandoCatalogos &&
+                docentes.length === 0 ? (
+                  <View
+                    style={[
+                      styles.catalogMessage,
+                      {
+                        backgroundColor:
+                          colores.fondo,
+                        borderColor:
+                          colores.borde,
+                      },
+                    ]}
+                  >
+                    <Ionicons
+                      name="alert-circle-outline"
+                      size={20}
+                      color={
+                        colores.textoSecundario
+                      }
+                    />
+
+                    <Text
+                      style={[
+                        styles.catalogMessageText,
+                        {
+                          color:
+                            colores.textoSecundario,
+                          fontSize:
+                            12 * escalaTexto,
+                        },
+                      ]}
+                    >
+                      No hay docentes activos disponibles.
+                    </Text>
+                  </View>
+                ) : (
+                  <View
+                    style={
+                      styles.catalogList
+                    }
+                  >
+                    {docentes.map(
+                      (docente) => {
+                        const seleccionado =
+                          idDocente ===
+                          docente.id_docente;
+
+                        return (
+                          <TouchableOpacity
+                            key={
+                              docente.id_docente
+                            }
+                            style={[
+                              styles.catalogOption,
+                              {
+                                backgroundColor:
+                                  seleccionado
+                                    ? fondoSuave
+                                    : colores.fondo,
+                                borderColor:
+                                  seleccionado
+                                    ? colorPrincipal
+                                    : colores.borde,
+                              },
+                            ]}
+                            onPress={() =>
+                              setIdDocente(
+                                docente.id_docente
+                              )
+                            }
+                            disabled={guardando}
+                            accessibilityRole="radio"
+                            accessibilityState={{
+                              selected:
+                                seleccionado,
+                            }}
+                          >
+                            <Ionicons
+                              name={
+                                seleccionado
+                                  ? 'radio-button-on'
+                                  : 'radio-button-off'
+                              }
+                              size={20}
+                              color={
+                                seleccionado
+                                  ? colorPrincipal
+                                  : colores.textoSecundario
+                              }
+                            />
+
+                            <View
+                              style={
+                                styles.catalogOptionInfo
+                              }
+                            >
+                              <Text
+                                style={{
+                                  color:
+                                    colores.texto,
+                                  fontSize:
+                                    13 * escalaTexto,
+                                  fontWeight:
+                                    '900',
+                                }}
+                              >
+                                {docente.nombre_completo}
+                              </Text>
+
+                              <Text
+                                style={{
+                                  color:
+                                    colores.textoSecundario,
+                                  fontSize:
+                                    10 * escalaTexto,
+                                  marginTop: 2,
+                                }}
+                              >
+                                {docente.correo}
+                              </Text>
+                            </View>
+                          </TouchableOpacity>
+                        );
+                      }
+                    )}
+                  </View>
+                )}
+
                 <Text
                   style={[
                     styles.label,
@@ -2558,6 +3167,58 @@ const styles = StyleSheet.create({
     marginTop: 15,
     marginBottom: 8,
     fontWeight: '800',
+  },
+
+  catalogList: {
+    width: '100%',
+  },
+
+  catalogOption: {
+    width: '100%',
+    minHeight: 58,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderRadius: 14,
+    paddingHorizontal: 13,
+    paddingVertical: 10,
+    marginBottom: 8,
+  },
+
+  catalogOptionInfo: {
+    flex: 1,
+    minWidth: 0,
+    marginLeft: 10,
+  },
+
+  catalogMessage: {
+    minHeight: 58,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderRadius: 14,
+    paddingHorizontal: 13,
+  },
+
+  catalogMessageText: {
+    flex: 1,
+    marginLeft: 9,
+  },
+
+  catalogEmpty: {
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: 13,
+  },
+
+  catalogAction: {
+    minHeight: 42,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderRadius: 12,
+    marginTop: 10,
   },
 
   inputBox: {
