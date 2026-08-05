@@ -419,6 +419,8 @@ export default function EstudiantesDocenteScreen() {
         id_alumno: String(
           estudiante.id_alumno
         ),
+        nombre: estudiante.nombre_completo,
+        correo: estudiante.correo,
       },
     } as never);
   };

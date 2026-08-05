@@ -57,6 +57,7 @@ type ActividadAlumno = {
 
 type RespuestaProgreso = {
   mensaje?: string;
+  error?: string;
   alumno?: AlumnoDetalle;
   resumen?: Partial<ResumenProgreso>;
   actividades?: ActividadAlumno[];
@@ -180,11 +181,12 @@ export default function DetalleEstudianteScreen() {
         }
 
         if (!respuesta.ok) {
-          throw new Error(
-            resultado.mensaje ||
-              'No se pudo obtener el progreso.'
-          );
-        }
+  throw new Error(
+    resultado.error ||
+      resultado.mensaje ||
+      `No se pudo obtener el progreso. Código ${respuesta.status}`
+  );
+}
 
         const nuevoResumen: ResumenProgreso = {
           total_actividades: Number(
