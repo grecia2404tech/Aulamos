@@ -319,23 +319,73 @@ const obtenerProgresoEstudiante = async (
   res
 ) => {
   try {
-    const idDocente = req.usuario.id_usuario;
-    const { idAlumno } = req.params;
+    const idDocente = Number(
+      req.usuario?.id_usuario
+    );
 
-    const idAlumnoNumero = Number(idAlumno);
+    const idAlumno = Number(
+      req.params.idAlumno
+    );
 
     if (
-      !Number.isInteger(idAlumnoNumero) ||
-      idAlumnoNumero <= 0
+      !Number.isInteger(idDocente) ||
+      idDocente <= 0
     ) {
-      return res.status(400).json({
+      return res.status(401).json({
         mensaje:
-          'El identificador del alumno no es válido',
+          'No se pudo identificar al docente autenticado.',
       });
     }
 
+    if (
+      !Number.isInteger(idAlumno) ||
+      idAlumno <= 0
+    ) {
+      return res.status(400).json({
+        mensaje:
+          'El estudiante indicado no es válido.',
+      });
+    }
+
+    /*
+     * Verifica que el alumno pertenezca por lo menos
+     * a un curso activo del docente autenticado.
+     */
     const [relacion] = await pool.query(
-      `SELECT
+      `
+        SELECT
+          i.id_alumno
+        FROM inscripciones AS i
+
+        INNER JOIN cursos AS c
+          ON c.id_curso = i.id_curso
+
+        WHERE i.id_alumno = ?
+          AND c.id_docente = ?
+          AND i.estado = 'Activo'
+          AND c.estado = 'Activo'
+
+        LIMIT 1
+      `,
+      [
+        idAlumno,
+        idDocente,
+      ]
+    );
+
+    if (relacion.length === 0) {
+      return res.status(404).json({
+        mensaje:
+          'El estudiante no pertenece a los cursos activos de este docente.',
+      });
+    }
+
+    /*
+     * Información general del alumno.
+     */
+    const [alumnos] = await pool.query(
+      `
+        SELECT
           u.id_usuario AS id_alumno,
 
           CONCAT_WS(
@@ -348,256 +398,317 @@ const obtenerProgresoEstudiante = async (
           u.correo,
 
           GROUP_CONCAT(
-            DISTINCT g.nombre
-            ORDER BY g.nombre
+            DISTINCT CONCAT_WS(
+              ' ',
+              g.grado,
+              g.nombre
+            )
+            ORDER BY
+              g.grado,
+              g.nombre
             SEPARATOR ', '
           ) AS grupos
 
-       FROM usuarios u
+        FROM usuarios AS u
 
-       INNER JOIN inscripciones i
+        INNER JOIN inscripciones AS i
           ON i.id_alumno = u.id_usuario
 
-       INNER JOIN cursos c
+        INNER JOIN cursos AS c
           ON c.id_curso = i.id_curso
 
-       INNER JOIN grupos g
+        INNER JOIN grupos AS g
           ON g.id_grupo = c.id_grupo
 
-       WHERE u.id_usuario = ?
-         AND c.id_docente = ?
-         AND c.estado = 'Activo'
-         AND i.estado = 'Activo'
+        WHERE u.id_usuario = ?
+          AND c.id_docente = ?
+          AND i.estado = 'Activo'
+          AND c.estado = 'Activo'
 
-       GROUP BY
+        GROUP BY
           u.id_usuario,
           u.nombre,
           u.apellido_paterno,
           u.apellido_materno,
           u.correo
 
-       LIMIT 1`,
-      [idAlumnoNumero, idDocente]
+        LIMIT 1
+      `,
+      [
+        idAlumno,
+        idDocente,
+      ]
     );
 
-    if (relacion.length === 0) {
+    if (alumnos.length === 0) {
       return res.status(404).json({
         mensaje:
-          'El alumno no existe o no pertenece a los cursos del docente',
+          'No se encontró la información del estudiante.',
       });
     }
 
-    const [resumenResultados] =
-      await pool.query(
-        `SELECT
-            COUNT(
-              DISTINCT a.id_actividad
-            ) AS total_actividades,
-
-            SUM(
-              CASE
-                WHEN ae.estado IN (
-                  'Completada',
-                  'Entregada',
-                  'Calificada'
-                )
-                OR COALESCE(
-                  ae.porcentaje_avance,
-                  0
-                ) >= 100
-                THEN 1
-                ELSE 0
-              END
-            ) AS completadas,
-
-            SUM(
-              CASE
-                WHEN ae.estado = 'En_proceso'
-                OR (
-                  COALESCE(
-                    ae.porcentaje_avance,
-                    0
-                  ) > 0
-                  AND COALESCE(
-                    ae.porcentaje_avance,
-                    0
-                  ) < 100
-                )
-                THEN 1
-                ELSE 0
-              END
-            ) AS en_progreso,
-
-            SUM(
-              CASE
-                WHEN ae.estado IN (
-                  'Pendiente',
-                  'Atrasada'
-                )
-                AND COALESCE(
-                  ae.porcentaje_avance,
-                  0
-                ) = 0
-                THEN 1
-                ELSE 0
-              END
-            ) AS pendientes,
-
-            ROUND(
-              COALESCE(
-                AVG(
-                  CASE
-                    WHEN ae.estado IN (
-                      'Completada',
-                      'Entregada',
-                      'Calificada'
-                    )
-                    THEN 100
-                    ELSE COALESCE(
-                      ae.porcentaje_avance,
-                      0
-                    )
-                  END
-                ),
-                0
-              ),
-              1
-            ) AS progreso_general,
-
-            ROUND(
-              COALESCE(
-                AVG(e.calificacion),
-                0
-              ),
-              1
-            ) AS promedio_calificaciones
-
-         FROM actividad_estudiantes ae
-
-         INNER JOIN actividades a
-            ON a.id_actividad =
-               ae.id_actividad
-
-         LEFT JOIN entregas e
-            ON e.id_actividad =
-               a.id_actividad
-           AND e.id_estudiante =
-               ae.id_alumno
-
-         WHERE ae.id_alumno = ?
-           AND a.id_docente = ?
-           AND a.estado = 'Publicada'`,
-        [idAlumnoNumero, idDocente]
-      );
-
+    /*
+     * Obtiene las actividades del alumno en los cursos
+     * correspondientes al docente.
+     *
+     * La entrega se relaciona mediante:
+     *
+     * entregas.id_actividad_estudiante
+     *         ↓
+     * actividad_estudiantes.id_actividad_estudiante
+     *
+     * No se utiliza e.id_actividad porque esa columna
+     * no existe en la tabla entregas.
+     */
     const [actividades] = await pool.query(
-      `SELECT
+      `
+        SELECT
           a.id_actividad,
           a.titulo,
           a.descripcion,
           a.tipo,
-          a.fecha_publicacion,
           a.fecha_limite,
-          a.puntaje_maximo,
 
           ae.estado AS estado_alumno,
-          ae.porcentaje_avance,
-          ae.fecha_inicio,
-          ae.fecha_finalizacion,
-          ae.ultimo_acceso,
 
-          e.id_entrega,
-          e.fecha_entrega,
+          COALESCE(
+            ae.porcentaje_avance,
+            0
+          ) AS porcentaje_avance,
+
           e.calificacion,
-          e.retroalimentacion,
 
-          m.id_materia,
           m.nombre AS materia,
-
-          c.id_curso,
           c.nombre AS curso
 
-       FROM actividad_estudiantes ae
+        FROM actividad_estudiantes AS ae
 
-       INNER JOIN actividades a
+        INNER JOIN actividades AS a
           ON a.id_actividad =
              ae.id_actividad
 
-       INNER JOIN cursos c
-          ON c.id_curso = a.id_curso
+        INNER JOIN cursos AS c
+          ON c.id_curso =
+             a.id_curso
 
-       INNER JOIN materias m
-          ON m.id_materia = c.id_materia
+        INNER JOIN materias AS m
+          ON m.id_materia =
+             c.id_materia
 
-       LEFT JOIN entregas e
-          ON e.id_actividad =
-             a.id_actividad
-         AND e.id_estudiante =
-             ae.id_alumno
+        LEFT JOIN entregas AS e
+          ON e.id_entrega = (
+            SELECT MAX(e2.id_entrega)
+            FROM entregas AS e2
+            WHERE
+              e2.id_actividad_estudiante =
+              ae.id_actividad_estudiante
+          )
 
-       WHERE ae.id_alumno = ?
-         AND a.id_docente = ?
+        WHERE ae.id_alumno = ?
+          AND c.id_docente = ?
+          AND a.estado IN (
+            'Publicada',
+            'Cerrada'
+          )
 
-       ORDER BY
+        ORDER BY
+          a.fecha_limite ASC,
           a.fecha_publicacion DESC,
-          a.id_actividad DESC`,
-      [idAlumnoNumero, idDocente]
+          a.id_actividad DESC
+      `,
+      [
+        idAlumno,
+        idDocente,
+      ]
     );
 
-    const resumen =
-      resumenResultados[0] || {};
+    /*
+     * Calcula el resumen con los resultados obtenidos.
+     */
+    const resumen = actividades.reduce(
+      (acumulado, actividad) => {
+        const estado = String(
+          actividad.estado_alumno ?? ''
+        );
+
+        let porcentaje = Number(
+          actividad.porcentaje_avance ?? 0
+        );
+
+        if (
+          estado === 'Completada' ||
+          estado === 'Entregada' ||
+          estado === 'Calificada'
+        ) {
+          porcentaje = 100;
+        }
+
+        acumulado.total_actividades += 1;
+
+        acumulado.suma_avance += porcentaje;
+
+        if (
+          estado === 'Completada' ||
+          estado === 'Entregada' ||
+          estado === 'Calificada' ||
+          porcentaje >= 100
+        ) {
+          acumulado.completadas += 1;
+        } else if (
+          estado === 'En_proceso' ||
+          (porcentaje > 0 &&
+            porcentaje < 100)
+        ) {
+          acumulado.en_progreso += 1;
+        } else {
+          acumulado.pendientes += 1;
+        }
+
+        if (
+          actividad.calificacion !== null &&
+          actividad.calificacion !== undefined
+        ) {
+          const calificacion = Number(
+            actividad.calificacion
+          );
+
+          if (
+            !Number.isNaN(calificacion)
+          ) {
+            acumulado.suma_calificaciones +=
+              calificacion;
+
+            acumulado.total_calificaciones +=
+              1;
+          }
+        }
+
+        return acumulado;
+      },
+      {
+        total_actividades: 0,
+        completadas: 0,
+        en_progreso: 0,
+        pendientes: 0,
+        suma_avance: 0,
+        suma_calificaciones: 0,
+        total_calificaciones: 0,
+      }
+    );
+
+    const progresoGeneral =
+      resumen.total_actividades > 0
+        ? Number(
+            (
+              resumen.suma_avance /
+              resumen.total_actividades
+            ).toFixed(1)
+          )
+        : 0;
+
+    const promedioCalificaciones =
+      resumen.total_calificaciones > 0
+        ? Number(
+            (
+              resumen.suma_calificaciones /
+              resumen.total_calificaciones
+            ).toFixed(1)
+          )
+        : 0;
 
     return res.status(200).json({
       mensaje:
         'Progreso del estudiante obtenido correctamente',
 
-      alumno: relacion[0],
+      alumno: {
+        id_alumno:
+          alumnos[0].id_alumno,
+
+        nombre_completo:
+          alumnos[0].nombre_completo,
+
+        correo:
+          alumnos[0].correo,
+
+        grupos:
+          alumnos[0].grupos,
+      },
 
       resumen: {
-        total_actividades: Number(
-          resumen.total_actividades || 0
-        ),
+        total_actividades:
+          resumen.total_actividades,
 
-        completadas: Number(
-          resumen.completadas || 0
-        ),
+        completadas:
+          resumen.completadas,
 
-        en_progreso: Number(
-          resumen.en_progreso || 0
-        ),
+        en_progreso:
+          resumen.en_progreso,
 
-        pendientes: Number(
-          resumen.pendientes || 0
-        ),
+        pendientes:
+          resumen.pendientes,
 
-        progreso_general: Number(
-          resumen.progreso_general || 0
-        ),
+        progreso_general:
+          progresoGeneral,
 
-        promedio_calificaciones: Number(
-          resumen.promedio_calificaciones || 0
-        ),
+        promedio_calificaciones:
+          promedioCalificaciones,
       },
 
       actividades: actividades.map(
-        (actividad) => ({
-          ...actividad,
+        (actividad) => {
+          const estado = String(
+            actividad.estado_alumno ?? ''
+          );
 
-          porcentaje_avance: Number(
-            actividad.porcentaje_avance || 0
-          ),
-
-          puntaje_maximo: Number(
-            actividad.puntaje_maximo || 0
-          ),
-
-          calificacion:
-            actividad.calificacion === null
-              ? null
+          const porcentaje =
+            estado === 'Completada' ||
+            estado === 'Entregada' ||
+            estado === 'Calificada'
+              ? 100
               : Number(
-                  actividad.calificacion
-                ),
-        })
+                  actividad
+                    .porcentaje_avance ?? 0
+                );
+
+          return {
+            id_actividad:
+              actividad.id_actividad,
+
+            titulo:
+              actividad.titulo,
+
+            descripcion:
+              actividad.descripcion,
+
+            tipo:
+              actividad.tipo,
+
+            fecha_limite:
+              actividad.fecha_limite,
+
+            estado_alumno:
+              actividad.estado_alumno,
+
+            porcentaje_avance:
+              porcentaje,
+
+            calificacion:
+              actividad.calificacion ===
+                null ||
+              actividad.calificacion ===
+                undefined
+                ? null
+                : Number(
+                    actividad.calificacion
+                  ),
+
+            materia:
+              actividad.materia,
+
+            curso:
+              actividad.curso,
+          };
+        }
       ),
     });
   } catch (error) {
@@ -609,6 +720,7 @@ const obtenerProgresoEstudiante = async (
     return res.status(500).json({
       mensaje:
         'No se pudo obtener el progreso del estudiante',
+
       error: error.message,
     });
   }
