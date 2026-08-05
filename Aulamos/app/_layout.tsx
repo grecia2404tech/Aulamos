@@ -47,6 +47,8 @@ export default function RootLayout() {
         <Stack.Screen name="estudiantes-docente" />
         <Stack.Screen name="menu-docente" />
         <Stack.Screen name="pasar-lista" />
+        <Stack.Screen name="recursos-docente" />
+        <Stack.Screen name="detalle-estudiante" />
       </Stack>
     </AccessibilityProvider>
   );
