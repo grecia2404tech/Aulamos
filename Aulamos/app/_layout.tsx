@@ -53,6 +53,7 @@ export default function RootLayout() {
         <Stack.Screen name="pasar-lista" />
         <Stack.Screen name="recursos-docente" />
         <Stack.Screen name="detalle-estudiante" />
+        <Stack.Screen name="menu-alumno" />
       </Stack>
     </AccessibilityProvider>
   );

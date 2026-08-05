@@ -1,6 +1,10 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
-import { router, useFocusEffect } from "expo-router";
+import {
+  type Href,
+  router,
+  useFocusEffect,
+} from 'expo-router';
 import type { ComponentProps } from "react";
 import { useCallback, useEffect, useState } from "react";
 import {
@@ -922,36 +926,44 @@ export default function InicioAlumnoScreen() {
           ]}
         >
           <View style={styles.navContent}>
-            <BotonNavegacion
-              icono="home"
-              texto="Inicio"
-              activo
-              onPress={() => {}}
-            />
+<BotonNavegacion
+  icono="home"
+  texto="Inicio"
+  activo
+  onPress={() => {}}
+/>
 
-            <BotonNavegacion
-              icono="list-outline"
-              texto="Actividades"
-              onPress={() => router.push("/mis-actividades-alumno")}
-            />
+<BotonNavegacion
+  icono="list-outline"
+  texto="Actividades"
+  onPress={() =>
+    router.push("/mis-actividades-alumno" as Href)
+  }
+/>
 
-            <BotonNavegacion
-              icono="book-outline"
-              texto="Biblioteca"
-              onPress={() => router.push("/bibloteca-alumno")}
-            />
+<BotonNavegacion
+  icono="book-outline"
+  texto="Biblioteca"
+  onPress={() =>
+    router.push("/bibloteca-alumno" as Href)
+  }
+/>
 
-            <BotonNavegacion
-              icono="stats-chart-outline"
-              texto="Avances"
-              onPress={() => router.push("/mis-avances")}
-            />
-            
-            <BotonNavegacion
-              icono="help-circle"
-              texto="Chatbot"
-              onPress={() => router.push("/chatbot")}
-            />
+<BotonNavegacion
+  icono="help-circle"
+  texto="Chatbot"
+  onPress={() =>
+    router.push("/chatbot" as Href)
+  }
+/>
+
+<BotonNavegacion
+  icono="menu-outline"
+  texto="Más"
+  onPress={() =>
+    router.push("/menu-alumno" as Href)
+  }
+/>
           </View>
         </View>
       </View>
