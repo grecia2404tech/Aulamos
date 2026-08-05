@@ -3,6 +3,8 @@ const express = require('express');
 const {
   obtenerInicioDocente,
   obtenerEstudiantesDocente,
+  obtenerRecursosDocente,
+  obtenerProgresoEstudiante,
 } = require('../controllers/docenteController');
 
 const {
@@ -64,6 +66,20 @@ router.get(
   verificarToken,
   verificarRol('Docente'),
   obtenerRendimientoEvaluaciones
+);
+
+router.get(
+  '/recursos',
+  verificarToken,
+  verificarRol('Docente'),
+  obtenerRecursosDocente
+);
+
+router.get(
+  '/estudiantes/:idAlumno/progreso',
+  verificarToken,
+  verificarRol('Docente'),
+  obtenerProgresoEstudiante
 );
 
 module.exports = router;
