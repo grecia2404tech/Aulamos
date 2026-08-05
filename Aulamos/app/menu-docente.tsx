@@ -76,6 +76,13 @@ const OPCIONES_MENU: OpcionMenu[] = [
     ruta: '/estudiantes-docente',
   },
   {
+  id: 'asistencia',
+  titulo: 'Pasar lista',
+  descripcion: 'Registra asistencia, faltas y retardos',
+  icono: 'checkbox-outline',
+  ruta: '/pasar-lista' as Href,
+  },
+  {
     id: 'reportes',
     titulo: 'Reportes',
     descripcion: 'Revisa resultados y rendimiento',

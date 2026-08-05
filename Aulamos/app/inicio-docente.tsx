@@ -1158,6 +1158,17 @@ export default function InicioDocenteScreen() {
                   )
                 }
               />
+
+              <QuickAction
+  style={responsive.botonRapido}
+  text="Pasar lista"
+  subtitle="Registra la asistencia"
+  icon="checkbox-outline"
+  backgroundColor="#0F766E"
+  onPress={() =>
+    navegar('/pasar-lista', 'Pasar lista')
+  }
+/>
             </View>
 
             <View
