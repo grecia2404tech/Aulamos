@@ -1227,6 +1227,100 @@ export default function DetalleActividadScreen() {
                 }
               />
 
+              {actividad.recurso ? (
+  <View
+    style={[
+      styles.contentCard,
+      {
+        backgroundColor: colores.tarjeta,
+        borderColor: colores.borde,
+      },
+    ]}
+  >
+    <View style={styles.contentCardHeader}>
+      <Ionicons
+        name="document-text-outline"
+        size={21}
+        color={colorPrincipal}
+      />
+
+      <Text
+        style={[
+          styles.contentCardTitle,
+          {
+            color: colores.texto,
+            fontSize: 16 * escalaTexto,
+          },
+        ]}
+      >
+        Material de apoyo
+      </Text>
+    </View>
+
+    <Text
+      style={[
+        styles.contentCardText,
+        {
+          color: colores.texto,
+          fontSize: 15 * escalaTexto,
+        },
+      ]}
+    >
+      {actividad.recurso.titulo}
+    </Text>
+
+    {actividad.recurso.descripcion ? (
+      <Text
+        style={[
+          styles.contentCardText,
+          {
+            color: colores.textoSecundario,
+            fontSize: 13 * escalaTexto,
+            marginTop: 6,
+          },
+        ]}
+      >
+        {actividad.recurso.descripcion}
+      </Text>
+    ) : null}
+
+    <TouchableOpacity
+      style={[
+        styles.submitButton,
+        {
+          backgroundColor: colorPrincipal,
+          marginTop: 15,
+        },
+      ]}
+      onPress={() => {
+        if (actividad.recurso?.url_recurso) {
+          abrirArchivo(
+            actividad.recurso.url_recurso
+          );
+        } else if (
+          actividad.recurso?.archivo
+        ) {
+          abrirArchivo(
+            actividad.recurso.archivo
+          );
+        }
+      }}
+    >
+      <Ionicons
+        name="download-outline"
+        size={18}
+        color="#FFFFFF"
+      />
+
+      <Text
+        style={styles.submitButtonText}
+      >
+        Ver recurso
+      </Text>
+    </TouchableOpacity>
+  </View>
+) : null}
+
               {vista === 'Alumno' ? (
                 <View
                   style={[
