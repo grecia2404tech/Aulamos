@@ -3,8 +3,6 @@ const express = require('express');
 const {
   obtenerInicioAlumno,
   obtenerAvancesAlumno,
-  obtenerDetalleActividadAlumno,
-  obtenerBibliotecaAlumno,
 } = require('../controllers/alumnoController');
 
 const verificarToken = require(
@@ -43,30 +41,7 @@ router.get(
   obtenerAvancesAlumno
 );
 
-/*
-|--------------------------------------------------------------------------
-| Detalle de una actividad
-|--------------------------------------------------------------------------
-*/
 
-router.get(
-  '/actividades/:idActividad',
-  verificarToken,
-  verificarRol('Alumno'),
-  obtenerDetalleActividadAlumno
-);
 
-/*
-|--------------------------------------------------------------------------
-| Biblioteca digital
-|--------------------------------------------------------------------------
-*/
-
-router.get(
-  '/biblioteca',
-  verificarToken,
-  verificarRol('Alumno'),
-  obtenerBibliotecaAlumno
-);
 
 module.exports = router;

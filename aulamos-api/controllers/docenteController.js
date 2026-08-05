@@ -286,7 +286,7 @@ const obtenerRecursosDocente = async (req, res) => {
           ON a.id_actividad = r.id_actividad
 
        WHERE r.id_docente = ?
-       AND r.estado = 'Activo'
+       
 
        ORDER BY
           r.fecha_publicacion DESC,
