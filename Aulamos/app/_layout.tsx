@@ -30,6 +30,7 @@ export default function RootLayout() {
         <Stack.Screen name="admin-inscripciones" />
         <Stack.Screen name="crear-recurso" />
         <Stack.Screen name="crear-actividad" />
+        <Stack.Screen name="crear-evaluacion"/>
         <Stack.Screen name="mis-actividades-alumno" />
         <Stack.Screen name="detalle-actividad" />
         <Stack.Screen name="calificar-entrega" />
@@ -37,6 +38,7 @@ export default function RootLayout() {
 
         <Stack.Screen name="bibloteca-alumno" />
         <Stack.Screen name="reproductor-video" />
+     
 
         <Stack.Screen name="accesibilidad" />
         <Stack.Screen name="mis-avances" />
@@ -45,6 +47,8 @@ export default function RootLayout() {
         <Stack.Screen name="reporte-rendimiento-evaluacion" />
         <Stack.Screen name="reporte-asistencia" />
         <Stack.Screen name="estudiantes-docente" />
+        <Stack.Screen name="evaluaciones-alumno"/>
+
         <Stack.Screen name="menu-docente" />
         <Stack.Screen name="pasar-lista" />
         <Stack.Screen name="recursos-docente" />

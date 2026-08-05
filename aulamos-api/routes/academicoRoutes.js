@@ -61,6 +61,7 @@ const {
 const {
   crearEntregaActividad,
   listarEntregasActividad,
+  obtenerRespuestasEvaluacionEntrega,
   calificarEntrega,
 } = require('../controllers/entregaController');
 
@@ -391,7 +392,7 @@ router.post(
 );
 
 /*
- * ACTIVIDADES
+ * ACTIVIDADES Y ENTREGAS
  */
 
 router.get(
@@ -428,6 +429,17 @@ router.get(
   verificarToken,
   verificarRol('Docente'),
   listarEntregasActividad
+);
+
+/*
+ * Permite al docente consultar las respuestas
+ * que el alumno envió en una evaluación.
+ */
+router.get(
+  '/entregas/:id/respuestas-evaluacion',
+  verificarToken,
+  verificarRol('Docente'),
+  obtenerRespuestasEvaluacionEntrega
 );
 
 router.patch(

@@ -10,6 +10,7 @@ const authRoutes = require("./routes/authRoutes");
 const docenteRoutes = require("./routes/docenteRoutes");
 const alumnoRoutes = require("./routes/alumnoRoutes");
 const academicoRoutes = require("./routes/academicoRoutes");
+const evaluacionRoutes = require("./routes/evaluacionRoutes");
 const chatbotRoutes = require("./routes/chatbotRoutes");
 
 const app = express();
@@ -51,7 +52,9 @@ app.use("/api/auth", authRoutes);
 app.use("/api/docente", docenteRoutes);
 app.use("/api/alumno", alumnoRoutes);
 app.use("/api/academico", academicoRoutes);
+app.use("/api/evaluaciones",evaluacionRoutes);
 app.use("/api/chatbot", chatbotRoutes);
+
 
 app.get("/", async (_req, res) => {
   try {

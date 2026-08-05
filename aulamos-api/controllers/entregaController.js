@@ -1,5 +1,4 @@
 const fs = require("fs/promises");
-
 const pool = require("../config/database");
 
 const obtenerIdUsuario = (req) =>
@@ -13,15 +12,10 @@ const obtenerIdUsuario = (req) =>
 const esIdValido = (valor) => {
   const numero = Number(valor);
 
-  return (
-    Number.isInteger(numero) &&
-    numero > 0
-  );
+  return Number.isInteger(numero) && numero > 0;
 };
 
-const eliminarArchivoFisico = async (
-  archivo
-) => {
+const eliminarArchivoFisico = async (archivo) => {
   if (!archivo?.path) {
     return;
   }
@@ -38,10 +32,7 @@ const eliminarArchivoFisico = async (
   }
 };
 
-const construirUrlPublica = (
-  req,
-  ruta
-) => {
+const construirUrlPublica = (req, ruta) => {
   if (!ruta) {
     return null;
   }
@@ -50,14 +41,44 @@ const construirUrlPublica = (
     return ruta;
   }
 
-  const rutaNormalizada =
-    ruta.startsWith("/")
-      ? ruta
-      : `/${ruta}`;
+  const rutaNormalizada = ruta.startsWith("/")
+    ? ruta
+    : `/${ruta}`;
 
   return `${req.protocol}://${req.get(
     "host"
   )}${rutaNormalizada}`;
+};
+
+/*
+ * Los campos JSON de MySQL pueden llegar como
+ * objetos o cadenas, según la configuración de mysql2.
+ */
+const normalizarJson = (valor) => {
+  if (!valor) {
+    return {};
+  }
+
+  if (typeof valor === "object") {
+    return valor;
+  }
+
+  try {
+    return JSON.parse(valor);
+  } catch {
+    return {};
+  }
+};
+
+const normalizarBooleano = (valor) =>
+  [true, 1, "1", "true"].includes(valor);
+
+const normalizarBooleanoNullable = (valor) => {
+  if (valor === null || valor === undefined) {
+    return null;
+  }
+
+  return normalizarBooleano(valor);
 };
 
 /*
@@ -66,31 +87,20 @@ const construirUrlPublica = (
  * Recibe multipart/form-data:
  * - archivo: Word, PDF, PNG, JPG o Excel (opcional)
  * - texto_entrega: comentario del alumno (opcional)
- *
- * Debe existir por lo menos uno de los dos campos.
  */
-const crearEntregaActividad = async (
-  req,
-  res
-) => {
+const crearEntregaActividad = async (req, res) => {
   let conexion;
 
   try {
-    const idAlumno =
-      obtenerIdUsuario(req);
-
-    const idActividad = Number(
-      req.params.id
-    );
+    const idAlumno = obtenerIdUsuario(req);
+    const idActividad = Number(req.params.id);
 
     const textoEntrega = String(
       req.body.texto_entrega ?? ""
     ).trim();
 
     if (!esIdValido(idAlumno)) {
-      await eliminarArchivoFisico(
-        req.file
-      );
+      await eliminarArchivoFisico(req.file);
 
       return res.status(401).json({
         mensaje:
@@ -99,9 +109,7 @@ const crearEntregaActividad = async (
     }
 
     if (!esIdValido(idActividad)) {
-      await eliminarArchivoFisico(
-        req.file
-      );
+      await eliminarArchivoFisico(req.file);
 
       return res.status(400).json({
         mensaje:
@@ -117,9 +125,7 @@ const crearEntregaActividad = async (
     }
 
     if (textoEntrega.length > 5000) {
-      await eliminarArchivoFisico(
-        req.file
-      );
+      await eliminarArchivoFisico(req.file);
 
       return res.status(400).json({
         mensaje:
@@ -127,43 +133,40 @@ const crearEntregaActividad = async (
       });
     }
 
-    const [asignaciones] =
-      await pool.query(
-        `
-          SELECT
-            ae.id_actividad_estudiante,
-            ae.estado AS estado_alumno,
-            a.estado AS estado_actividad,
-            a.fecha_limite,
-            a.permite_entrega_archivo,
-            (
-              SELECT e.estado
-              FROM entregas AS e
-              WHERE
-                e.id_actividad_estudiante =
-                  ae.id_actividad_estudiante
-              ORDER BY e.id_entrega DESC
-              LIMIT 1
-            ) AS estado_ultima_entrega
+    const [asignaciones] = await pool.query(
+      `
+        SELECT
+          ae.id_actividad_estudiante,
+          ae.estado AS estado_alumno,
+          a.estado AS estado_actividad,
+          a.fecha_limite,
+          a.permite_entrega_archivo,
+          (
+            SELECT e.estado
+            FROM entregas AS e
+            WHERE
+              e.id_actividad_estudiante =
+                ae.id_actividad_estudiante
+            ORDER BY e.id_entrega DESC
+            LIMIT 1
+          ) AS estado_ultima_entrega
 
-          FROM actividad_estudiantes AS ae
+        FROM actividad_estudiantes AS ae
 
-          INNER JOIN actividades AS a
-            ON a.id_actividad =
-              ae.id_actividad
+        INNER JOIN actividades AS a
+          ON a.id_actividad =
+            ae.id_actividad
 
-          WHERE ae.id_actividad = ?
-            AND ae.id_alumno = ?
+        WHERE ae.id_actividad = ?
+          AND ae.id_alumno = ?
 
-          LIMIT 1
-        `,
-        [idActividad, idAlumno]
-      );
+        LIMIT 1
+      `,
+      [idActividad, idAlumno]
+    );
 
     if (asignaciones.length === 0) {
-      await eliminarArchivoFisico(
-        req.file
-      );
+      await eliminarArchivoFisico(req.file);
 
       return res.status(404).json({
         mensaje:
@@ -171,16 +174,12 @@ const crearEntregaActividad = async (
       });
     }
 
-    const asignacion =
-      asignaciones[0];
+    const asignacion = asignaciones[0];
 
     if (
-      asignacion.estado_actividad !==
-      "Publicada"
+      asignacion.estado_actividad !== "Publicada"
     ) {
-      await eliminarArchivoFisico(
-        req.file
-      );
+      await eliminarArchivoFisico(req.file);
 
       return res.status(409).json({
         mensaje:
@@ -192,9 +191,7 @@ const crearEntregaActividad = async (
       asignacion.estado_ultima_entrega ===
       "Calificada"
     ) {
-      await eliminarArchivoFisico(
-        req.file
-      );
+      await eliminarArchivoFisico(req.file);
 
       return res.status(409).json({
         mensaje:
@@ -208,9 +205,7 @@ const crearEntregaActividad = async (
         asignacion.permite_entrega_archivo
       ) !== 1
     ) {
-      await eliminarArchivoFisico(
-        req.file
-      );
+      await eliminarArchivoFisico(req.file);
 
       return res.status(400).json({
         mensaje:
@@ -223,8 +218,7 @@ const crearEntregaActividad = async (
         asignacion.fecha_limite
       ).getTime() < Date.now();
 
-    conexion =
-      await pool.getConnection();
+    conexion = await pool.getConnection();
 
     await conexion.beginTransaction();
 
@@ -580,17 +574,370 @@ const listarEntregasActividad = async (
 };
 
 /*
+ * GET /api/academico/entregas/:id/respuestas-evaluacion
+ *
+ * Permite al docente consultar, pregunta por
+ * pregunta, las respuestas de una evaluación.
+ */
+const obtenerRespuestasEvaluacionEntrega =
+  async (req, res) => {
+    try {
+      const idDocente =
+        obtenerIdUsuario(req);
+
+      const idEntrega = Number(
+        req.params.id
+      );
+
+      if (!esIdValido(idDocente)) {
+        return res.status(401).json({
+          mensaje:
+            "No se pudo identificar al docente autenticado.",
+        });
+      }
+
+      if (!esIdValido(idEntrega)) {
+        return res.status(400).json({
+          mensaje:
+            "La entrega indicada no es válida.",
+        });
+      }
+
+      const [filas] = await pool.query(
+        `
+          SELECT
+            e.id_entrega,
+            e.fecha_entrega,
+            e.estado AS estado_entrega,
+            e.calificacion,
+            e.retroalimentacion,
+            e.respuestas_evaluacion,
+
+            ae.id_alumno,
+
+            a.id_actividad,
+            a.titulo,
+            a.tipo AS tipo_actividad,
+            a.puntaje_maximo,
+            a.configuracion_evaluacion,
+
+            m.nombre AS materia,
+
+            CONCAT_WS(
+              ' ',
+              u.nombre,
+              u.apellido_paterno,
+              u.apellido_materno
+            ) AS nombre_alumno
+
+          FROM entregas AS e
+
+          INNER JOIN actividad_estudiantes AS ae
+            ON ae.id_actividad_estudiante =
+               e.id_actividad_estudiante
+
+          INNER JOIN actividades AS a
+            ON a.id_actividad =
+               ae.id_actividad
+
+          INNER JOIN cursos AS c
+            ON c.id_curso = a.id_curso
+
+          INNER JOIN materias AS m
+            ON m.id_materia = c.id_materia
+
+          INNER JOIN usuarios AS u
+            ON u.id_usuario = ae.id_alumno
+
+          WHERE e.id_entrega = ?
+            AND a.id_docente = ?
+
+          LIMIT 1
+        `,
+        [idEntrega, idDocente]
+      );
+
+      if (filas.length === 0) {
+        return res.status(404).json({
+          mensaje:
+            "La entrega no existe o no pertenece a una actividad de este docente.",
+        });
+      }
+
+      const fila = filas[0];
+
+      const entregaBase = {
+        id_entrega: fila.id_entrega,
+        id_actividad: fila.id_actividad,
+        id_alumno: fila.id_alumno,
+        nombre_alumno:
+          fila.nombre_alumno,
+        titulo_actividad: fila.titulo,
+        materia: fila.materia,
+        fecha_entrega:
+          fila.fecha_entrega,
+        estado: fila.estado_entrega,
+        calificacion:
+          fila.calificacion === null
+            ? null
+            : Number(fila.calificacion),
+        retroalimentacion:
+          fila.retroalimentacion,
+        puntaje_maximo: Number(
+          fila.puntaje_maximo ?? 0
+        ),
+      };
+
+      /*
+       * Si es una actividad normal, no existen
+       * respuestas de evaluación.
+       */
+      if (
+        fila.tipo_actividad !==
+        "Evaluacion"
+      ) {
+        return res.status(200).json({
+          es_evaluacion: false,
+          entrega: entregaBase,
+          respuestas: [],
+        });
+      }
+
+      const configuracion =
+        normalizarJson(
+          fila.configuracion_evaluacion
+        );
+
+      const intento = normalizarJson(
+        fila.respuestas_evaluacion
+      );
+
+      const preguntas = Array.isArray(
+        configuracion.preguntas
+      )
+        ? configuracion.preguntas
+        : [];
+
+      const respuestasGuardadas =
+        Array.isArray(intento.respuestas)
+          ? intento.respuestas
+          : [];
+
+      const respuestasPorPregunta =
+        new Map(
+          respuestasGuardadas.map(
+            (respuesta) => [
+              Number(
+                respuesta.id_pregunta
+              ),
+              respuesta,
+            ]
+          )
+        );
+
+      const respuestas = preguntas
+        .map((pregunta, indice) => {
+          const idPregunta = Number(
+            pregunta.id_pregunta ??
+              indice + 1
+          );
+
+          const respuesta =
+            respuestasPorPregunta.get(
+              idPregunta
+            );
+
+          const opciones = Array.isArray(
+            pregunta.opciones
+          )
+            ? pregunta.opciones
+            : [];
+
+          const idOpcion = Number(
+            respuesta?.id_opcion ?? 0
+          );
+
+          const opcionSeleccionada =
+            opciones.find(
+              (opcion) =>
+                Number(
+                  opcion.id_opcion
+                ) === idOpcion
+            );
+
+          const opcionCorrecta =
+            opciones.find((opcion) =>
+              normalizarBooleano(
+                opcion.es_correcta
+              )
+            );
+
+          const esRespuestaCorta =
+            pregunta.tipo ===
+            "RespuestaCorta";
+
+          const respuestaTexto =
+            esRespuestaCorta
+              ? String(
+                  respuesta
+                    ?.respuesta_texto ??
+                    ""
+                ).trim() || null
+              : opcionSeleccionada
+                ? String(
+                    opcionSeleccionada
+                      .texto ?? ""
+                  ).trim() || null
+                : null;
+
+          const puntajeObtenido =
+            respuesta?.puntaje_obtenido ===
+                null ||
+              respuesta?.puntaje_obtenido ===
+                undefined
+              ? null
+              : Number(
+                  respuesta
+                    .puntaje_obtenido
+                );
+
+          return {
+            id_pregunta: idPregunta,
+
+            orden: Number(
+              pregunta.orden ??
+                indice + 1
+            ),
+
+            pregunta: String(
+              pregunta.texto ?? ""
+            ).trim(),
+
+            tipo: String(
+              pregunta.tipo ?? ""
+            ),
+
+            puntaje: Number(
+              pregunta.puntaje ?? 0
+            ),
+
+            obligatoria:
+              normalizarBooleano(
+                pregunta.obligatoria
+              ),
+
+            id_opcion:
+              esIdValido(idOpcion)
+                ? idOpcion
+                : null,
+
+            respuesta:
+              respuestaTexto,
+
+            respuesta_correcta:
+              esRespuestaCorta
+                ? null
+                : String(
+                    opcionCorrecta
+                      ?.texto ?? ""
+                  ).trim() || null,
+
+            es_correcta:
+              normalizarBooleanoNullable(
+                respuesta?.es_correcta
+              ),
+
+            puntaje_obtenido:
+              Number.isFinite(
+                puntajeObtenido
+              )
+                ? puntajeObtenido
+                : null,
+
+            pendiente_revision:
+              esRespuestaCorta &&
+              Boolean(respuestaTexto) &&
+              respuesta?.es_correcta ==
+                null,
+          };
+        })
+        .sort(
+          (a, b) => a.orden - b.orden
+        );
+
+      return res.status(200).json({
+        es_evaluacion: true,
+
+        entrega: entregaBase,
+
+        evaluacion: {
+          id_actividad:
+            fila.id_actividad,
+          titulo: fila.titulo,
+          materia: fila.materia,
+          puntaje_maximo: Number(
+            fila.puntaje_maximo ?? 0
+          ),
+          total_preguntas:
+            respuestas.length,
+        },
+
+        intento: {
+          numero_intento: Number(
+            intento.numero_intento ?? 1
+          ),
+
+          fecha_envio:
+            intento.fecha_envio ??
+            fila.fecha_entrega,
+
+          requiere_revision:
+            normalizarBooleano(
+              intento.requiere_revision
+            ),
+
+          puntaje_obtenido_automatico:
+            Number(
+              intento
+                .puntaje_obtenido_automatico ??
+                0
+            ),
+
+          puntaje_total: Number(
+            intento.puntaje_total ??
+              fila.puntaje_maximo ??
+              0
+          ),
+        },
+
+        respuestas,
+      });
+    } catch (error) {
+      console.error(
+        "Error al consultar las respuestas de la evaluación:",
+        error
+      );
+
+      return res.status(500).json({
+        mensaje:
+          "No se pudieron consultar las respuestas de la evaluación.",
+      });
+    }
+  };
+
+/*
  * PATCH /api/academico/entregas/:id/calificar
  *
- * El docente califica la entrega más reciente de un alumno.
- * Recibe JSON:
- * - calificacion: número entre 0 y el puntaje máximo
- * - retroalimentacion: comentario opcional
+ * El docente califica la entrega más reciente.
  */
 const calificarEntrega = async (req, res) => {
   try {
-    const idDocente = obtenerIdUsuario(req);
-    const idEntrega = Number(req.params.id);
+    const idDocente =
+      obtenerIdUsuario(req);
+
+    const idEntrega = Number(
+      req.params.id
+    );
 
     const valorRecibido =
       req.body.calificacion;
@@ -669,7 +1016,8 @@ const calificarEntrega = async (req, res) => {
             e.id_actividad_estudiante
 
         INNER JOIN actividades AS a
-          ON a.id_actividad = ae.id_actividad
+          ON a.id_actividad =
+            ae.id_actividad
 
         INNER JOIN usuarios AS u
           ON u.id_usuario = ae.id_alumno
@@ -696,6 +1044,7 @@ const calificarEntrega = async (req, res) => {
     }
 
     const entrega = entregas[0];
+
     const puntajeMaximo = Number(
       entrega.puntaje_maximo ?? 100
     );
@@ -742,17 +1091,24 @@ const calificarEntrega = async (req, res) => {
         entrega.estado === "Calificada"
           ? "La calificación se actualizó correctamente."
           : "La entrega se calificó correctamente.",
+
       entrega: {
         id_entrega: idEntrega,
-        id_actividad: entrega.id_actividad,
-        id_alumno: entrega.id_alumno,
-        nombre_alumno: entrega.nombre_alumno,
-        calificacion: calificacionFinal,
-        puntaje_maximo: puntajeMaximo,
+        id_actividad:
+          entrega.id_actividad,
+        id_alumno:
+          entrega.id_alumno,
+        nombre_alumno:
+          entrega.nombre_alumno,
+        calificacion:
+          calificacionFinal,
+        puntaje_maximo:
+          puntajeMaximo,
         retroalimentacion:
           retroalimentacion || null,
         estado: "Calificada",
-        calificado_por: idDocente,
+        calificado_por:
+          idDocente,
       },
     });
   } catch (error) {
@@ -771,5 +1127,6 @@ const calificarEntrega = async (req, res) => {
 module.exports = {
   crearEntregaActividad,
   listarEntregasActividad,
+  obtenerRespuestasEvaluacionEntrega,
   calificarEntrega,
 };
