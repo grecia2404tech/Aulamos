@@ -30,7 +30,7 @@ router.get(
 
 /*
 |--------------------------------------------------------------------------
-| Avances
+| Avances del alumno
 |--------------------------------------------------------------------------
 */
 
@@ -40,8 +40,5 @@ router.get(
   verificarRol('Alumno'),
   obtenerAvancesAlumno
 );
-
-
-
 
 module.exports = router;

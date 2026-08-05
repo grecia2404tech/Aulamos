@@ -387,5 +387,4 @@ const obtenerAvancesAlumno = async (req, res) => {
 module.exports = {
   obtenerInicioAlumno,
   obtenerAvancesAlumno,
-  
 };

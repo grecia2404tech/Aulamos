@@ -1,16 +1,10 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
-import {
-  File,
-  Paths,
-} from 'expo-file-system';
-import {
-  router,
-  useLocalSearchParams,
-} from 'expo-router';
+import { File, Paths } from 'expo-file-system';
+import { router, useLocalSearchParams } from 'expo-router';
 import * as Sharing from 'expo-sharing';
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -30,15 +24,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import BotonAccesibilidad from '../components/BotonAccesibilidad';
 import { useAccessibility } from '../contexts/AccessibilityContext';
-import {
-  api,
-  API_URL,
-} from '../services/api';
+import { api, API_URL } from '../services/api';
 
-type Parametro =
-  | string
-  | string[]
-  | undefined;
+type Parametro = string | string[] | undefined;
 
 type ParametrosCalificacion = {
   id_entrega?: Parametro;
@@ -72,9 +60,41 @@ type RespuestaCalificacion = {
   };
 };
 
-const obtenerParametro = (
-  valor: Parametro,
-) => {
+type RespuestaPreguntaEvaluacion = {
+  id_pregunta: number;
+  orden: number;
+  pregunta: string;
+  tipo: string;
+  puntaje: number;
+  obligatoria: boolean;
+  id_opcion?: number | null;
+  respuesta?: string | null;
+  respuesta_correcta?: string | null;
+  es_correcta?: boolean | null;
+  puntaje_obtenido?: number | null;
+  pendiente_revision?: boolean;
+};
+
+type RespuestaEvaluacionEntrega = {
+  mensaje?: string;
+  es_evaluacion: boolean;
+  entrega?: {
+    calificacion?: number | null;
+    retroalimentacion?: string | null;
+  };
+  evaluacion?: {
+    total_preguntas?: number;
+    puntaje_maximo?: number;
+  };
+  intento?: {
+    requiere_revision?: boolean;
+    puntaje_obtenido_automatico?: number;
+    puntaje_total?: number;
+  };
+  respuestas?: RespuestaPreguntaEvaluacion[];
+};
+
+const obtenerParametro = (valor: Parametro) => {
   if (Array.isArray(valor)) {
     return valor[0] ?? '';
   }
@@ -82,50 +102,35 @@ const obtenerParametro = (
   return valor ?? '';
 };
 
-const normalizarFecha = (
-  fecha: string,
-) => {
+const normalizarFecha = (fecha: string) => {
   if (!fecha) {
     return null;
   }
 
   const resultado = new Date(
-    fecha.includes('T')
-      ? fecha
-      : fecha.replace(' ', 'T'),
+    fecha.includes('T') ? fecha : fecha.replace(' ', 'T'),
   );
 
-  return Number.isNaN(
-    resultado.getTime(),
-  )
-    ? null
-    : resultado;
+  return Number.isNaN(resultado.getTime()) ? null : resultado;
 };
 
-const mostrarFecha = (
-  fecha: string,
-) => {
+const mostrarFecha = (fecha: string) => {
   const valor = normalizarFecha(fecha);
 
   if (!valor) {
     return 'Fecha no disponible';
   }
 
-  return valor.toLocaleString(
-    'es-MX',
-    {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    },
-  );
+  return valor.toLocaleString('es-MX', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 };
 
-const urlPublica = (
-  ruta: string,
-) => {
+const urlPublica = (ruta: string) => {
   if (!ruta) {
     return '';
   }
@@ -134,46 +139,24 @@ const urlPublica = (
     return ruta;
   }
 
-  const servidor = API_URL.replace(
-    /\/api\/?$/,
-    '',
-  );
+  const servidor = API_URL.replace(/\/api\/?$/, '');
 
-  return `${servidor}${
-    ruta.startsWith('/')
-      ? ruta
-      : `/${ruta}`
-  }`;
+  return `${servidor}${ruta.startsWith('/') ? ruta : `/${ruta}`}`;
 };
 
-const obtenerExtension = (
-  nombre: string,
-) =>
-  nombre
-    .toLowerCase()
-    .match(/\.[a-z0-9]+$/)?.[0] ?? '';
+const obtenerExtension = (nombre: string) =>
+  nombre.toLowerCase().match(/\.[a-z0-9]+$/)?.[0] ?? '';
 
-const esImagen = (
-  nombre: string,
-  tipo: string,
-) =>
+const esImagen = (nombre: string, tipo: string) =>
   tipo.startsWith('image/') ||
-  [
-    '.png',
-    '.jpg',
-    '.jpeg',
-  ].includes(obtenerExtension(nombre));
+  ['.png', '.jpg', '.jpeg'].includes(obtenerExtension(nombre));
 
-const obtenerMime = (
-  nombre: string,
-  tipo: string,
-) => {
+const obtenerMime = (nombre: string, tipo: string) => {
   if (tipo) {
     return tipo;
   }
 
-  const extension =
-    obtenerExtension(nombre);
+  const extension = obtenerExtension(nombre);
 
   const tipos: Record<string, string> = {
     '.pdf': 'application/pdf',
@@ -183,34 +166,22 @@ const obtenerMime = (
     '.doc': 'application/msword',
     '.docx':
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    '.xls':
-      'application/vnd.ms-excel',
+    '.xls': 'application/vnd.ms-excel',
     '.xlsx':
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   };
 
-  return (
-    tipos[extension] ||
-    'application/octet-stream'
-  );
+  return tipos[extension] || 'application/octet-stream';
 };
 
-const limpiarNombreArchivo = (
-  nombre: string,
-) => {
-  const limpio = nombre
-    .replace(/[^a-zA-Z0-9._-]/g, '_')
-    .slice(-120);
+const limpiarNombreArchivo = (nombre: string) => {
+  const limpio = nombre.replace(/[^a-zA-Z0-9._-]/g, '_').slice(-120);
 
   return limpio || 'entrega';
 };
 
-const obtenerMensajeError = (
-  error: unknown,
-) => {
-  if (axios.isAxiosError<RespuestaError>(
-    error,
-  )) {
+const obtenerMensajeError = (error: unknown) => {
+  if (axios.isAxiosError<RespuestaError>(error)) {
     return (
       error.response?.data?.mensaje ||
       error.response?.data?.error ||
@@ -228,130 +199,84 @@ const obtenerMensajeError = (
 };
 
 export default function CalificarEntregaScreen() {
-  const parametros =
-    useLocalSearchParams<ParametrosCalificacion>();
+  const parametros = useLocalSearchParams<ParametrosCalificacion>();
 
-  const idEntrega = Number(
-    obtenerParametro(
-      parametros.id_entrega,
-    ),
-  );
+  const idEntrega = Number(obtenerParametro(parametros.id_entrega));
 
-  const nombreAlumno =
-    obtenerParametro(
-      parametros.nombre_alumno,
-    ) || 'Alumno';
+  const nombreAlumno = obtenerParametro(parametros.nombre_alumno) || 'Alumno';
 
   const tituloActividad =
-    obtenerParametro(
-      parametros.titulo_actividad,
-    ) || 'Actividad';
+    obtenerParametro(parametros.titulo_actividad) || 'Actividad';
 
-  const materia = obtenerParametro(
-    parametros.materia,
-  );
+  const materia = obtenerParametro(parametros.materia);
 
-  const puntajeRecibido = Number(
-    obtenerParametro(
-      parametros.puntaje_maximo,
-    ),
-  );
+  const puntajeRecibido = Number(obtenerParametro(parametros.puntaje_maximo));
 
   const puntajeMaximo =
-    Number.isFinite(puntajeRecibido) &&
-    puntajeRecibido > 0
+    Number.isFinite(puntajeRecibido) && puntajeRecibido > 0
       ? puntajeRecibido
       : 100;
 
-  const fechaEntrega =
-    obtenerParametro(
-      parametros.fecha_entrega,
-    );
+  const fechaEntrega = obtenerParametro(parametros.fecha_entrega);
 
   const estadoInicial =
-    obtenerParametro(
-      parametros.estado_entrega,
-    ) || 'Entregada';
+    obtenerParametro(parametros.estado_entrega) || 'Entregada';
 
-  const fueraDeTiempo =
-    obtenerParametro(
-      parametros.fuera_de_tiempo,
-    ) === '1';
+  const fueraDeTiempo = obtenerParametro(parametros.fuera_de_tiempo) === '1';
 
-  const textoEntrega =
-    obtenerParametro(
-      parametros.texto_entrega,
-    );
+  const textoEntrega = obtenerParametro(parametros.texto_entrega);
 
-  const nombreArchivo =
-    obtenerParametro(
-      parametros.nombre_archivo,
-    );
+  const nombreArchivo = obtenerParametro(parametros.nombre_archivo);
 
-  const tipoArchivo =
-    obtenerParametro(
-      parametros.tipo_archivo,
-    );
+  const tipoArchivo = obtenerParametro(parametros.tipo_archivo);
 
-  const rutaArchivo =
-    obtenerParametro(
-      parametros.url_archivo,
-    );
+  const rutaArchivo = obtenerParametro(parametros.url_archivo);
 
-  const archivoPublico =
-    urlPublica(rutaArchivo);
+  const archivoPublico = urlPublica(rutaArchivo);
 
   const tieneImagen = Boolean(
-    archivoPublico &&
-      esImagen(
-        nombreArchivo,
-        tipoArchivo,
-      ),
+    archivoPublico && esImagen(nombreArchivo, tipoArchivo),
   );
 
-  const [calificacion, setCalificacion] =
-    useState(
-      obtenerParametro(
-        parametros.calificacion,
-      ),
-    );
-
-  const [retroalimentacion,
-    setRetroalimentacion] = useState(
-    obtenerParametro(
-      parametros.retroalimentacion,
-    ),
+  const [calificacion, setCalificacion] = useState(
+    obtenerParametro(parametros.calificacion),
   );
 
-  const [estadoEntrega,
-    setEstadoEntrega] = useState(
-    estadoInicial,
+  const [retroalimentacion, setRetroalimentacion] = useState(
+    obtenerParametro(parametros.retroalimentacion),
   );
 
-  const [guardando, setGuardando] =
-    useState(false);
+  const [estadoEntrega, setEstadoEntrega] = useState(estadoInicial);
 
-  const [abriendo, setAbriendo] =
-    useState(false);
+  const [guardando, setGuardando] = useState(false);
 
-  const { width } =
-    useWindowDimensions();
+  const [abriendo, setAbriendo] = useState(false);
 
-  const insets =
-    useSafeAreaInsets();
+  const [cargandoRespuestas, setCargandoRespuestas] = useState(true);
 
-  const {
-    colores,
-    escalaTexto,
-    preferencias,
-  } = useAccessibility();
+  const [errorRespuestas, setErrorRespuestas] = useState('');
 
-  const altoContraste =
-    preferencias.altoContraste;
+  const [esEvaluacion, setEsEvaluacion] = useState<boolean | null>(null);
 
-  const temaOscuro =
-    preferencias.modoOscuro ||
-    altoContraste;
+  const [respuestasEvaluacion, setRespuestasEvaluacion] = useState<
+    RespuestaPreguntaEvaluacion[]
+  >([]);
+
+  const [requiereRevision, setRequiereRevision] = useState(false);
+
+  const [puntajeAutomatico, setPuntajeAutomatico] = useState<number | null>(
+    null,
+  );
+
+  const { width } = useWindowDimensions();
+
+  const insets = useSafeAreaInsets();
+
+  const { colores, escalaTexto, preferencias } = useAccessibility();
+
+  const altoContraste = preferencias.altoContraste;
+
+  const temaOscuro = preferencias.modoOscuro || altoContraste;
 
   const colorPrincipal = altoContraste
     ? colores.primario
@@ -365,13 +290,9 @@ export default function CalificarEntregaScreen() {
       ? '#4ADE80'
       : '#16865B';
 
-  const margenHorizontal =
-    width < 360 ? 14 : 20;
+  const margenHorizontal = width < 360 ? 14 : 20;
 
-  const anchoContenido = Math.min(
-    width - margenHorizontal * 2,
-    620,
-  );
+  const anchoContenido = Math.min(width - margenHorizontal * 2, 620);
 
   const iniciales = nombreAlumno
     .split(' ')
@@ -381,90 +302,127 @@ export default function CalificarEntregaScreen() {
     .join('')
     .toUpperCase();
 
-  const abrirODescargarArchivo =
-    async () => {
-      if (!archivoPublico) {
-        Alert.alert(
-          'Sin archivo',
-          'Esta entrega no contiene un archivo adjunto.',
-        );
+  const cargarRespuestasEvaluacion = useCallback(async () => {
+    if (!Number.isInteger(idEntrega) || idEntrega <= 0) {
+      setCargandoRespuestas(false);
+      setErrorRespuestas(
+        'No se recibió una entrega válida para consultar sus respuestas.',
+      );
+      return;
+    }
+
+    try {
+      setCargandoRespuestas(true);
+      setErrorRespuestas('');
+
+      const token = await AsyncStorage.getItem('token');
+
+      if (!token) {
+        throw new Error('No se encontró tu sesión. Inicia sesión nuevamente.');
+      }
+
+      const respuesta = await api.get<RespuestaEvaluacionEntrega>(
+        `/academico/entregas/${idEntrega}/respuestas-evaluacion`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
+
+      const datos = respuesta.data;
+
+      setEsEvaluacion(Boolean(datos.es_evaluacion));
+
+      setRespuestasEvaluacion(
+        Array.isArray(datos.respuestas) ? datos.respuestas : [],
+      );
+
+      setRequiereRevision(Boolean(datos.intento?.requiere_revision));
+
+      const automatico = Number(datos.intento?.puntaje_obtenido_automatico);
+
+      setPuntajeAutomatico(Number.isFinite(automatico) ? automatico : null);
+
+      if (
+        datos.entrega?.calificacion !== null &&
+        datos.entrega?.calificacion !== undefined
+      ) {
+        setCalificacion(String(datos.entrega.calificacion));
+      }
+
+      if (datos.entrega?.retroalimentacion) {
+        setRetroalimentacion(datos.entrega.retroalimentacion);
+      }
+    } catch (error) {
+      setErrorRespuestas(obtenerMensajeError(error));
+      setEsEvaluacion(null);
+      setRespuestasEvaluacion([]);
+    } finally {
+      setCargandoRespuestas(false);
+    }
+  }, [idEntrega]);
+
+  useEffect(() => {
+    void cargarRespuestasEvaluacion();
+  }, [cargarRespuestasEvaluacion]);
+
+  const abrirODescargarArchivo = async () => {
+    if (!archivoPublico) {
+      Alert.alert(
+        'Sin archivo',
+        'Esta entrega no contiene un archivo adjunto.',
+      );
+      return;
+    }
+
+    try {
+      setAbriendo(true);
+
+      if (Platform.OS === 'web') {
+        await Linking.openURL(archivoPublico);
         return;
       }
 
-      try {
-        setAbriendo(true);
+      const nombreSeguro = limpiarNombreArchivo(nombreArchivo);
 
-        if (Platform.OS === 'web') {
-          await Linking.openURL(
-            archivoPublico,
-          );
-          return;
-        }
+      const destino = new File(
+        Paths.cache,
+        `aulamos-${idEntrega}-${nombreSeguro}`,
+      );
 
-        const nombreSeguro =
-          limpiarNombreArchivo(
-            nombreArchivo,
-          );
+      const archivoDescargado = await File.downloadFileAsync(
+        archivoPublico,
+        destino,
+        {
+          idempotent: true,
+        },
+      );
 
-        const destino = new File(
-          Paths.cache,
-          `aulamos-${idEntrega}-${nombreSeguro}`,
-        );
+      const compartirDisponible = await Sharing.isAvailableAsync();
 
-        const archivoDescargado =
-          await File.downloadFileAsync(
-            archivoPublico,
-            destino,
-            {
-              idempotent: true,
-            },
-          );
-
-        const compartirDisponible =
-          await Sharing.isAvailableAsync();
-
-        if (!compartirDisponible) {
-          await Linking.openURL(
-            archivoPublico,
-          );
-          return;
-        }
-
-        await Sharing.shareAsync(
-          archivoDescargado.uri,
-          {
-            dialogTitle:
-              'Abrir o guardar entrega',
-            mimeType: obtenerMime(
-              nombreArchivo,
-              tipoArchivo,
-            ),
-          },
-        );
-      } catch (error) {
-        Alert.alert(
-          'No se pudo abrir el archivo',
-          obtenerMensajeError(error),
-        );
-      } finally {
-        setAbriendo(false);
+      if (!compartirDisponible) {
+        await Linking.openURL(archivoPublico);
+        return;
       }
-    };
+
+      await Sharing.shareAsync(archivoDescargado.uri, {
+        dialogTitle: 'Abrir o guardar entrega',
+        mimeType: obtenerMime(nombreArchivo, tipoArchivo),
+      });
+    } catch (error) {
+      Alert.alert('No se pudo abrir el archivo', obtenerMensajeError(error));
+    } finally {
+      setAbriendo(false);
+    }
+  };
 
   const guardarCalificacion = async () => {
-    const textoCalificacion =
-      calificacion
-        .trim()
-        .replace(',', '.');
+    const textoCalificacion = calificacion.trim().replace(',', '.');
 
-    const valor = Number(
-      textoCalificacion,
-    );
+    const valor = Number(textoCalificacion);
 
-    if (
-      !Number.isInteger(idEntrega) ||
-      idEntrega <= 0
-    ) {
+    if (!Number.isInteger(idEntrega) || idEntrega <= 0) {
       Alert.alert(
         'Entrega no válida',
         'No se recibió una entrega válida para calificar.',
@@ -472,14 +430,8 @@ export default function CalificarEntregaScreen() {
       return;
     }
 
-    if (
-      !textoCalificacion ||
-      !Number.isFinite(valor)
-    ) {
-      Alert.alert(
-        'Calificación requerida',
-        'Escribe una calificación válida.',
-      );
+    if (!textoCalificacion || !Number.isFinite(valor)) {
+      Alert.alert('Calificación requerida', 'Escribe una calificación válida.');
       return;
     }
 
@@ -499,10 +451,7 @@ export default function CalificarEntregaScreen() {
       return;
     }
 
-    if (
-      retroalimentacion.trim().length >
-      5000
-    ) {
+    if (retroalimentacion.trim().length > 5000) {
       Alert.alert(
         'Retroalimentación muy larga',
         'La retroalimentación no puede superar los 5000 caracteres.',
@@ -513,53 +462,40 @@ export default function CalificarEntregaScreen() {
     try {
       setGuardando(true);
 
-      const token =
-        await AsyncStorage.getItem(
-          'token',
-        );
+      const token = await AsyncStorage.getItem('token');
 
       if (!token) {
-        throw new Error(
-          'No se encontró tu sesión. Inicia sesión nuevamente.',
-        );
+        throw new Error('No se encontró tu sesión. Inicia sesión nuevamente.');
       }
 
-      const respuesta =
-        await api.patch<RespuestaCalificacion>(
-          `/academico/entregas/${idEntrega}/calificar`,
-          {
-            calificacion: valor,
-            retroalimentacion:
-              retroalimentacion.trim(),
+      const respuesta = await api.patch<RespuestaCalificacion>(
+        `/academico/entregas/${idEntrega}/calificar`,
+        {
+          calificacion: valor,
+          retroalimentacion: retroalimentacion.trim(),
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
           },
-          {
-            headers: {
-              Authorization:
-                `Bearer ${token}`,
-            },
-          },
-        );
+        },
+      );
 
       setCalificacion(String(valor));
       setEstadoEntrega('Calificada');
 
       Alert.alert(
         'Calificación guardada',
-        respuesta.data.mensaje ||
-          'La entrega se calificó correctamente.',
+        respuesta.data.mensaje || 'La entrega se calificó correctamente.',
         [
           {
             text: 'Volver a la actividad',
-            onPress: () =>
-              router.back(),
+            onPress: () => router.back(),
           },
         ],
       );
     } catch (error) {
-      Alert.alert(
-        'No se pudo guardar',
-        obtenerMensajeError(error),
-      );
+      Alert.alert('No se pudo guardar', obtenerMensajeError(error));
     } finally {
       setGuardando(false);
     }
@@ -570,15 +506,10 @@ export default function CalificarEntregaScreen() {
       style={[
         styles.screen,
         {
-          backgroundColor:
-            colores.fondo,
+          backgroundColor: colores.fondo,
         },
       ]}
-      behavior={
-        Platform.OS === 'ios'
-          ? 'padding'
-          : undefined
-      }
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <ScrollView
         style={styles.scroll}
@@ -586,42 +517,26 @@ export default function CalificarEntregaScreen() {
           styles.scrollContent,
           {
             paddingTop: insets.top + 8,
-            paddingBottom:
-              28 +
-              Math.max(
-                insets.bottom,
-                8,
-              ),
+            paddingBottom: 92 + Math.max(insets.bottom, 8),
           },
         ]}
         keyboardShouldPersistTaps="handled"
       >
-        <View
-          style={[
-            styles.content,
-            { width: anchoContenido },
-          ]}
-        >
+        <View style={[styles.content, { width: anchoContenido }]}>
           <View style={styles.header}>
             <TouchableOpacity
               style={[
                 styles.headerButton,
                 {
-                  backgroundColor:
-                    colores.tarjeta,
-                  borderColor:
-                    colores.borde,
+                  backgroundColor: colores.tarjeta,
+                  borderColor: colores.borde,
                 },
               ]}
               onPress={() => router.back()}
               accessibilityRole="button"
               accessibilityLabel="Regresar al detalle de la actividad"
             >
-              <Ionicons
-                name="arrow-back"
-                size={23}
-                color={colores.texto}
-              />
+              <Ionicons name="arrow-back" size={23} color={colores.texto} />
             </TouchableOpacity>
 
             <View style={styles.headerTitle}>
@@ -630,8 +545,7 @@ export default function CalificarEntregaScreen() {
                   styles.headerTitleText,
                   {
                     color: colores.texto,
-                    fontSize:
-                      20 * escalaTexto,
+                    fontSize: 20 * escalaTexto,
                   },
                 ]}
                 numberOfLines={1}
@@ -643,10 +557,8 @@ export default function CalificarEntregaScreen() {
                 style={[
                   styles.headerSubtitle,
                   {
-                    color:
-                      colores.textoSecundario,
-                    fontSize:
-                      11 * escalaTexto,
+                    color: colores.textoSecundario,
+                    fontSize: 11 * escalaTexto,
                   },
                 ]}
               >
@@ -661,10 +573,8 @@ export default function CalificarEntregaScreen() {
             style={[
               styles.studentCard,
               {
-                backgroundColor:
-                  colores.tarjeta,
-                borderColor:
-                  colores.borde,
+                backgroundColor: colores.tarjeta,
+                borderColor: colores.borde,
               },
             ]}
           >
@@ -672,8 +582,7 @@ export default function CalificarEntregaScreen() {
               style={[
                 styles.avatar,
                 {
-                  backgroundColor:
-                    colores.fondoPrimario,
+                  backgroundColor: colores.fondoPrimario,
                 },
               ]}
             >
@@ -682,8 +591,7 @@ export default function CalificarEntregaScreen() {
                   styles.avatarText,
                   {
                     color: colorPrincipal,
-                    fontSize:
-                      15 * escalaTexto,
+                    fontSize: 15 * escalaTexto,
                   },
                 ]}
               >
@@ -697,8 +605,7 @@ export default function CalificarEntregaScreen() {
                   styles.studentName,
                   {
                     color: colores.texto,
-                    fontSize:
-                      16 * escalaTexto,
+                    fontSize: 16 * escalaTexto,
                   },
                 ]}
               >
@@ -709,33 +616,25 @@ export default function CalificarEntregaScreen() {
                 style={[
                   styles.activityName,
                   {
-                    color:
-                      colores.textoSecundario,
-                    fontSize:
-                      11 * escalaTexto,
+                    color: colores.textoSecundario,
+                    fontSize: 11 * escalaTexto,
                   },
                 ]}
               >
                 {tituloActividad}
-                {materia
-                  ? ` · ${materia}`
-                  : ''}
+                {materia ? ` · ${materia}` : ''}
               </Text>
 
-              <View
-                style={styles.deliveryMeta}
-              >
+              <View style={styles.deliveryMeta}>
                 <Text
                   style={[
                     styles.deliveryState,
                     {
                       color:
-                        estadoEntrega ===
-                        'Calificada'
+                        estadoEntrega === 'Calificada'
                           ? colorExito
                           : colorPrincipal,
-                      fontSize:
-                        10 * escalaTexto,
+                      fontSize: 10 * escalaTexto,
                     },
                   ]}
                 >
@@ -747,9 +646,7 @@ export default function CalificarEntregaScreen() {
                     style={[
                       styles.lateText,
                       {
-                        fontSize:
-                          10 *
-                          escalaTexto,
+                        fontSize: 10 * escalaTexto,
                       },
                     ]}
                   >
@@ -764,10 +661,379 @@ export default function CalificarEntregaScreen() {
             style={[
               styles.card,
               {
-                backgroundColor:
-                  colores.tarjeta,
-                borderColor:
-                  colores.borde,
+                backgroundColor: colores.tarjeta,
+                borderColor: colores.borde,
+              },
+            ]}
+          >
+            <View style={styles.cardHeader}>
+              <Ionicons
+                name="help-circle-outline"
+                size={21}
+                color={colorPrincipal}
+              />
+
+              <View style={styles.cardTitleBox}>
+                <Text
+                  style={[
+                    styles.cardTitle,
+                    {
+                      color: colores.texto,
+                      fontSize: 17 * escalaTexto,
+                    },
+                  ]}
+                >
+                  Preguntas y respuestas
+                </Text>
+
+                <Text
+                  style={[
+                    styles.cardCaption,
+                    {
+                      color: colores.textoSecundario,
+                      fontSize: 10 * escalaTexto,
+                    },
+                  ]}
+                >
+                  Respuestas enviadas por el alumno
+                </Text>
+              </View>
+            </View>
+
+            {cargandoRespuestas ? (
+              <View style={styles.loadingAnswers}>
+                <ActivityIndicator size="small" color={colorPrincipal} />
+
+                <Text
+                  style={[
+                    styles.answersMessage,
+                    {
+                      color: colores.textoSecundario,
+                      fontSize: 12 * escalaTexto,
+                    },
+                  ]}
+                >
+                  Cargando preguntas y respuestas...
+                </Text>
+              </View>
+            ) : errorRespuestas ? (
+              <View
+                style={[
+                  styles.answersNotice,
+                  {
+                    borderColor: '#DC3438',
+                    backgroundColor: temaOscuro
+                      ? colores.fondoPrimario
+                      : '#FFF1F2',
+                  },
+                ]}
+              >
+                <Ionicons
+                  name="alert-circle-outline"
+                  size={22}
+                  color="#DC3438"
+                />
+
+                <Text
+                  style={[
+                    styles.answersNoticeText,
+                    {
+                      color: colores.texto,
+                      fontSize: 12 * escalaTexto,
+                    },
+                  ]}
+                >
+                  {errorRespuestas}
+                </Text>
+
+                <TouchableOpacity
+                  style={[
+                    styles.retryButton,
+                    {
+                      backgroundColor: colorPrincipal,
+                    },
+                  ]}
+                  onPress={() => void cargarRespuestasEvaluacion()}
+                  accessibilityRole="button"
+                  accessibilityLabel="Volver a cargar las respuestas"
+                >
+                  <Text
+                    style={[
+                      styles.retryButtonText,
+                      {
+                        fontSize: 11 * escalaTexto,
+                      },
+                    ]}
+                  >
+                    Reintentar
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            ) : esEvaluacion === false ? (
+              <View
+                style={[
+                  styles.answersNotice,
+                  {
+                    borderColor: colores.borde,
+                    backgroundColor: colores.fondoPrimario,
+                  },
+                ]}
+              >
+                <Ionicons
+                  name="information-circle-outline"
+                  size={22}
+                  color={colores.textoSecundario}
+                />
+
+                <Text
+                  style={[
+                    styles.answersNoticeText,
+                    {
+                      color: colores.textoSecundario,
+                      fontSize: 12 * escalaTexto,
+                    },
+                  ]}
+                >
+                  Esta entrega no corresponde a una evaluación con preguntas.
+                </Text>
+              </View>
+            ) : respuestasEvaluacion.length === 0 ? (
+              <View
+                style={[
+                  styles.answersNotice,
+                  {
+                    borderColor: colores.borde,
+                    backgroundColor: colores.fondoPrimario,
+                  },
+                ]}
+              >
+                <Ionicons
+                  name="chatbox-ellipses-outline"
+                  size={22}
+                  color={colores.textoSecundario}
+                />
+
+                <Text
+                  style={[
+                    styles.answersNoticeText,
+                    {
+                      color: colores.textoSecundario,
+                      fontSize: 12 * escalaTexto,
+                    },
+                  ]}
+                >
+                  La evaluación no devolvió preguntas o respuestas guardadas.
+                </Text>
+              </View>
+            ) : (
+              <>
+                <View
+                  style={[
+                    styles.answersSummary,
+                    {
+                      backgroundColor: colores.fondoPrimario,
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.answersSummaryText,
+                      {
+                        color: colores.texto,
+                        fontSize: 11 * escalaTexto,
+                      },
+                    ]}
+                  >
+                    {respuestasEvaluacion.length}{' '}
+                    {respuestasEvaluacion.length === 1
+                      ? 'pregunta'
+                      : 'preguntas'}
+                    {puntajeAutomatico !== null
+                      ? ` · Puntaje automático: ${puntajeAutomatico}`
+                      : ''}
+                  </Text>
+
+                  {requiereRevision ? (
+                    <Text
+                      style={[
+                        styles.reviewPendingText,
+                        {
+                          fontSize: 10 * escalaTexto,
+                        },
+                      ]}
+                    >
+                      Requiere revisión manual
+                    </Text>
+                  ) : null}
+                </View>
+
+                {respuestasEvaluacion.map((respuesta, indice) => {
+                  const tieneRespuesta = Boolean(respuesta.respuesta?.trim());
+
+                  const estadoRespuesta =
+                    respuesta.es_correcta === true
+                      ? 'Correcta'
+                      : respuesta.es_correcta === false
+                        ? 'Incorrecta'
+                        : tieneRespuesta
+                          ? 'Pendiente de revisión'
+                          : 'Sin responder';
+
+                  const colorEstado =
+                    respuesta.es_correcta === true
+                      ? colorExito
+                      : respuesta.es_correcta === false
+                        ? '#DC3438'
+                        : respuesta.pendiente_revision || tieneRespuesta
+                          ? '#B56A00'
+                          : colores.textoSecundario;
+
+                  return (
+                    <View
+                      key={respuesta.id_pregunta || indice}
+                      style={[
+                        styles.questionBox,
+                        {
+                          borderColor: colores.borde,
+                          backgroundColor: colores.fondoPrimario,
+                        },
+                      ]}
+                    >
+                      <View style={styles.questionHeader}>
+                        <Text
+                          style={[
+                            styles.questionNumber,
+                            {
+                              color: colorPrincipal,
+                              fontSize: 11 * escalaTexto,
+                            },
+                          ]}
+                        >
+                          Pregunta {respuesta.orden || indice + 1}
+                        </Text>
+
+                        <Text
+                          style={[
+                            styles.questionPoints,
+                            {
+                              color: colores.textoSecundario,
+                              fontSize: 10 * escalaTexto,
+                            },
+                          ]}
+                        >
+                          {respuesta.puntaje_obtenido !== null &&
+                          respuesta.puntaje_obtenido !== undefined
+                            ? `${respuesta.puntaje_obtenido} / `
+                            : ''}
+                          {respuesta.puntaje} pts.
+                        </Text>
+                      </View>
+
+                      <Text
+                        style={[
+                          styles.questionText,
+                          {
+                            color: colores.texto,
+                            fontSize: 13 * escalaTexto,
+                          },
+                        ]}
+                      >
+                        {respuesta.pregunta || 'Pregunta sin texto'}
+                      </Text>
+
+                      <Text
+                        style={[
+                          styles.answerLabel,
+                          {
+                            color: colores.textoSecundario,
+                            fontSize: 9 * escalaTexto,
+                          },
+                        ]}
+                      >
+                        RESPUESTA DEL ALUMNO
+                      </Text>
+
+                      <Text
+                        style={[
+                          styles.answerText,
+                          {
+                            color: tieneRespuesta
+                              ? colores.texto
+                              : colores.textoSecundario,
+                            fontSize: 12 * escalaTexto,
+                          },
+                        ]}
+                      >
+                        {respuesta.respuesta || 'Sin respuesta'}
+                      </Text>
+
+                      {respuesta.respuesta_correcta &&
+                      respuesta.es_correcta !== true ? (
+                        <View style={styles.correctAnswerBox}>
+                          <Text
+                            style={[
+                              styles.answerLabel,
+                              {
+                                color: colorExito,
+                                fontSize: 9 * escalaTexto,
+                              },
+                            ]}
+                          >
+                            RESPUESTA CORRECTA
+                          </Text>
+
+                          <Text
+                            style={[
+                              styles.answerText,
+                              {
+                                color: colores.texto,
+                                fontSize: 12 * escalaTexto,
+                              },
+                            ]}
+                          >
+                            {respuesta.respuesta_correcta}
+                          </Text>
+                        </View>
+                      ) : null}
+
+                      <View style={styles.answerStatusRow}>
+                        <Ionicons
+                          name={
+                            respuesta.es_correcta === true
+                              ? 'checkmark-circle'
+                              : respuesta.es_correcta === false
+                                ? 'close-circle'
+                                : 'time-outline'
+                          }
+                          size={17}
+                          color={colorEstado}
+                        />
+
+                        <Text
+                          style={[
+                            styles.answerStatusText,
+                            {
+                              color: colorEstado,
+                              fontSize: 10 * escalaTexto,
+                            },
+                          ]}
+                        >
+                          {estadoRespuesta}
+                        </Text>
+                      </View>
+                    </View>
+                  );
+                })}
+              </>
+            )}
+          </View>
+
+          <View
+            style={[
+              styles.card,
+              {
+                backgroundColor: colores.tarjeta,
+                borderColor: colores.borde,
               },
             ]}
           >
@@ -784,8 +1050,7 @@ export default function CalificarEntregaScreen() {
                     styles.cardTitle,
                     {
                       color: colores.texto,
-                      fontSize:
-                        17 * escalaTexto,
+                      fontSize: 17 * escalaTexto,
                     },
                   ]}
                 >
@@ -796,16 +1061,12 @@ export default function CalificarEntregaScreen() {
                   style={[
                     styles.cardCaption,
                     {
-                      color:
-                        colores.textoSecundario,
-                      fontSize:
-                        10 * escalaTexto,
+                      color: colores.textoSecundario,
+                      fontSize: 10 * escalaTexto,
                     },
                   ]}
                 >
-                  {mostrarFecha(
-                    fechaEntrega,
-                  )}
+                  {mostrarFecha(fechaEntrega)}
                 </Text>
               </View>
             </View>
@@ -815,8 +1076,7 @@ export default function CalificarEntregaScreen() {
                 style={[
                   styles.commentBox,
                   {
-                    backgroundColor:
-                      colores.fondoPrimario,
+                    backgroundColor: colores.fondoPrimario,
                   },
                 ]}
               >
@@ -824,10 +1084,8 @@ export default function CalificarEntregaScreen() {
                   style={[
                     styles.commentLabel,
                     {
-                      color:
-                        colores.textoSecundario,
-                      fontSize:
-                        10 * escalaTexto,
+                      color: colores.textoSecundario,
+                      fontSize: 10 * escalaTexto,
                     },
                   ]}
                 >
@@ -839,8 +1097,7 @@ export default function CalificarEntregaScreen() {
                     styles.commentText,
                     {
                       color: colores.texto,
-                      fontSize:
-                        13 * escalaTexto,
+                      fontSize: 13 * escalaTexto,
                     },
                   ]}
                 >
@@ -854,10 +1111,8 @@ export default function CalificarEntregaScreen() {
                 style={[
                   styles.previewBox,
                   {
-                    backgroundColor:
-                      colores.fondoPrimario,
-                    borderColor:
-                      colores.borde,
+                    backgroundColor: colores.fondoPrimario,
+                    borderColor: colores.borde,
                   },
                 ]}
               >
@@ -867,9 +1122,7 @@ export default function CalificarEntregaScreen() {
                   }}
                   style={styles.previewImage}
                   resizeMode="contain"
-                  accessibilityLabel={
-                    `Vista previa de ${nombreArchivo}`
-                  }
+                  accessibilityLabel={`Vista previa de ${nombreArchivo}`}
                 />
               </View>
             ) : null}
@@ -879,10 +1132,8 @@ export default function CalificarEntregaScreen() {
                 style={[
                   styles.fileRow,
                   {
-                    borderColor:
-                      colores.borde,
-                    backgroundColor:
-                      colores.fondoPrimario,
+                    borderColor: colores.borde,
+                    backgroundColor: colores.fondoPrimario,
                   },
                 ]}
               >
@@ -890,18 +1141,13 @@ export default function CalificarEntregaScreen() {
                   style={[
                     styles.fileIcon,
                     {
-                      backgroundColor:
-                        temaOscuro
-                          ? colores.tarjeta
-                          : '#EAF1FF',
+                      backgroundColor: temaOscuro ? colores.tarjeta : '#EAF1FF',
                     },
                   ]}
                 >
                   <Ionicons
                     name={
-                      tieneImagen
-                        ? 'image-outline'
-                        : 'document-attach-outline'
+                      tieneImagen ? 'image-outline' : 'document-attach-outline'
                     }
                     size={24}
                     color={colorPrincipal}
@@ -913,33 +1159,25 @@ export default function CalificarEntregaScreen() {
                     style={[
                       styles.fileName,
                       {
-                        color:
-                          colores.texto,
-                        fontSize:
-                          12 *
-                          escalaTexto,
+                        color: colores.texto,
+                        fontSize: 12 * escalaTexto,
                       },
                     ]}
                     numberOfLines={2}
                   >
-                    {nombreArchivo ||
-                      'Archivo de entrega'}
+                    {nombreArchivo || 'Archivo de entrega'}
                   </Text>
 
                   <Text
                     style={[
                       styles.fileType,
                       {
-                        color:
-                          colores.textoSecundario,
-                        fontSize:
-                          10 *
-                          escalaTexto,
+                        color: colores.textoSecundario,
+                        fontSize: 10 * escalaTexto,
                       },
                     ]}
                   >
-                    {tipoArchivo ||
-                      'Documento adjunto'}
+                    {tipoArchivo || 'Documento adjunto'}
                   </Text>
                 </View>
 
@@ -947,53 +1185,35 @@ export default function CalificarEntregaScreen() {
                   style={[
                     styles.openButton,
                     {
-                      backgroundColor:
-                        colorPrincipal,
+                      backgroundColor: colorPrincipal,
                     },
                   ]}
-                  onPress={() =>
-                    void abrirODescargarArchivo()
-                  }
+                  onPress={() => void abrirODescargarArchivo()}
                   disabled={abriendo}
                   accessibilityRole="button"
-                  accessibilityLabel={
-                    `Abrir o guardar ${nombreArchivo}`
-                  }
+                  accessibilityLabel={`Abrir o guardar ${nombreArchivo}`}
                 >
                   {abriendo ? (
-                    <ActivityIndicator
-                      size="small"
-                      color="#FFFFFF"
-                    />
+                    <ActivityIndicator size="small" color="#FFFFFF" />
                   ) : (
-                    <Ionicons
-                      name="open-outline"
-                      size={19}
-                      color="#FFFFFF"
-                    />
+                    <Ionicons name="open-outline" size={19} color="#FFFFFF" />
                   )}
                 </TouchableOpacity>
               </View>
             ) : (
-              <View
-                style={styles.noFileBox}
-              >
+              <View style={styles.noFileBox}>
                 <Ionicons
                   name="document-outline"
                   size={21}
-                  color={
-                    colores.textoSecundario
-                  }
+                  color={colores.textoSecundario}
                 />
 
                 <Text
                   style={[
                     styles.noFileText,
                     {
-                      color:
-                        colores.textoSecundario,
-                      fontSize:
-                        11 * escalaTexto,
+                      color: colores.textoSecundario,
+                      fontSize: 11 * escalaTexto,
                     },
                   ]}
                 >
@@ -1007,10 +1227,8 @@ export default function CalificarEntregaScreen() {
             style={[
               styles.card,
               {
-                backgroundColor:
-                  colores.tarjeta,
-                borderColor:
-                  colores.borde,
+                backgroundColor: colores.tarjeta,
+                borderColor: colores.borde,
               },
             ]}
           >
@@ -1027,8 +1245,7 @@ export default function CalificarEntregaScreen() {
                     styles.cardTitle,
                     {
                       color: colores.texto,
-                      fontSize:
-                        17 * escalaTexto,
+                      fontSize: 17 * escalaTexto,
                     },
                   ]}
                 >
@@ -1039,15 +1256,12 @@ export default function CalificarEntregaScreen() {
                   style={[
                     styles.cardCaption,
                     {
-                      color:
-                        colores.textoSecundario,
-                      fontSize:
-                        10 * escalaTexto,
+                      color: colores.textoSecundario,
+                      fontSize: 10 * escalaTexto,
                     },
                   ]}
                 >
-                  Puntaje máximo:{' '}
-                  {puntajeMaximo}
+                  Puntaje máximo: {puntajeMaximo}
                 </Text>
               </View>
             </View>
@@ -1057,52 +1271,40 @@ export default function CalificarEntregaScreen() {
                 styles.inputLabel,
                 {
                   color: colores.texto,
-                  fontSize:
-                    12 * escalaTexto,
+                  fontSize: 12 * escalaTexto,
                 },
               ]}
             >
               Puntos obtenidos
             </Text>
 
-            <View
-              style={styles.gradeInputRow}
-            >
+            <View style={styles.gradeInputRow}>
               <TextInput
                 style={[
                   styles.gradeInput,
                   {
                     color: colores.texto,
-                    borderColor:
-                      colores.borde,
-                    backgroundColor:
-                      colores.fondoPrimario,
-                    fontSize:
-                      20 * escalaTexto,
+                    borderColor: colores.borde,
+                    backgroundColor: colores.fondoPrimario,
+                    fontSize: 20 * escalaTexto,
                   },
                 ]}
                 value={calificacion}
                 onChangeText={setCalificacion}
                 keyboardType="decimal-pad"
                 placeholder="0"
-                placeholderTextColor={
-                  colores.textoSecundario
-                }
+                placeholderTextColor={colores.textoSecundario}
                 maxLength={8}
                 editable={!guardando}
-                accessibilityLabel={
-                  `Calificación de cero a ${puntajeMaximo}`
-                }
+                accessibilityLabel={`Calificación de cero a ${puntajeMaximo}`}
               />
 
               <Text
                 style={[
                   styles.gradeMaximum,
                   {
-                    color:
-                      colores.textoSecundario,
-                    fontSize:
-                      15 * escalaTexto,
+                    color: colores.textoSecundario,
+                    fontSize: 15 * escalaTexto,
                   },
                 ]}
               >
@@ -1116,8 +1318,7 @@ export default function CalificarEntregaScreen() {
                 styles.feedbackLabel,
                 {
                   color: colores.texto,
-                  fontSize:
-                    12 * escalaTexto,
+                  fontSize: 12 * escalaTexto,
                 },
               ]}
             >
@@ -1129,22 +1330,15 @@ export default function CalificarEntregaScreen() {
                 styles.feedbackInput,
                 {
                   color: colores.texto,
-                  borderColor:
-                    colores.borde,
-                  backgroundColor:
-                    colores.fondoPrimario,
-                  fontSize:
-                    13 * escalaTexto,
+                  borderColor: colores.borde,
+                  backgroundColor: colores.fondoPrimario,
+                  fontSize: 13 * escalaTexto,
                 },
               ]}
               value={retroalimentacion}
-              onChangeText={
-                setRetroalimentacion
-              }
+              onChangeText={setRetroalimentacion}
               placeholder="Escribe comentarios para ayudar al alumno a mejorar..."
-              placeholderTextColor={
-                colores.textoSecundario
-              }
+              placeholderTextColor={colores.textoSecundario}
               multiline
               textAlignVertical="top"
               maxLength={5000}
@@ -1156,10 +1350,8 @@ export default function CalificarEntregaScreen() {
               style={[
                 styles.characterCount,
                 {
-                  color:
-                    colores.textoSecundario,
-                  fontSize:
-                    9 * escalaTexto,
+                  color: colores.textoSecundario,
+                  fontSize: 9 * escalaTexto,
                 },
               ]}
             >
@@ -1171,29 +1363,21 @@ export default function CalificarEntregaScreen() {
               style={[
                 styles.saveButton,
                 {
-                  backgroundColor:
-                    colorPrincipal,
+                  backgroundColor: colorPrincipal,
                 },
-                guardando &&
-                  styles.disabledButton,
+                guardando && styles.disabledButton,
               ]}
-              onPress={() =>
-                void guardarCalificacion()
-              }
+              onPress={() => void guardarCalificacion()}
               disabled={guardando}
               accessibilityRole="button"
               accessibilityLabel={
-                estadoEntrega ===
-                'Calificada'
+                estadoEntrega === 'Calificada'
                   ? 'Actualizar calificación'
                   : 'Guardar calificación'
               }
             >
               {guardando ? (
-                <ActivityIndicator
-                  size="small"
-                  color="#FFFFFF"
-                />
+                <ActivityIndicator size="small" color="#FFFFFF" />
               ) : (
                 <Ionicons
                   name="checkmark-circle-outline"
@@ -1206,15 +1390,13 @@ export default function CalificarEntregaScreen() {
                 style={[
                   styles.saveButtonText,
                   {
-                    fontSize:
-                      13 * escalaTexto,
+                    fontSize: 13 * escalaTexto,
                   },
                 ]}
               >
                 {guardando
                   ? 'Guardando...'
-                  : estadoEntrega ===
-                      'Calificada'
+                  : estadoEntrega === 'Calificada'
                     ? 'Actualizar calificación'
                     : 'Guardar calificación'}
               </Text>
@@ -1222,7 +1404,122 @@ export default function CalificarEntregaScreen() {
           </View>
         </View>
       </ScrollView>
+
+      <View
+        style={[
+          styles.bottomNavigation,
+          {
+            minHeight: 68 + Math.max(insets.bottom, 5),
+            paddingBottom: Math.max(insets.bottom, 5),
+            backgroundColor: colores.tarjeta,
+            borderTopColor: colores.borde,
+          },
+        ]}
+        accessibilityRole="tablist"
+      >
+        <BottomItem
+          icon="home-outline"
+          activeIcon="home"
+          label="Inicio"
+          onPress={() => router.replace('/inicio-docente' as never)}
+        />
+
+        <BottomItem
+          icon="book-outline"
+          activeIcon="book"
+          label="Recursos"
+          onPress={() => router.push('/crear-recurso' as never)}
+        />
+
+        <BottomItem
+          icon="reader-outline"
+          activeIcon="reader"
+          label="Actividades"
+          active
+          onPress={() => router.replace('/actividades-docente' as never)}
+        />
+
+        <BottomItem
+          icon="document-text-outline"
+          activeIcon="document-text"
+          label="Evaluaciones"
+          onPress={() => router.push('/evaluaciones-docente' as never)}
+        />
+
+        <BottomItem
+          icon="menu-outline"
+          activeIcon="menu"
+          label="Más"
+          onPress={() => router.push('/menu-docente' as never)}
+        />
+      </View>
     </KeyboardAvoidingView>
+  );
+}
+
+type BottomItemProps = {
+  icon: keyof typeof Ionicons.glyphMap;
+  activeIcon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  active?: boolean;
+  onPress: () => void;
+};
+
+function BottomItem({
+  icon,
+  activeIcon,
+  label,
+  active = false,
+  onPress,
+}: BottomItemProps) {
+  const { colores, escalaTexto, preferencias } = useAccessibility();
+
+  const colorActivo = preferencias.altoContraste
+    ? colores.primario
+    : preferencias.modoOscuro
+      ? '#60A5FA'
+      : '#2563EB';
+
+  return (
+    <TouchableOpacity
+      style={styles.bottomItem}
+      onPress={onPress}
+      activeOpacity={0.7}
+      focusable
+      accessibilityRole="tab"
+      accessibilityState={{ selected: active }}
+      accessibilityLabel={label}
+    >
+      <View
+        style={[
+          styles.bottomIconContainer,
+          active && {
+            backgroundColor: colores.fondoPrimario,
+          },
+        ]}
+      >
+        <Ionicons
+          name={active ? activeIcon : icon}
+          size={21}
+          color={active ? colorActivo : colores.textoSecundario}
+        />
+      </View>
+
+      <Text
+        style={[
+          styles.bottomLabel,
+          {
+            color: active ? colorActivo : colores.textoSecundario,
+            fontSize: 8 * escalaTexto,
+            lineHeight: 10 * escalaTexto,
+          },
+          active && styles.bottomLabelActive,
+        ]}
+        numberOfLines={2}
+      >
+        {label}
+      </Text>
+    </TouchableOpacity>
   );
 }
 
@@ -1394,6 +1691,99 @@ const styles = StyleSheet.create({
   noFileText: {
     flex: 1,
   },
+  loadingAnswers: {
+    minHeight: 78,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  answersMessage: {
+    marginLeft: 9,
+  },
+  answersNotice: {
+    minHeight: 72,
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderWidth: 1,
+    borderRadius: 13,
+  },
+  answersNoticeText: {
+    flex: 1,
+    marginHorizontal: 9,
+    lineHeight: 18,
+  },
+  retryButton: {
+    minHeight: 38,
+    justifyContent: 'center',
+    paddingHorizontal: 12,
+    borderRadius: 10,
+  },
+  retryButtonText: {
+    color: '#FFFFFF',
+    fontWeight: '900',
+  },
+  answersSummary: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+    padding: 11,
+    borderRadius: 12,
+    marginBottom: 10,
+  },
+  answersSummaryText: {
+    fontWeight: '800',
+  },
+  reviewPendingText: {
+    color: '#B56A00',
+    fontWeight: '900',
+  },
+  questionBox: {
+    padding: 13,
+    borderWidth: 1,
+    borderRadius: 14,
+    marginTop: 10,
+  },
+  questionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  questionNumber: {
+    flex: 1,
+    fontWeight: '900',
+  },
+  questionPoints: {
+    fontWeight: '800',
+  },
+  questionText: {
+    marginTop: 9,
+    lineHeight: 20,
+    fontWeight: '800',
+  },
+  answerLabel: {
+    marginTop: 13,
+    fontWeight: '900',
+  },
+  answerText: {
+    marginTop: 5,
+    lineHeight: 19,
+  },
+  correctAnswerBox: {
+    marginTop: 2,
+  },
+  answerStatusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 12,
+  },
+  answerStatusText: {
+    marginLeft: 6,
+    fontWeight: '900',
+  },
   inputLabel: {
     fontWeight: '800',
     marginBottom: 7,
@@ -1444,5 +1834,53 @@ const styles = StyleSheet.create({
   },
   disabledButton: {
     opacity: 0.65,
+  },
+  bottomNavigation: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderTopWidth: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-around',
+    paddingTop: 6,
+    paddingHorizontal: 4,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#111827',
+        shadowOffset: {
+          width: 0,
+          height: -3,
+        },
+        shadowOpacity: 0.08,
+        shadowRadius: 9,
+      },
+      android: {
+        elevation: 10,
+      },
+    }),
+  },
+  bottomItem: {
+    flex: 1,
+    minWidth: 0,
+    minHeight: 58,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bottomIconContainer: {
+    width: 36,
+    height: 29,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bottomLabel: {
+    marginTop: 2,
+    textAlign: 'center',
+    fontWeight: '700',
+  },
+  bottomLabelActive: {
+    fontWeight: '900',
   },
 });
