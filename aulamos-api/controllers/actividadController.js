@@ -179,6 +179,12 @@ const crearActividad = async (
       req.body.id_curso
     );
 
+   const idRecurso =
+  req.body.id_recurso == null ||
+  req.body.id_recurso === ''
+    ? null
+    : Number(req.body.id_recurso); 
+
     const idPeriodo =
       req.body.id_periodo === null ||
       req.body.id_periodo === undefined ||

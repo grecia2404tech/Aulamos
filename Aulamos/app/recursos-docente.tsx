@@ -34,16 +34,21 @@ type RecursoDocente = {
   id_actividad?: number | null;
   id_curso?: number | null;
   id_materia?: number | null;
+
   titulo: string;
   descripcion?: string | null;
   tipo: string;
+
   url_recurso?: string | null;
   archivo?: string | null;
+
   estado: string;
   fecha_publicacion?: string | null;
+
   materia?: string | null;
   curso?: string | null;
   grupo?: string | null;
+
   actividad_relacionada?: string | null;
 };
 
@@ -57,6 +62,7 @@ type FiltroTipo =
   | 'Todos'
   | 'Video'
   | 'PDF'
+  | 'Documento'
   | 'Enlace'
   | 'Audio'
   | 'Otro';
@@ -65,6 +71,7 @@ const FILTROS: FiltroTipo[] = [
   'Todos',
   'Video',
   'PDF',
+  'Documento',
   'Enlace',
   'Audio',
   'Otro',
@@ -185,8 +192,16 @@ export default function RecursosDocenteScreen() {
 
         setRecursos(lista);
 
+        const disponibles = lista.filter(
+          (recurso) => !recurso.id_actividad
+        ).length;
+
+        const enUso = lista.filter(
+          (recurso) => Boolean(recurso.id_actividad)
+        ).length;
+
         anunciar(
-          `Se encontraron ${lista.length} recursos.`
+          `Se encontraron ${lista.length} recursos. ${disponibles} disponibles y ${enUso} en uso.`
         );
       } catch (error) {
         console.error(
@@ -220,44 +235,72 @@ export default function RecursosDocenteScreen() {
   );
 
   const recursosFiltrados = useMemo(() => {
-    const texto = busqueda
+    const textoBusqueda = busqueda
       .trim()
       .toLowerCase();
 
     return recursos.filter((recurso) => {
+      const titulo =
+        recurso.titulo?.toLowerCase() ?? '';
+
+      const descripcion =
+        recurso.descripcion?.toLowerCase() ?? '';
+
+      const materia =
+        recurso.materia?.toLowerCase() ?? '';
+
+      const curso =
+        recurso.curso?.toLowerCase() ?? '';
+
+      const actividad =
+        recurso.actividad_relacionada?.toLowerCase() ??
+        '';
+
       const coincideTexto =
-        !texto ||
-        recurso.titulo
-          .toLowerCase()
-          .includes(texto) ||
-        recurso.descripcion
-          ?.toLowerCase()
-          .includes(texto) ||
-        recurso.materia
-          ?.toLowerCase()
-          .includes(texto) ||
-        recurso.curso
-          ?.toLowerCase()
-          .includes(texto);
+        !textoBusqueda ||
+        titulo.includes(textoBusqueda) ||
+        descripcion.includes(textoBusqueda) ||
+        materia.includes(textoBusqueda) ||
+        curso.includes(textoBusqueda) ||
+        actividad.includes(textoBusqueda);
 
       const tipoNormalizado =
         recurso.tipo?.toLowerCase() ?? '';
+
+      const tiposConocidos = [
+        'video',
+        'pdf',
+        'documento',
+        'enlace',
+        'audio',
+      ];
 
       const coincideFiltro =
         filtro === 'Todos' ||
         tipoNormalizado ===
           filtro.toLowerCase() ||
         (filtro === 'Otro' &&
-          ![
-            'video',
-            'pdf',
-            'enlace',
-            'audio',
-          ].includes(tipoNormalizado));
+          !tiposConocidos.includes(tipoNormalizado));
 
       return coincideTexto && coincideFiltro;
     });
   }, [recursos, busqueda, filtro]);
+
+  const resumenRecursos = useMemo(() => {
+    const disponibles = recursos.filter(
+      (recurso) => !recurso.id_actividad
+    ).length;
+
+    const enUso = recursos.filter(
+      (recurso) => Boolean(recurso.id_actividad)
+    ).length;
+
+    return {
+      total: recursos.length,
+      disponibles,
+      enUso,
+    };
+  }, [recursos]);
 
   const obtenerIcono = (
     tipo: string
@@ -268,6 +311,9 @@ export default function RecursosDocenteScreen() {
 
       case 'pdf':
         return 'document-text-outline';
+
+      case 'documento':
+        return 'document-outline';
 
       case 'enlace':
         return 'link-outline';
@@ -280,26 +326,54 @@ export default function RecursosDocenteScreen() {
     }
   };
 
+  const formatearFecha = (
+    fecha?: string | null
+  ) => {
+    if (!fecha) {
+      return 'Fecha no disponible';
+    }
+
+    const valor = new Date(fecha);
+
+    if (Number.isNaN(valor.getTime())) {
+      return 'Fecha no disponible';
+    }
+
+    return valor.toLocaleDateString('es-MX', {
+      day: '2-digit',
+      month: 'long',
+      year: 'numeric',
+    });
+  };
+
   const abrirRecurso = async (
     recurso: RecursoDocente
   ) => {
     const direccion =
-      recurso.url_recurso ||
-      recurso.archivo;
+      recurso.url_recurso || recurso.archivo;
 
     if (!direccion) {
       Alert.alert(
         'Recurso no disponible',
-        'Este recurso no tiene una dirección o archivo disponible.'
+        'Este recurso no tiene un archivo o una dirección disponible.'
+      );
+
+      anunciar(
+        'El recurso seleccionado no está disponible.'
       );
 
       return;
     }
 
     try {
-      if (
-        recurso.tipo.toLowerCase() === 'video'
-      ) {
+      anunciar(
+        `Abriendo recurso ${recurso.titulo}.`
+      );
+
+      const tipoNormalizado =
+        recurso.tipo.toLowerCase();
+
+      if (tipoNormalizado === 'video') {
         router.push({
           pathname: '/reproductor-video',
           params: {
@@ -311,9 +385,7 @@ export default function RecursosDocenteScreen() {
         return;
       }
 
-      if (
-        recurso.tipo.toLowerCase() === 'pdf'
-      ) {
+      if (tipoNormalizado === 'pdf') {
         router.push({
           pathname: '/visor-documento',
           params: {
@@ -330,19 +402,52 @@ export default function RecursosDocenteScreen() {
 
       if (!puedeAbrirse) {
         throw new Error(
-          'No se puede abrir este recurso.'
+          'Este dispositivo no puede abrir el recurso.'
         );
       }
 
       await Linking.openURL(direccion);
     } catch (error) {
-      Alert.alert(
-        'Error',
+      const mensaje =
         error instanceof Error
           ? error.message
-          : 'No se pudo abrir el recurso.'
-      );
+          : 'No se pudo abrir el recurso.';
+
+      Alert.alert('Error', mensaje);
+      anunciar(`Error. ${mensaje}`);
     }
+  };
+
+  const crearActividadConRecurso = (
+    recurso: RecursoDocente
+  ) => {
+    if (recurso.id_actividad) {
+      Alert.alert(
+        'Recurso en uso',
+        'Este recurso ya está relacionado con una actividad.'
+      );
+
+      anunciar(
+        'Este recurso ya está relacionado con una actividad.'
+      );
+
+      return;
+    }
+
+    anunciar(
+      `Creando una actividad con el recurso ${recurso.titulo}.`
+    );
+
+    router.push({
+      pathname: '/crear-actividad',
+      params: {
+        id_recurso: String(recurso.id_recurso),
+        id_curso: recurso.id_curso
+          ? String(recurso.id_curso)
+          : '',
+        titulo_recurso: recurso.titulo,
+      },
+    } as never);
   };
 
   const actualizar = () => {
@@ -388,6 +493,7 @@ export default function RecursosDocenteScreen() {
           onPress={() => router.back()}
           accessibilityRole="button"
           accessibilityLabel="Regresar"
+          accessibilityHint="Regresa a la pantalla anterior"
         >
           <Ionicons
             name="arrow-back"
@@ -403,6 +509,7 @@ export default function RecursosDocenteScreen() {
               {
                 color: colores.texto,
                 fontSize: 20 * escalaTexto,
+                lineHeight: 26 * escalaTexto,
               },
             ]}
             accessibilityRole="header"
@@ -417,10 +524,11 @@ export default function RecursosDocenteScreen() {
                 color:
                   colores.textoSecundario,
                 fontSize: 11 * escalaTexto,
+                lineHeight: 16 * escalaTexto,
               },
             ]}
           >
-            Consulta los recursos que publicaste
+            Consulta y administra tus materiales
           </Text>
         </View>
 
@@ -430,12 +538,16 @@ export default function RecursosDocenteScreen() {
       <ScrollView
         contentContainerStyle={styles.contenido}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
         refreshControl={
           <RefreshControl
             refreshing={actualizando}
             onRefresh={actualizar}
             colors={[colores.primario]}
             tintColor={colores.primario}
+            progressBackgroundColor={
+              colores.tarjeta
+            }
           />
         }
       >
@@ -451,6 +563,7 @@ export default function RecursosDocenteScreen() {
           }
           accessibilityRole="button"
           accessibilityLabel="Crear nuevo recurso"
+          accessibilityHint="Abre el formulario para publicar un material de apoyo"
         >
           <Ionicons
             name="add-circle-outline"
@@ -469,6 +582,61 @@ export default function RecursosDocenteScreen() {
             Crear nuevo recurso
           </Text>
         </TouchableOpacity>
+
+        <View style={styles.filaResumen}>
+          <ResumenRecurso
+            titulo="Total"
+            valor={resumenRecursos.total}
+            icono="folder-open-outline"
+            color={colores.primario}
+            fondo={colores.fondoPrimario}
+            texto={colores.texto}
+            textoSecundario={
+              colores.textoSecundario
+            }
+            borde={colores.borde}
+            tarjeta={colores.tarjeta}
+            escalaTexto={escalaTexto}
+          />
+
+          <ResumenRecurso
+            titulo="Disponibles"
+            valor={resumenRecursos.disponibles}
+            icono="time-outline"
+            color="#D97706"
+            fondo={
+              temaOscuro
+                ? colores.fondoPrimario
+                : '#FFF7ED'
+            }
+            texto={colores.texto}
+            textoSecundario={
+              colores.textoSecundario
+            }
+            borde={colores.borde}
+            tarjeta={colores.tarjeta}
+            escalaTexto={escalaTexto}
+          />
+
+          <ResumenRecurso
+            titulo="En uso"
+            valor={resumenRecursos.enUso}
+            icono="checkmark-circle-outline"
+            color="#15803D"
+            fondo={
+              temaOscuro
+                ? colores.fondoPrimario
+                : '#ECFDF5'
+            }
+            texto={colores.texto}
+            textoSecundario={
+              colores.textoSecundario
+            }
+            borde={colores.borde}
+            tarjeta={colores.tarjeta}
+            escalaTexto={escalaTexto}
+          />
+        </View>
 
         <View
           style={[
@@ -500,10 +668,12 @@ export default function RecursosDocenteScreen() {
               },
             ]}
             accessibilityLabel="Buscar recurso"
+            accessibilityHint="Busca por título, materia, curso o actividad"
           />
 
           {busqueda.length > 0 && (
             <TouchableOpacity
+              style={styles.botonLimpiar}
               onPress={() => setBusqueda('')}
               accessibilityRole="button"
               accessibilityLabel="Limpiar búsqueda"
@@ -525,6 +695,7 @@ export default function RecursosDocenteScreen() {
           contentContainerStyle={
             styles.filtros
           }
+          accessibilityLabel="Filtros por tipo de recurso"
         >
           {FILTROS.map((opcion) => {
             const seleccionado =
@@ -547,6 +718,7 @@ export default function RecursosDocenteScreen() {
                 ]}
                 onPress={() => {
                   setFiltro(opcion);
+
                   anunciar(
                     `Filtro ${opcion}.`
                   );
@@ -575,6 +747,38 @@ export default function RecursosDocenteScreen() {
             );
           })}
         </ScrollView>
+
+        <View style={styles.filaResultados}>
+          <Text
+            style={[
+              styles.tituloResultados,
+              {
+                color: colores.texto,
+                fontSize: 14 * escalaTexto,
+              },
+            ]}
+            accessibilityRole="header"
+          >
+            Recursos publicados
+          </Text>
+
+          {!cargando && (
+            <Text
+              style={[
+                styles.totalResultados,
+                {
+                  color:
+                    colores.textoSecundario,
+                  fontSize:
+                    10 * escalaTexto,
+                },
+              ]}
+            >
+              {recursosFiltrados.length}{' '}
+              encontrados
+            </Text>
+          )}
+        </View>
 
         {cargando ? (
           <View style={styles.cargando}>
@@ -608,11 +812,23 @@ export default function RecursosDocenteScreen() {
               },
             ]}
           >
-            <Ionicons
-              name="folder-open-outline"
-              size={45}
-              color={colores.textoSecundario}
-            />
+            <View
+              style={[
+                styles.iconoVacio,
+                {
+                  backgroundColor:
+                    colores.fondoPrimario,
+                },
+              ]}
+            >
+              <Ionicons
+                name="folder-open-outline"
+                size={39}
+                color={
+                  colores.textoSecundario
+                }
+              />
+            </View>
 
             <Text
               style={[
@@ -638,85 +854,196 @@ export default function RecursosDocenteScreen() {
                 },
               ]}
             >
-              Crea un recurso o cambia los filtros.
+              Crea un recurso nuevo o cambia los
+              filtros seleccionados.
             </Text>
           </View>
         ) : (
-          recursosFiltrados.map((recurso) => (
-            <TouchableOpacity
-              key={recurso.id_recurso}
-              style={[
-                styles.tarjetaRecurso,
-                {
-                  backgroundColor:
-                    colores.tarjeta,
-                  borderColor: colores.borde,
-                },
-              ]}
-              onPress={() =>
-                abrirRecurso(recurso)
-              }
-              accessibilityRole="button"
-              accessibilityLabel={`${recurso.titulo}. Tipo ${recurso.tipo}. Materia ${recurso.materia ?? 'sin materia'}.`}
-              accessibilityHint="Abre el recurso"
-            >
+          recursosFiltrados.map((recurso) => {
+            const estaEnUso = Boolean(
+              recurso.id_actividad
+            );
+
+            const colorEstado = estaEnUso
+              ? '#15803D'
+              : '#D97706';
+
+            const fondoEstado = temaOscuro
+              ? colores.fondoPrimario
+              : estaEnUso
+                ? '#ECFDF5'
+                : '#FFF7ED';
+
+            const etiquetaEstado = estaEnUso
+              ? 'En uso'
+              : 'Disponible';
+
+            return (
               <View
+                key={recurso.id_recurso}
                 style={[
-                  styles.iconoRecurso,
+                  styles.tarjetaRecurso,
                   {
                     backgroundColor:
-                      colores.fondoPrimario,
+                      colores.tarjeta,
+                    borderColor: colores.borde,
                   },
                 ]}
+                accessible={false}
               >
-                <Ionicons
-                  name={obtenerIcono(
-                    recurso.tipo
-                  )}
-                  size={26}
-                  color={colores.primario}
-                />
-              </View>
+                <View style={styles.encabezadoRecurso}>
+                  <View
+                    style={[
+                      styles.iconoRecurso,
+                      {
+                        backgroundColor:
+                          colores.fondoPrimario,
+                      },
+                    ]}
+                  >
+                    <Ionicons
+                      name={obtenerIcono(
+                        recurso.tipo
+                      )}
+                      size={27}
+                      color={colores.primario}
+                    />
+                  </View>
 
-              <View
-                style={
-                  styles.informacionRecurso
-                }
-              >
-                <Text
-                  style={[
-                    styles.tituloRecurso,
-                    {
-                      color: colores.texto,
-                      fontSize:
-                        14 * escalaTexto,
-                    },
-                  ]}
-                >
-                  {recurso.titulo}
-                </Text>
+                  <View
+                    style={
+                      styles.informacionRecurso
+                    }
+                  >
+                    <Text
+                      style={[
+                        styles.tituloRecurso,
+                        {
+                          color: colores.texto,
+                          fontSize:
+                            14 * escalaTexto,
+                        },
+                      ]}
+                    >
+                      {recurso.titulo}
+                    </Text>
 
-                <Text
-                  style={[
-                    styles.detalleRecurso,
-                    {
-                      color:
-                        colores.textoSecundario,
-                      fontSize:
-                        10 * escalaTexto,
-                    },
-                  ]}
-                >
-                  {recurso.tipo}
-                  {recurso.materia
-                    ? ` · ${recurso.materia}`
-                    : ''}
-                </Text>
+                    <Text
+                      style={[
+                        styles.detalleRecurso,
+                        {
+                          color:
+                            colores.textoSecundario,
+                          fontSize:
+                            10 * escalaTexto,
+                        },
+                      ]}
+                    >
+                      {recurso.tipo}
+                      {recurso.materia
+                        ? ` · ${recurso.materia}`
+                        : ''}
+                    </Text>
 
-                {recurso.curso && (
+                    {recurso.curso && (
+                      <Text
+                        style={[
+                          styles.detalleRecurso,
+                          {
+                            color:
+                              colores.textoSecundario,
+                            fontSize:
+                              10 * escalaTexto,
+                          },
+                        ]}
+                      >
+                        {recurso.curso}
+                        {recurso.grupo
+                          ? ` · ${recurso.grupo}`
+                          : ''}
+                      </Text>
+                    )}
+                  </View>
+
+                  <View
+                    style={[
+                      styles.insigniaEstado,
+                      {
+                        backgroundColor:
+                          fondoEstado,
+                        borderColor:
+                          colorEstado,
+                      },
+                    ]}
+                    accessible
+                    accessibilityLabel={`Estado: ${etiquetaEstado}`}
+                  >
+                    <View
+                      style={[
+                        styles.puntoEstado,
+                        {
+                          backgroundColor:
+                            colorEstado,
+                        },
+                      ]}
+                    />
+
+                    <Text
+                      style={[
+                        styles.textoEstado,
+                        {
+                          color: colorEstado,
+                          fontSize:
+                            9 * escalaTexto,
+                        },
+                      ]}
+                    >
+                      {etiquetaEstado}
+                    </Text>
+                  </View>
+                </View>
+
+                {recurso.descripcion ? (
                   <Text
                     style={[
-                      styles.detalleRecurso,
+                      styles.descripcionRecurso,
+                      {
+                        color:
+                          colores.textoSecundario,
+                        fontSize:
+                          11 * escalaTexto,
+                      },
+                    ]}
+                    numberOfLines={3}
+                  >
+                    {recurso.descripcion}
+                  </Text>
+                ) : null}
+
+                <View
+                  style={[
+                    styles.filaFecha,
+                    {
+                      borderTopColor:
+                        colores.borde,
+                    },
+                  ]}
+                  accessible
+                  accessibilityLabel={`Publicado el ${formatearFecha(
+                    recurso.fecha_publicacion
+                  )}`}
+                >
+                  <Ionicons
+                    name="calendar-outline"
+                    size={16}
+                    color={
+                      colores.textoSecundario
+                    }
+                  />
+
+                  <Text
+                    style={[
+                      styles.textoFecha,
                       {
                         color:
                           colores.textoSecundario,
@@ -725,72 +1052,269 @@ export default function RecursosDocenteScreen() {
                       },
                     ]}
                   >
-                    {recurso.curso}
-                    {recurso.grupo
-                      ? ` · ${recurso.grupo}`
-                      : ''}
+                    Publicado:{' '}
+                    {formatearFecha(
+                      recurso.fecha_publicacion
+                    )}
                   </Text>
-                )}
+                </View>
 
-                {recurso.actividad_relacionada ? (
+                {estaEnUso ? (
                   <View
                     style={[
-                      styles.insigniaActividad,
+                      styles.actividadRelacionada,
                       {
                         backgroundColor:
                           colores.fondoPrimario,
+                        borderColor:
+                          colores.borde,
                       },
                     ]}
+                    accessible
+                    accessibilityLabel={`Actividad relacionada: ${
+                      recurso.actividad_relacionada ??
+                      'Actividad sin nombre'
+                    }`}
                   >
                     <Ionicons
                       name="link-outline"
-                      size={13}
+                      size={17}
+                      color={colores.primario}
+                    />
+
+                    <View
+                      style={
+                        styles.datosActividad
+                      }
+                    >
+                      <Text
+                        style={[
+                          styles.etiquetaActividad,
+                          {
+                            color:
+                              colores.textoSecundario,
+                            fontSize:
+                              9 * escalaTexto,
+                          },
+                        ]}
+                      >
+                        Actividad relacionada
+                      </Text>
+
+                      <Text
+                        style={[
+                          styles.nombreActividad,
+                          {
+                            color:
+                              colores.texto,
+                            fontSize:
+                              11 * escalaTexto,
+                          },
+                        ]}
+                      >
+                        {recurso.actividad_relacionada ??
+                          'Actividad sin nombre'}
+                      </Text>
+                    </View>
+                  </View>
+                ) : (
+                  <View
+                    style={[
+                      styles.recursoDisponible,
+                      {
+                        backgroundColor:
+                          fondoEstado,
+                        borderColor:
+                          colorEstado,
+                      },
+                    ]}
+                    accessible
+                    accessibilityLabel="Este recurso está disponible para relacionarlo con una actividad."
+                  >
+                    <Ionicons
+                      name="information-circle-outline"
+                      size={17}
+                      color={colorEstado}
+                    />
+
+                    <Text
+                      style={[
+                        styles.textoDisponible,
+                        {
+                          color: colorEstado,
+                          fontSize:
+                            10 * escalaTexto,
+                        },
+                      ]}
+                    >
+                      Disponible para utilizarse en
+                      una actividad
+                    </Text>
+                  </View>
+                )}
+
+                <View style={styles.accionesRecurso}>
+                  <TouchableOpacity
+                    style={[
+                      styles.botonVer,
+                      {
+                        backgroundColor:
+                          colores.fondoPrimario,
+                        borderColor:
+                          colores.primario,
+                      },
+                    ]}
+                    onPress={() =>
+                      abrirRecurso(recurso)
+                    }
+                    accessibilityRole="button"
+                    accessibilityLabel={`Ver recurso ${recurso.titulo}`}
+                    accessibilityHint="Abre el archivo o material de apoyo"
+                  >
+                    <Ionicons
+                      name="eye-outline"
+                      size={19}
                       color={colores.primario}
                     />
 
                     <Text
                       style={[
-                        styles.textoActividad,
+                        styles.textoBotonVer,
                         {
                           color:
                             colores.primario,
                           fontSize:
-                            9 * escalaTexto,
+                            11 * escalaTexto,
                         },
                       ]}
                     >
-                      {
-                        recurso.actividad_relacionada
-                      }
+                      Ver recurso
                     </Text>
-                  </View>
-                ) : (
-                  <Text
-                    style={[
-                      styles.sinActividad,
-                      {
-                        color:
-                          colores.textoSecundario,
-                        fontSize:
-                          9 * escalaTexto,
-                      },
-                    ]}
-                  >
-                    Sin actividad relacionada
-                  </Text>
-                )}
-              </View>
+                  </TouchableOpacity>
 
-              <Ionicons
-                name="chevron-forward"
-                size={21}
-                color={colores.textoSecundario}
-              />
-            </TouchableOpacity>
-          ))
+                  {!estaEnUso && (
+                    <TouchableOpacity
+                      style={[
+                        styles.botonActividad,
+                        {
+                          backgroundColor:
+                            colores.primario,
+                        },
+                      ]}
+                      onPress={() =>
+                        crearActividadConRecurso(
+                          recurso
+                        )
+                      }
+                      accessibilityRole="button"
+                      accessibilityLabel={`Crear actividad con el recurso ${recurso.titulo}`}
+                      accessibilityHint="Abre el formulario de actividad con este recurso seleccionado"
+                    >
+                      <Ionicons
+                        name="add-circle-outline"
+                        size={19}
+                        color="#FFFFFF"
+                      />
+
+                      <Text
+                        style={[
+                          styles.textoBotonActividad,
+                          {
+                            fontSize:
+                              11 * escalaTexto,
+                          },
+                        ]}
+                      >
+                        Crear actividad
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              </View>
+            );
+          })
         )}
       </ScrollView>
     </SafeAreaView>
+  );
+}
+
+type ResumenRecursoProps = {
+  titulo: string;
+  valor: number;
+  icono: keyof typeof Ionicons.glyphMap;
+  color: string;
+  fondo: string;
+  texto: string;
+  textoSecundario: string;
+  borde: string;
+  tarjeta: string;
+  escalaTexto: number;
+};
+
+function ResumenRecurso({
+  titulo,
+  valor,
+  icono,
+  color,
+  fondo,
+  texto,
+  textoSecundario,
+  borde,
+  tarjeta,
+  escalaTexto,
+}: ResumenRecursoProps) {
+  return (
+    <View
+      style={[
+        styles.tarjetaResumen,
+        {
+          backgroundColor: tarjeta,
+          borderColor: borde,
+        },
+      ]}
+      accessible
+      accessibilityLabel={`${titulo}: ${valor}`}
+    >
+      <View
+        style={[
+          styles.iconoResumen,
+          {
+            backgroundColor: fondo,
+          },
+        ]}
+      >
+        <Ionicons
+          name={icono}
+          size={20}
+          color={color}
+        />
+      </View>
+
+      <Text
+        style={[
+          styles.valorResumen,
+          {
+            color: texto,
+            fontSize: 18 * escalaTexto,
+          },
+        ]}
+      >
+        {valor}
+      </Text>
+
+      <Text
+        style={[
+          styles.textoResumen,
+          {
+            color: textoSecundario,
+            fontSize: 9 * escalaTexto,
+          },
+        ]}
+      >
+        {titulo}
+      </Text>
+    </View>
   );
 }
 
@@ -800,10 +1324,11 @@ const styles = StyleSheet.create({
   },
 
   encabezado: {
-    minHeight: 67,
+    minHeight: 69,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 11,
+    paddingVertical: 7,
     borderBottomWidth:
       StyleSheet.hairlineWidth,
   },
@@ -836,13 +1361,13 @@ const styles = StyleSheet.create({
   },
 
   botonCrear: {
-    minHeight: 50,
+    minHeight: 51,
     borderRadius: 14,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     columnGap: 8,
-    marginBottom: 13,
+    marginBottom: 11,
   },
 
   textoCrear: {
@@ -850,8 +1375,44 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
 
+  filaResumen: {
+    flexDirection: 'row',
+    columnGap: 7,
+    marginBottom: 12,
+  },
+
+  tarjetaResumen: {
+    flex: 1,
+    minHeight: 98,
+    borderWidth: 1,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 5,
+    paddingVertical: 9,
+  },
+
+  iconoResumen: {
+    width: 36,
+    height: 36,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  valorResumen: {
+    marginTop: 5,
+    fontWeight: '900',
+  },
+
+  textoResumen: {
+    marginTop: 2,
+    textAlign: 'center',
+    fontWeight: '700',
+  },
+
   buscador: {
-    minHeight: 47,
+    minHeight: 48,
     borderWidth: 1,
     borderRadius: 13,
     paddingHorizontal: 12,
@@ -861,8 +1422,15 @@ const styles = StyleSheet.create({
 
   inputBusqueda: {
     flex: 1,
-    minHeight: 45,
+    minHeight: 46,
     marginHorizontal: 8,
+  },
+
+  botonLimpiar: {
+    width: 38,
+    height: 38,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
   filtros: {
@@ -871,7 +1439,7 @@ const styles = StyleSheet.create({
   },
 
   filtro: {
-    minHeight: 33,
+    minHeight: 34,
     borderWidth: 1,
     borderRadius: 13,
     paddingHorizontal: 12,
@@ -881,6 +1449,21 @@ const styles = StyleSheet.create({
 
   textoFiltro: {
     fontWeight: '800',
+  },
+
+  filaResultados: {
+    minHeight: 35,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+
+  tituloResultados: {
+    fontWeight: '900',
+  },
+
+  totalResultados: {
+    fontWeight: '600',
   },
 
   cargando: {
@@ -894,19 +1477,21 @@ const styles = StyleSheet.create({
   },
 
   tarjetaRecurso: {
-    minHeight: 102,
     borderWidth: 1,
-    borderRadius: 16,
-    padding: 12,
-    marginBottom: 10,
+    borderRadius: 18,
+    padding: 13,
+    marginBottom: 12,
+  },
+
+  encabezadoRecurso: {
     flexDirection: 'row',
     alignItems: 'center',
   },
 
   iconoRecurso: {
-    width: 50,
-    height: 50,
-    borderRadius: 15,
+    width: 52,
+    height: 52,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -924,24 +1509,122 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
 
-  insigniaActividad: {
-    alignSelf: 'flex-start',
-    minHeight: 25,
-    borderRadius: 8,
-    paddingHorizontal: 7,
-    marginTop: 7,
+  insigniaEstado: {
+    minHeight: 29,
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 8,
     flexDirection: 'row',
     alignItems: 'center',
-    columnGap: 4,
+    columnGap: 5,
   },
 
-  textoActividad: {
+  puntoEstado: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+  },
+
+  textoEstado: {
+    fontWeight: '900',
+  },
+
+  descripcionRecurso: {
+    marginTop: 11,
+    lineHeight: 17,
+  },
+
+  filaFecha: {
+    minHeight: 39,
+    borderTopWidth:
+      StyleSheet.hairlineWidth,
+    marginTop: 11,
+    paddingTop: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    columnGap: 6,
+  },
+
+  textoFecha: {
+    flex: 1,
+    textTransform: 'capitalize',
+  },
+
+  actividadRelacionada: {
+    minHeight: 57,
+    borderWidth: 1,
+    borderRadius: 13,
+    paddingHorizontal: 11,
+    paddingVertical: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    columnGap: 9,
+  },
+
+  datosActividad: {
+    flex: 1,
+  },
+
+  etiquetaActividad: {
+    fontWeight: '600',
+  },
+
+  nombreActividad: {
+    marginTop: 3,
     fontWeight: '800',
   },
 
-  sinActividad: {
-    marginTop: 7,
-    fontStyle: 'italic',
+  recursoDisponible: {
+    minHeight: 46,
+    borderWidth: 1,
+    borderRadius: 13,
+    paddingHorizontal: 11,
+    flexDirection: 'row',
+    alignItems: 'center',
+    columnGap: 8,
+  },
+
+  textoDisponible: {
+    flex: 1,
+    fontWeight: '800',
+  },
+
+  accionesRecurso: {
+    flexDirection: 'row',
+    columnGap: 8,
+    marginTop: 12,
+  },
+
+  botonVer: {
+    flex: 1,
+    minHeight: 45,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 9,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    columnGap: 6,
+  },
+
+  textoBotonVer: {
+    fontWeight: '900',
+  },
+
+  botonActividad: {
+    flex: 1.25,
+    minHeight: 45,
+    borderRadius: 12,
+    paddingHorizontal: 9,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    columnGap: 6,
+  },
+
+  textoBotonActividad: {
+    color: '#FFFFFF',
+    fontWeight: '900',
   },
 
   estadoVacio: {
@@ -953,13 +1636,22 @@ const styles = StyleSheet.create({
     padding: 20,
   },
 
+  iconoVacio: {
+    width: 70,
+    height: 70,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
   tituloVacio: {
-    marginTop: 11,
+    marginTop: 12,
     fontWeight: '900',
   },
 
   textoVacio: {
     marginTop: 6,
     textAlign: 'center',
+    lineHeight: 18,
   },
 });

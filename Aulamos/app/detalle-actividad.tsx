@@ -53,6 +53,17 @@ type ArchivoSeleccionado = {
   size?: number | null;
 };
 
+type RecursoActividad = {
+  id_recurso: number;
+  titulo: string;
+  descripcion?: string | null;
+  tipo: string;
+  url_recurso?: string | null;
+  archivo?: string | null;
+  subtitulos_disponibles?: boolean | number;
+  accesible?: boolean | number;
+};
+
 type DetalleActividad = {
   id_actividad: number;
   id_curso: number;
@@ -61,6 +72,8 @@ type DetalleActividad = {
   titulo: string;
   descripcion: string | null;
   instrucciones: string | null;
+
+  recurso?: RecursoActividad | null;
   tipo:
     | 'Tarea'
     | 'Ejercicio'
