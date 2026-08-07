@@ -359,13 +359,13 @@ router.get(
 );
 
 /*
- * Obtiene la información y las URLs necesarias para
- * reproducir un video y mostrar sus subtítulos.
+ * El alumno puede reproducir videos disponibles en su biblioteca.
+ * El docente puede previsualizar únicamente los videos que publicó.
  */
 router.get(
   '/recursos/:id/reproductor',
   verificarToken,
-  verificarRol('Alumno'),
+  verificarRol('Alumno', 'Docente'),
   obtenerRecursoParaReproductor
 );
 

@@ -1443,7 +1443,7 @@ export default function CalificarEntregaScreen() {
           icon="document-text-outline"
           activeIcon="document-text"
           label="Evaluaciones"
-          onPress={() => router.push('/evaluaciones-docente' as never)}
+          onPress={() => router.push('/crear-evaluacion' as never)}
         />
 
         <BottomItem
@@ -1477,7 +1477,7 @@ function BottomItem({
   const colorActivo = preferencias.altoContraste
     ? colores.primario
     : preferencias.modoOscuro
-      ? '#60A5FA'
+      ? '#749ccc'
       : '#2563EB';
 
   return (

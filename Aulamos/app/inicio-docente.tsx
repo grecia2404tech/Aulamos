@@ -47,8 +47,7 @@ type InicioDocenteResponse = {
   };
 
   actividad_reciente: {
-    id?: number;
-    id_actividad?: number;
+    id: number;
     titulo: string;
     materia: string;
     tipo: string;
@@ -435,52 +434,6 @@ export default function InicioDocenteScreen() {
         `Todavía debes crear la pantalla ${ruta}.`
       );
     }
-  };
-
-  const abrirActividadReciente = () => {
-    const actividadReciente =
-      datos?.actividad_reciente;
-
-    if (!actividadReciente) {
-      return;
-    }
-
-    if (
-      actividadReciente.origen
-        .trim()
-        .toLowerCase() !==
-      'actividad'
-    ) {
-      Alert.alert(
-        'Contenido reciente',
-        'El contenido mostrado es un recurso. Para consultar entregas y calificaciones, abre una actividad.',
-      );
-      return;
-    }
-
-    const idActividad = Number(
-      actividadReciente.id_actividad ??
-        actividadReciente.id,
-    );
-
-    if (
-      !Number.isInteger(idActividad) ||
-      idActividad <= 0
-    ) {
-      Alert.alert(
-        'Actividad no disponible',
-        'No se recibió el identificador de esta actividad. Actualiza la pantalla e inténtalo nuevamente.',
-      );
-      return;
-    }
-
-    router.push({
-      pathname: '/detalle-actividad',
-      params: {
-        id_actividad:
-          String(idActividad),
-      },
-    } as any);
   };
 
   const capitalizar = (
@@ -1137,7 +1090,7 @@ export default function InicioDocenteScreen() {
                 backgroundColor="#2563EB"
                 onPress={() =>
                   navegar(
-                    '/estudiantes-docente',
+                    '/ver-estudiantes',
                     'Ver estudiantes'
                   )
                 }
@@ -1153,22 +1106,11 @@ export default function InicioDocenteScreen() {
                 backgroundColor="#9F3A38"
                 onPress={() =>
                   navegar(
-                    '/reportes',
+                    '/reportes-docente',
                     'Reportes'
                   )
                 }
               />
-
-              <QuickAction
-  style={responsive.botonRapido}
-  text="Pasar lista"
-  subtitle="Registra la asistencia"
-  icon="checkbox-outline"
-  backgroundColor="#0F766E"
-  onPress={() =>
-    navegar('/pasar-lista', 'Pasar lista')
-  }
-/>
             </View>
 
             <View
@@ -1225,13 +1167,9 @@ export default function InicioDocenteScreen() {
                   contenidoGrande &&
                     styles.recentCardColumn,
                 ]}
-                onPress={
-                  abrirActividadReciente
-                }
                 activeOpacity={0.82}
                 accessibilityRole="button"
                 accessibilityLabel={`Actividad reciente: ${datos.actividad_reciente.titulo}`}
-                accessibilityHint="Abre el detalle para consultar estudiantes, entregas y calificaciones"
               >
                 <View
                   style={[
@@ -1495,8 +1433,8 @@ export default function InicioDocenteScreen() {
               label="Recursos"
               onPress={() =>
                 navegar(
-                  '/recursos-docente',
-                  'Recursos docente'
+                  '/crear-recurso',
+                  'Recursos'
                 )
               }
             />
@@ -1507,8 +1445,8 @@ export default function InicioDocenteScreen() {
               label="Actividades"
               onPress={() =>
                 navegar(
-                  '/actividades-docente',
-                  'Mis actividades'
+                   '/crear-actividad',
+                   'Crear actividad'
                 )
               }
             />
@@ -1519,9 +1457,8 @@ export default function InicioDocenteScreen() {
               label="Evaluaciones"
               onPress={() =>
                 navegar(
-                  '/crear-evaluacion',
-                  'Crear-Evaluacion'
-
+                  '/evaluaciones-docente',
+                  'Evaluaciones'
                 )
               }
             />

@@ -171,6 +171,7 @@ export default function ReproductorVideoScreen() {
   const tiempoActualRef = useRef(0);
   const duracionRef = useRef(0);
   const registroFinalEnviadoRef = useRef(false);
+  const puedeRegistrarUsoRef = useRef(false);
 
   const player = useVideoPlayer(null, (instancia) => {
     instancia.loop = false;
@@ -195,7 +196,11 @@ export default function ReproductorVideoScreen() {
       tiempo: number,
       porcentaje: number
     ) => {
-      if (!Number.isInteger(idRecursoNumero) || idRecursoNumero <= 0) {
+      if (
+        !puedeRegistrarUsoRef.current ||
+        !Number.isInteger(idRecursoNumero) ||
+        idRecursoNumero <= 0
+      ) {
         return;
       }
 
@@ -288,6 +293,9 @@ export default function ReproductorVideoScreen() {
         }
 
         const video = resultado.recurso as RecursoVideo;
+
+        puedeRegistrarUsoRef.current =
+          resultado.puede_registrar_uso === true;
 
         if (!video.url_recurso) {
           throw new Error(

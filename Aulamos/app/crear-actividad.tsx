@@ -1358,7 +1358,7 @@ export default function CrearActividadScreen() {
               label="Evaluaciones"
               onPress={() =>
                 router.push(
-                  '/evaluaciones-docente' as never,
+                  '/crear-evaluacion' as never,
                 )
               }
             />

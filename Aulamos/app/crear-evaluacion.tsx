@@ -1019,6 +1019,70 @@ export default function CrearEvaluacionScreen() {
           </View>
         </ScrollView>
 
+        <View
+          style={[
+            styles.bottomNavigation,
+            {
+              backgroundColor: colores.tarjeta,
+              borderTopColor: colores.borde,
+            },
+          ]}
+          accessibilityRole="tablist"
+        >
+          <View
+            style={[
+              styles.bottomContent,
+              { width: anchoContenido },
+            ]}
+          >
+            <BottomItem
+              icon="home-outline"
+              activeIcon="home"
+              label="Inicio"
+              onPress={() =>
+                router.replace('/inicio-docente' as never)
+              }
+            />
+
+            <BottomItem
+              icon="book-outline"
+              activeIcon="book"
+              label="Recursos"
+              onPress={() =>
+                router.push('/crear-recurso' as never)
+              }
+            />
+
+            <BottomItem
+              icon="reader-outline"
+              activeIcon="reader"
+              label="Actividades"
+              onPress={() =>
+                router.push('/actividades-docente' as never)
+              }
+            />
+
+            <BottomItem
+              icon="document-text-outline"
+              activeIcon="document-text"
+              label="Evaluaciones"
+              active
+              onPress={() =>
+                anunciar('Ya estás en evaluaciones.')
+              }
+            />
+
+            <BottomItem
+              icon="menu-outline"
+              activeIcon="menu"
+              label="Más"
+              onPress={() =>
+                router.push('/menu-docente' as never)
+              }
+            />
+          </View>
+        </View>
+
         <SelectionModal
           visible={modalCurso}
           title="Selecciona un curso"
@@ -1494,6 +1558,56 @@ function NumberField({
   );
 }
 
+type BottomItemProps = {
+  icon: keyof typeof Ionicons.glyphMap;
+  activeIcon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  active?: boolean;
+  onPress: () => void;
+};
+
+function BottomItem({
+  icon,
+  activeIcon,
+  label,
+  active = false,
+  onPress,
+}: BottomItemProps) {
+  return (
+    <TouchableOpacity
+      style={styles.bottomItem}
+      onPress={onPress}
+      activeOpacity={0.7}
+      accessibilityRole="tab"
+      accessibilityLabel={label}
+      accessibilityState={{ selected: active }}
+    >
+      <View
+        style={[
+          styles.bottomIconContainer,
+          active && styles.bottomIconContainerActive,
+        ]}
+      >
+        <Ionicons
+          name={active ? activeIcon : icon}
+          size={21}
+          color={active ? AZUL : '#8B98AA'}
+        />
+      </View>
+
+      <Text
+        numberOfLines={1}
+        style={[
+          styles.bottomLabel,
+          active && styles.bottomLabelActive,
+        ]}
+      >
+        {label}
+      </Text>
+    </TouchableOpacity>
+  );
+}
+
 function SelectionModal({
   visible,
   title,
@@ -1884,4 +1998,53 @@ const styles = StyleSheet.create({
   modalOptionText: { flex: 1 },
   modalTitle: { fontSize: 14, fontWeight: '800' },
   modalSubtitle: { fontSize: 11, marginTop: 4 },
+  bottomNavigation: {
+    minHeight: 66,
+    borderTopWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#111827',
+        shadowOffset: { width: 0, height: -4 },
+        shadowOpacity: 0.07,
+        shadowRadius: 10,
+      },
+      android: {
+        elevation: 10,
+      },
+    }),
+  },
+  bottomContent: {
+    minHeight: 65,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  bottomItem: {
+    flex: 1,
+    minWidth: 54,
+    minHeight: 58,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bottomIconContainer: {
+    width: 36,
+    height: 29,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bottomIconContainerActive: {
+    backgroundColor: AZUL_SUAVE,
+  },
+  bottomLabel: {
+    marginTop: 2,
+    fontSize: 8,
+    color: '#8B98AA',
+    fontWeight: '700',
+  },
+  bottomLabelActive: {
+    color: AZUL,
+    fontWeight: '900',
+  },
 });

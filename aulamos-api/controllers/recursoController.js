@@ -701,20 +701,44 @@ const listarBibliotecaAlumno = async (req, res) => {
   }
 };
 
+
 /*
  * GET /api/academico/recursos/:id/reproductor
  *
- * Devuelve al alumno un video de su biblioteca y la ruta de sus
- * subtítulos. La misma consulta valida que esté inscrito en el curso.
+ * Devuelve el video y la ruta de sus subtítulos.
+ *
+ * Alumno:
+ * - Solo puede abrir recursos disponibles en su biblioteca.
+ *
+ * Docente:
+ * - Solo puede abrir recursos publicados por él.
  */
 const obtenerRecursoParaReproductor = async (req, res) => {
   try {
-    const idAlumno = obtenerIdUsuario(req);
+    const idUsuario = obtenerIdUsuario(req);
     const idRecurso = Number(req.params.id);
+    const rolUsuario = String(
+      req.usuario?.rol ?? ''
+    ).trim();
 
-    if (!esIdValido(idAlumno) || !esIdValido(idRecurso)) {
+    if (
+      !esIdValido(idUsuario) ||
+      !esIdValido(idRecurso)
+    ) {
       return res.status(400).json({
-        mensaje: "El recurso indicado no es válido.",
+        mensaje:
+          'El recurso indicado no es válido.',
+      });
+    }
+
+    if (
+      !['Alumno', 'Docente'].includes(
+        rolUsuario
+      )
+    ) {
+      return res.status(403).json({
+        mensaje:
+          'No tienes permiso para reproducir este recurso.',
       });
     }
 
@@ -736,51 +760,79 @@ const obtenerRecursoParaReproductor = async (req, res) => {
             u.apellido_paterno
           ) AS docente
         FROM recursos_educativos AS r
+
         LEFT JOIN materias AS m
           ON m.id_materia = r.id_materia
+
         LEFT JOIN cursos AS c
           ON c.id_curso = r.id_curso
+
         LEFT JOIN usuarios AS u
           ON u.id_usuario = r.id_docente
+
         WHERE r.id_recurso = ?
           AND r.tipo = 'Video'
-          AND r.estado = 'Activo'
           AND (
-            r.compartido_tipo = 'Publico'
-            OR EXISTS (
-              SELECT 1
-              FROM inscripciones AS i
-              INNER JOIN cursos AS ci
-                ON ci.id_curso = i.id_curso
-              WHERE i.id_alumno = ?
-                AND i.estado = 'Activo'
-                AND ci.estado = 'Activo'
-                AND (
-                  (
-                    r.id_actividad IS NOT NULL
-                    AND EXISTS (
-                      SELECT 1
-                      FROM actividades AS ar
-                      WHERE ar.id_actividad = r.id_actividad
-                        AND ar.id_curso = ci.id_curso
+            (
+              ? = 'Docente'
+              AND r.id_docente = ?
+            )
+            OR
+            (
+              ? = 'Alumno'
+              AND r.estado = 'Activo'
+              AND (
+                r.compartido_tipo = 'Publico'
+                OR EXISTS (
+                  SELECT 1
+                  FROM inscripciones AS i
+
+                  INNER JOIN cursos AS ci
+                    ON ci.id_curso = i.id_curso
+
+                  WHERE i.id_alumno = ?
+                    AND i.estado = 'Activo'
+                    AND ci.estado = 'Activo'
+                    AND (
+                      (
+                        r.id_actividad IS NOT NULL
+                        AND EXISTS (
+                          SELECT 1
+                          FROM actividades AS ar
+                          WHERE ar.id_actividad =
+                            r.id_actividad
+                            AND ar.id_curso =
+                              ci.id_curso
+                        )
+                      )
+                      OR
+                      (
+                        r.id_actividad IS NULL
+                        AND r.id_curso =
+                          ci.id_curso
+                      )
                     )
-                  )
-                  OR (
-                    r.id_actividad IS NULL
-                    AND r.id_curso = ci.id_curso
-                  )
                 )
+              )
             )
           )
         LIMIT 1
       `,
-      [idRecurso, idAlumno]
+      [
+        idRecurso,
+        rolUsuario,
+        idUsuario,
+        rolUsuario,
+        idUsuario,
+      ]
     );
 
     if (recursos.length === 0) {
       return res.status(404).json({
         mensaje:
-          "El video no existe o no está disponible para este alumno.",
+          rolUsuario === 'Docente'
+            ? 'El video no existe o no pertenece a este docente.'
+            : 'El video no existe o no está disponible para este alumno.',
       });
     }
 
@@ -789,24 +841,30 @@ const obtenerRecursoParaReproductor = async (req, res) => {
     return res.status(200).json({
       recurso: {
         ...recurso,
+
         url_recurso: construirUrlPublica(
           req,
           recurso.url_recurso
         ),
+
         url_subtitulos: construirUrlPublica(
           req,
           recurso.url_subtitulos
         ),
       },
+
+      puede_registrar_uso:
+        rolUsuario === 'Alumno',
     });
   } catch (error) {
     console.error(
-      "Error al consultar el video del alumno:",
+      'Error al consultar el video:',
       error
     );
 
     return res.status(500).json({
-      mensaje: "No se pudo consultar el video.",
+      mensaje:
+        'No se pudo consultar el video.',
     });
   }
 };

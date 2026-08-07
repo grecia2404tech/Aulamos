@@ -726,9 +726,423 @@ const obtenerProgresoEstudiante = async (
   }
 };
 
+const obtenerAsistenciaDocente = async (
+  req,
+  res
+) => {
+  try {
+    const idDocente = Number(
+      req.usuario?.id_usuario
+    );
+
+    if (
+      !Number.isInteger(idDocente) ||
+      idDocente <= 0
+    ) {
+      return res.status(401).json({
+        mensaje:
+          'No se pudo identificar al docente autenticado.',
+      });
+    }
+
+    const [filas] = await pool.query(
+      `
+        SELECT
+          u.id_usuario AS id_alumno,
+
+          CONCAT_WS(
+            ' ',
+            u.nombre,
+            u.apellido_paterno,
+            u.apellido_materno
+          ) AS nombre,
+
+          SUM(
+            CASE
+              WHEN a.id_actividad IS NOT NULL
+                AND a.fecha_limite <= NOW()
+                AND (
+                  e.id_entrega IS NOT NULL
+                  OR ae.estado IN (
+                    'Completada',
+                    'Calificada'
+                  )
+                  OR COALESCE(
+                    ae.porcentaje_avance,
+                    0
+                  ) >= 100
+                )
+                AND (
+                  COALESCE(
+                    e.fecha_entrega,
+                    ae.fecha_finalizacion
+                  ) IS NULL
+                  OR COALESCE(
+                    e.fecha_entrega,
+                    ae.fecha_finalizacion
+                  ) <= a.fecha_limite
+                )
+              THEN 1
+              ELSE 0
+            END
+          ) AS asistencias,
+
+          SUM(
+            CASE
+              WHEN a.id_actividad IS NOT NULL
+                AND a.fecha_limite <= NOW()
+                AND NOT (
+                  e.id_entrega IS NOT NULL
+                  OR ae.estado IN (
+                    'Completada',
+                    'Calificada'
+                  )
+                  OR COALESCE(
+                    ae.porcentaje_avance,
+                    0
+                  ) >= 100
+                )
+              THEN 1
+              ELSE 0
+            END
+          ) AS faltas,
+
+          SUM(
+            CASE
+              WHEN a.id_actividad IS NOT NULL
+                AND a.fecha_limite <= NOW()
+                AND (
+                  e.id_entrega IS NOT NULL
+                  OR ae.estado IN (
+                    'Completada',
+                    'Calificada'
+                  )
+                  OR COALESCE(
+                    ae.porcentaje_avance,
+                    0
+                  ) >= 100
+                )
+                AND COALESCE(
+                  e.fecha_entrega,
+                  ae.fecha_finalizacion
+                ) > a.fecha_limite
+              THEN 1
+              ELSE 0
+            END
+          ) AS retardos
+
+        FROM inscripciones AS i
+
+        INNER JOIN cursos AS c
+          ON c.id_curso = i.id_curso
+
+        INNER JOIN usuarios AS u
+          ON u.id_usuario = i.id_alumno
+
+        LEFT JOIN actividad_estudiantes AS ae
+          ON ae.id_alumno = i.id_alumno
+
+        LEFT JOIN actividades AS a
+          ON a.id_actividad =
+             ae.id_actividad
+          AND a.id_curso = c.id_curso
+          AND a.id_docente =
+              c.id_docente
+          AND a.estado IN (
+            'Publicada',
+            'Cerrada'
+          )
+
+        LEFT JOIN entregas AS e
+          ON e.id_entrega = (
+            SELECT MAX(e2.id_entrega)
+            FROM entregas AS e2
+            WHERE
+              e2.id_actividad_estudiante =
+              ae.id_actividad_estudiante
+          )
+
+        WHERE c.id_docente = ?
+          AND c.estado = 'Activo'
+          AND i.estado = 'Activo'
+          AND u.estado = 'Activo'
+
+        GROUP BY
+          u.id_usuario,
+          u.nombre,
+          u.apellido_paterno,
+          u.apellido_materno
+
+        ORDER BY
+          u.apellido_paterno,
+          u.apellido_materno,
+          u.nombre
+      `,
+      [idDocente]
+    );
+
+    const alumnos = filas.map((fila) => {
+      const asistencias =
+        Number(fila.asistencias) || 0;
+
+      const faltas =
+        Number(fila.faltas) || 0;
+
+      const retardos =
+        Number(fila.retardos) || 0;
+
+      const total =
+        asistencias + faltas + retardos;
+
+      const porcentaje =
+        total > 0
+          ? Number(
+              (
+                ((asistencias + retardos) /
+                  total) *
+                100
+              ).toFixed(1)
+            )
+          : 0;
+
+      return {
+        id_alumno:
+          Number(fila.id_alumno),
+
+        nombre:
+          fila.nombre ||
+          'Alumno sin nombre',
+
+        asistencias,
+        faltas,
+        retardos,
+        porcentaje,
+      };
+    });
+
+    const totales = alumnos.reduce(
+      (acumulado, alumno) => {
+        acumulado.asistencias +=
+          alumno.asistencias;
+
+        acumulado.faltas +=
+          alumno.faltas;
+
+        acumulado.retardos +=
+          alumno.retardos;
+
+        return acumulado;
+      },
+      {
+        asistencias: 0,
+        faltas: 0,
+        retardos: 0,
+      }
+    );
+
+    const totalRegistros =
+      totales.asistencias +
+      totales.faltas +
+      totales.retardos;
+
+    const porcentajeAsistencia =
+      totalRegistros > 0
+        ? Number(
+            (
+              ((totales.asistencias +
+                totales.retardos) /
+                totalRegistros) *
+              100
+            ).toFixed(1)
+          )
+        : 0;
+
+    return res.status(200).json({
+      mensaje:
+        'Reporte de participación obtenido correctamente.',
+
+      resumen: {
+        porcentaje_asistencia:
+          porcentajeAsistencia,
+
+        asistencias:
+          totales.asistencias,
+
+        faltas:
+          totales.faltas,
+
+        retardos:
+          totales.retardos,
+
+        total_registros:
+          totalRegistros,
+      },
+
+      alumnos,
+    });
+  } catch (error) {
+    console.error(
+      'Error al obtener el reporte de asistencia:',
+      error
+    );
+
+    return res.status(500).json({
+      mensaje:
+        'No se pudo obtener el reporte de asistencia.',
+
+      error: error.message,
+    });
+  }
+};
+
+
+/*
+ * GET /api/docente/clases
+ *
+ * Obtiene únicamente las clases activas asignadas al
+ * docente autenticado. El id del docente se toma del
+ * token para evitar que consulte clases de otro docente.
+ */
+const obtenerClasesDocente = async (req, res) => {
+  try {
+    const idDocente = Number(
+      req.usuario?.id_usuario
+    );
+
+    if (
+      !Number.isInteger(idDocente) ||
+      idDocente <= 0
+    ) {
+      return res.status(401).json({
+        mensaje:
+          'No se pudo identificar al docente autenticado.',
+      });
+    }
+
+    const [clases] = await pool.query(
+      `SELECT
+          c.id_curso,
+          c.nombre,
+          c.descripcion,
+          c.estado,
+
+          m.id_materia,
+          m.nombre AS materia,
+          m.campo_formativo,
+
+          g.id_grupo,
+          g.nombre AS grupo,
+          g.grado,
+          g.turno,
+          g.modalidad,
+
+          ce.nombre AS ciclo,
+
+          DATE_FORMAT(
+            ce.fecha_inicio,
+            '%Y-%m-%d'
+          ) AS ciclo_fecha_inicio,
+
+          DATE_FORMAT(
+            ce.fecha_fin,
+            '%Y-%m-%d'
+          ) AS ciclo_fecha_fin,
+
+          (
+            SELECT COUNT(DISTINCT i.id_alumno)
+            FROM inscripciones AS i
+            WHERE i.id_curso = c.id_curso
+              AND i.estado = 'Activo'
+          ) AS estudiantes,
+
+          (
+            SELECT COUNT(*)
+            FROM actividades AS a
+            WHERE a.id_curso = c.id_curso
+              AND a.id_docente = c.id_docente
+              AND a.tipo <> 'Evaluacion'
+              AND a.estado <> 'Archivada'
+          ) AS actividades,
+
+          (
+            SELECT COUNT(*)
+            FROM actividades AS ev
+            WHERE ev.id_curso = c.id_curso
+              AND ev.id_docente = c.id_docente
+              AND ev.tipo = 'Evaluacion'
+              AND ev.estado <> 'Archivada'
+          ) AS evaluaciones
+
+       FROM cursos AS c
+
+       INNER JOIN materias AS m
+          ON m.id_materia = c.id_materia
+
+       INNER JOIN grupos AS g
+          ON g.id_grupo = c.id_grupo
+
+       INNER JOIN ciclos_escolares AS ce
+          ON ce.id_ciclo = c.id_ciclo
+
+       WHERE c.id_docente = ?
+         AND c.estado = 'Activo'
+
+       ORDER BY
+          ce.fecha_inicio DESC,
+          g.grado ASC,
+          g.nombre ASC,
+          m.nombre ASC`,
+      [idDocente]
+    );
+
+    return res.status(200).json({
+      mensaje:
+        'Clases del docente obtenidas correctamente.',
+
+      total: clases.length,
+
+      clases: clases.map((clase) => ({
+        ...clase,
+
+        id_curso:
+          Number(clase.id_curso),
+
+        id_materia:
+          Number(clase.id_materia),
+
+        id_grupo:
+          Number(clase.id_grupo),
+
+        estudiantes:
+          Number(clase.estudiantes) || 0,
+
+        actividades:
+          Number(clase.actividades) || 0,
+
+        evaluaciones:
+          Number(clase.evaluaciones) || 0,
+      })),
+    });
+  } catch (error) {
+    console.error(
+      'Error al obtener las clases del docente:',
+      error
+    );
+
+    return res.status(500).json({
+      mensaje:
+        'No se pudieron obtener las clases del docente.',
+
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   obtenerInicioDocente,
   obtenerEstudiantesDocente,
   obtenerRecursosDocente,
   obtenerProgresoEstudiante,
+  obtenerAsistenciaDocente,
+  obtenerClasesDocente,
 };

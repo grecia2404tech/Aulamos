@@ -1,4 +1,3 @@
-
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import {
@@ -15,6 +14,7 @@ import {
   ActivityIndicator,
   Alert,
   Linking,
+  Platform,
   RefreshControl,
   ScrollView,
   StatusBar,
@@ -24,7 +24,10 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from 'react-native-safe-area-context';
 
 import BotonAccesibilidad from '../components/BotonAccesibilidad';
 import { useAccessibility } from '../contexts/AccessibilityContext';
@@ -78,31 +81,9 @@ const FILTROS: FiltroTipo[] = [
   'Otro',
 ];
 
-
-const construirUrlPublica = (
-  ruta?: string | null
-) => {
-  if (!ruta) {
-    return null;
-  }
-
-  if (/^https?:\/\//i.test(ruta)) {
-    return ruta;
-  }
-
-  const servidor = API_URL.replace(
-    /\/api\/?$/,
-    ''
-  );
-
-  return `${servidor}${
-    ruta.startsWith('/')
-      ? ruta
-      : `/${ruta}`
-  }`;
-};
-
 export default function RecursosDocenteScreen() {
+  const insets = useSafeAreaInsets();
+
   const {
     colores,
     escalaTexto,
@@ -160,16 +141,15 @@ export default function RecursosDocenteScreen() {
         }
 
         const respuesta = await fetch(
-          `${API_URL}/docente/recursos`,
-          {
-            method: 'GET',
-            headers: {
-              Accept: 'application/json',
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
-
+  `${API_URL}/academico/recursos/mis-recursos-docente`,
+  {
+    method: 'GET',
+    headers: {
+      Accept: 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+  }
+);
         const texto = await respuesta.text();
 
         let resultado: RespuestaRecursos = {};
@@ -374,10 +354,10 @@ export default function RecursosDocenteScreen() {
   const abrirRecurso = async (
     recurso: RecursoDocente
   ) => {
-    const rutaOriginal =
-      recurso.archivo || recurso.url_recurso;
+    const direccion =
+      recurso.url_recurso || recurso.archivo;
 
-    if (!rutaOriginal) {
+    if (!direccion) {
       Alert.alert(
         'Recurso no disponible',
         'Este recurso no tiene un archivo o una dirección disponible.'
@@ -387,17 +367,6 @@ export default function RecursosDocenteScreen() {
         'El recurso seleccionado no está disponible.'
       );
 
-      return;
-    }
-
-    const direccion =
-      construirUrlPublica(rutaOriginal);
-
-    if (!direccion) {
-      Alert.alert(
-        'Recurso no disponible',
-        'No fue posible construir la dirección del recurso.'
-      );
       return;
     }
 
@@ -413,24 +382,49 @@ export default function RecursosDocenteScreen() {
         router.push({
           pathname: '/reproductor-video',
           params: {
-            url: direccion,
-            titulo: recurso.titulo,
+            idRecurso: String(recurso.id_recurso),
           },
         } as never);
 
         return;
       }
 
-      if (
+      const extension = direccion
+        .split('?')[0]
+        .split('#')[0]
+        .split('.')
+        .pop()
+        ?.toLowerCase();
+
+      const esDocumento =
         tipoNormalizado === 'pdf' ||
-        tipoNormalizado === 'documento'
-      ) {
+        tipoNormalizado === 'documento' ||
+        [
+          'pdf',
+          'doc',
+          'docx',
+          'xls',
+          'xlsx',
+          'ppt',
+          'pptx',
+          'txt',
+        ].includes(extension || '');
+
+      if (esDocumento) {
+        const nombreDesdeUrl = decodeURIComponent(
+          direccion
+            .split('?')[0]
+            .split('#')[0]
+            .split('/')
+            .pop() || 'Documento'
+        );
+
         router.push({
           pathname: '/visor-documento',
           params: {
             url_archivo: direccion,
-            nombre_archivo: recurso.titulo,
-            titulo: 'Recurso educativo',
+            nombre_archivo: nombreDesdeUrl,
+            titulo: recurso.titulo,
           },
         } as never);
 
@@ -497,6 +491,7 @@ export default function RecursosDocenteScreen() {
 
   return (
     <SafeAreaView
+      edges={['top', 'left', 'right']}
       style={[
         styles.safeArea,
         {
@@ -576,7 +571,12 @@ export default function RecursosDocenteScreen() {
       </View>
 
       <ScrollView
-        contentContainerStyle={styles.contenido}
+        contentContainerStyle={[
+          styles.contenido,
+          {
+            paddingBottom: 88 + insets.bottom,
+          },
+        ]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         refreshControl={
@@ -1275,6 +1275,75 @@ export default function RecursosDocenteScreen() {
           })
         )}
       </ScrollView>
+
+      <View
+        style={[
+          styles.bottomNavigation,
+          {
+            minHeight:
+              68 + Math.max(insets.bottom, 5),
+            paddingBottom: Math.max(
+              insets.bottom,
+              5
+            ),
+            backgroundColor: colores.tarjeta,
+            borderTopColor: colores.borde,
+          },
+        ]}
+        accessibilityRole="tablist"
+      >
+        <BottomItem
+          icon="home-outline"
+          activeIcon="home"
+          label="Inicio"
+          onPress={() =>
+            router.replace(
+              '/inicio-docente' as Href
+            )
+          }
+        />
+
+        <BottomItem
+          icon="book-outline"
+          activeIcon="book"
+          label="Recursos"
+          active
+          onPress={() =>
+            anunciar('Ya estás en Recursos.')
+          }
+        />
+
+        <BottomItem
+          icon="reader-outline"
+          activeIcon="reader"
+          label="Actividades"
+          onPress={() =>
+            router.push(
+              '/actividades-docente' as Href
+            )
+          }
+        />
+
+        <BottomItem
+          icon="document-text-outline"
+          activeIcon="document-text"
+          label="Evaluaciones"
+          onPress={() =>
+            router.push(
+              '/evaluaciones-docente' as Href
+            )
+          }
+        />
+
+        <BottomItem
+          icon="menu-outline"
+          activeIcon="menu"
+          label="Más"
+          onPress={() =>
+            router.push('/menu-docente' as Href)
+          }
+        />
+      </View>
     </SafeAreaView>
   );
 }
@@ -1355,6 +1424,83 @@ function ResumenRecurso({
         {titulo}
       </Text>
     </View>
+  );
+}
+
+type BottomItemProps = {
+  icon: keyof typeof Ionicons.glyphMap;
+  activeIcon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  active?: boolean;
+  onPress: () => void;
+};
+
+function BottomItem({
+  icon,
+  activeIcon,
+  label,
+  active = false,
+  onPress,
+}: BottomItemProps) {
+  const {
+    colores,
+    escalaTexto,
+    preferencias,
+  } = useAccessibility();
+
+  const colorActivo = preferencias.altoContraste
+    ? colores.primario
+    : preferencias.modoOscuro
+      ? '#60A5FA'
+      : '#2563EB';
+
+  return (
+    <TouchableOpacity
+      style={styles.bottomItem}
+      onPress={onPress}
+      activeOpacity={0.7}
+      focusable
+      accessibilityRole="tab"
+      accessibilityState={{ selected: active }}
+      accessibilityLabel={label}
+    >
+      <View
+        style={[
+          styles.bottomIconContainer,
+          active && {
+            backgroundColor:
+              colores.fondoPrimario,
+          },
+        ]}
+      >
+        <Ionicons
+          name={active ? activeIcon : icon}
+          size={21}
+          color={
+            active
+              ? colorActivo
+              : colores.textoSecundario
+          }
+        />
+      </View>
+
+      <Text
+        style={[
+          styles.bottomLabel,
+          {
+            color: active
+              ? colorActivo
+              : colores.textoSecundario,
+            fontSize: 8 * escalaTexto,
+            lineHeight: 10 * escalaTexto,
+          },
+          active && styles.bottomLabelActive,
+        ]}
+        numberOfLines={2}
+      >
+        {label}
+      </Text>
+    </TouchableOpacity>
   );
 }
 
@@ -1693,5 +1839,58 @@ const styles = StyleSheet.create({
     marginTop: 6,
     textAlign: 'center',
     lineHeight: 18,
+  },
+
+  bottomNavigation: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderTopWidth: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-around',
+    paddingTop: 6,
+    paddingHorizontal: 4,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#111827',
+        shadowOffset: {
+          width: 0,
+          height: -3,
+        },
+        shadowOpacity: 0.08,
+        shadowRadius: 9,
+      },
+      android: {
+        elevation: 10,
+      },
+    }),
+  },
+
+  bottomItem: {
+    flex: 1,
+    minWidth: 0,
+    minHeight: 58,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  bottomIconContainer: {
+    width: 36,
+    height: 29,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  bottomLabel: {
+    marginTop: 2,
+    textAlign: 'center',
+    fontWeight: '700',
+  },
+
+  bottomLabelActive: {
+    fontWeight: '900',
   },
 });

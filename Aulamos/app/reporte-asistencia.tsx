@@ -112,7 +112,7 @@ export default function ReporteAsistenciaScreen() {
         }
 
         const respuesta = await fetch(
-          `${API_URL}/docente/reportes/asistencia?id_docente=${idDocente}`,
+         `${API_URL}/docente/reportes/asistencia`,
           {
             headers: {
               Accept: 'application/json',

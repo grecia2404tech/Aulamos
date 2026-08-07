@@ -5,6 +5,8 @@ const {
   obtenerEstudiantesDocente,
   obtenerRecursosDocente,
   obtenerProgresoEstudiante,
+  obtenerAsistenciaDocente,
+  obtenerClasesDocente,
 } = require('../controllers/docenteController');
 
 const {
@@ -16,11 +18,8 @@ const {
   '../controllers/reportesDocenteController'
 );
 
-const verificarToken = require(
-  '../middleware/authMiddleware'
-);
-
 const {
+  verificarToken,
   verificarRol,
 } = require('../middleware/authMiddleware');
 
@@ -31,6 +30,16 @@ router.get(
   verificarToken,
   verificarRol('Docente'),
   obtenerInicioDocente
+);
+
+/*
+ * Clases activas asignadas al docente autenticado.
+ */
+router.get(
+  '/clases',
+  verificarToken,
+  verificarRol('Docente'),
+  obtenerClasesDocente
 );
 
 router.get(
@@ -66,6 +75,17 @@ router.get(
   verificarToken,
   verificarRol('Docente'),
   obtenerRendimientoEvaluaciones
+);
+
+/*
+ * Reporte calculado con la participación
+ * de los estudiantes en las actividades.
+ */
+router.get(
+  '/reportes/asistencia',
+  verificarToken,
+  verificarRol('Docente'),
+  obtenerAsistenciaDocente
 );
 
 router.get(

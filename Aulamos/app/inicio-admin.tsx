@@ -58,6 +58,8 @@ export default function InicioAdminScreen() {
   const temaOscuro =
     preferencias.modoOscuro || altoContraste;
   const contenidoGrande = escalaTexto > 1.2;
+  const resumenUnaColumna =
+    escalaTexto > 1.55 || width < 320;
   const unaTarjetaPorFila =
     contenidoGrande || width < 340;
 
@@ -68,9 +70,17 @@ export default function InicioAdminScreen() {
     520
   );
   const separacionTarjetas = width < 360 ? 8 : 10;
-  const anchoTarjetaResumen = unaTarjetaPorFila
-    ? anchoContenido - 28
-    : (anchoContenido - 28 - separacionTarjetas) / 2;
+  /*
+   * El panel tiene 14 px de padding y 1 px de borde
+   * por cada lado. Se descuentan los 30 px completos
+   * para que dos tarjetas sí entren en la misma fila.
+   */
+  const anchoInteriorResumen = anchoContenido - 30;
+  const anchoTarjetaResumen = resumenUnaColumna
+    ? anchoInteriorResumen
+    : Math.floor(
+        (anchoInteriorResumen - separacionTarjetas) / 2
+      );
   const anchoBotonRapido = unaTarjetaPorFila
     ? anchoContenido
     : (anchoContenido - separacionTarjetas) / 2;
@@ -84,7 +94,7 @@ export default function InicioAdminScreen() {
 
   const fondoInformacion = temaOscuro
     ? colores.fondoPrimario
-    : '#FAF7FF';
+    : '#F6F8FC';
 
   const responsive = useMemo(
     () => ({
@@ -515,7 +525,7 @@ export default function InicioAdminScreen() {
                       },
                     ]}
                   >
-                    Organización general de AULAMOS
+                    Resumen de las áreas administrativas
                   </Text>
                 </View>
 
@@ -550,7 +560,6 @@ export default function InicioAdminScreen() {
                 style={[
                   styles.summaryGrid,
                   {
-                    columnGap: separacionTarjetas,
                     rowGap: separacionTarjetas,
                   },
                 ]}
@@ -663,7 +672,7 @@ export default function InicioAdminScreen() {
               />
               <QuickAction
                 style={responsive.botonRapido}
-                text="Cursos"
+                text="Clases"
                 subtitle="Materias, grupos y docentes"
                 icon="git-network-outline"
                 backgroundColor="#7C3AED"
@@ -820,7 +829,7 @@ export default function InicioAdminScreen() {
             <BottomNavigationItem
               icon="grid-outline"
               activeIcon="grid"
-              label="Cursos"
+              label="Clases"
               onPress={() => navegar('/admin-cursos')}
             />
           </View>
@@ -863,59 +872,75 @@ function SummaryCard({
         {
           backgroundColor: colores.tarjeta,
           borderColor: colores.borde,
+          borderTopColor: preferencias.altoContraste
+            ? colores.primario
+            : iconColor,
         },
       ]}
       accessible
       accessibilityLabel={`${title}: ${value}. ${subtitle}`}
     >
-      <View
-        style={[
-          styles.summaryIcon,
-          {
-            backgroundColor: preferencias.altoContraste
-              ? colores.fondoPrimario
-              : iconBackground,
-          },
-        ]}
-      >
-        <Ionicons name={icon} size={21} color={iconColor} />
-      </View>
+      <View style={styles.summaryCardHeader}>
+        <View
+          style={[
+            styles.summaryIcon,
+            {
+              backgroundColor: preferencias.altoContraste
+                ? colores.fondoPrimario
+                : iconBackground,
+            },
+          ]}
+        >
+          <Ionicons
+            name={icon}
+            size={20}
+            color={
+              preferencias.altoContraste
+                ? colores.texto
+                : iconColor
+            }
+          />
+        </View>
 
-      <View style={styles.summaryCardText}>
         <Text
           style={[
             styles.summaryCardTitle,
             {
-              color: colores.textoSecundario,
-              fontSize: 9 * escalaTexto,
+              color: colores.texto,
+              fontSize: 10 * escalaTexto,
             },
           ]}
         >
           {title}
         </Text>
-        <Text
-          style={[
-            styles.summaryValue,
-            {
-              color: colores.texto,
-              fontSize: 18 * escalaTexto,
-            },
-          ]}
-        >
-          {value}
-        </Text>
-        <Text
-          style={[
-            styles.summarySubtitle,
-            {
-              color: colores.textoSecundario,
-              fontSize: 8 * escalaTexto,
-            },
-          ]}
-        >
-          {subtitle}
-        </Text>
       </View>
+
+      <Text
+        style={[
+          styles.summaryValue,
+          {
+            color: preferencias.altoContraste
+              ? colores.texto
+              : iconColor,
+            fontSize: Math.min(25 * escalaTexto, 34),
+          },
+        ]}
+      >
+        {value}
+      </Text>
+
+      <Text
+        style={[
+          styles.summarySubtitle,
+          {
+            color: colores.textoSecundario,
+            fontSize: 9 * escalaTexto,
+            lineHeight: 13 * escalaTexto,
+          },
+        ]}
+      >
+        {subtitle}
+      </Text>
     </View>
   );
 }
@@ -1205,35 +1230,41 @@ const styles = StyleSheet.create({
   summaryGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+    justifyContent: 'space-between',
   },
   summaryCard: {
-    minHeight: 91,
+    minHeight: 125,
+    borderWidth: 1,
+    borderTopWidth: 4,
+    borderRadius: 15,
+    paddingHorizontal: 12,
+    paddingTop: 10,
+    paddingBottom: 12,
+  },
+  summaryCardHeader: {
+    width: '100%',
     flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1,
-    borderRadius: 15,
-    padding: 10,
+    marginBottom: 8,
   },
   summaryIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
+    width: 34,
+    height: 34,
+    borderRadius: 11,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 9,
-  },
-  summaryCardText: {
-    flex: 1,
+    marginRight: 8,
   },
   summaryCardTitle: {
-    fontWeight: '700',
+    flex: 1,
+    fontWeight: '800',
   },
   summaryValue: {
-    marginTop: 1,
     fontWeight: '900',
+    letterSpacing: -0.5,
   },
   summarySubtitle: {
-    marginTop: 1,
+    marginTop: 3,
     fontWeight: '600',
   },
   sectionHeader: {
