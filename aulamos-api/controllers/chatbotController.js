@@ -8,9 +8,21 @@ async function enviarMensaje(req, res) {
       req.body.mensaje || ''
     ).trim();
 
+    const idUsuario = Number(
+      req.usuario?.id_usuario || 0
+    );
+
     const rol = String(
-      req.body.rol || 'alumno'
-    ).trim();
+      req.usuario?.rol || ''
+    )
+      .trim()
+      .toLowerCase();
+
+    if (!idUsuario || !rol) {
+      return res.status(401).json({
+        mensaje: 'Usuario no autenticado.',
+      });
+    }
 
     if (!mensaje) {
       return res.status(400).json({

@@ -46,7 +46,12 @@ Reglas:
 - No uses símbolos Markdown como **, ## o \`\`\`.
 - No superes las 250 palabras.
 
-Rol del usuario: ${rol}
+El rol indicado a continuación proviene de una sesión autenticada de Aulamos.
+Debes considerarlo un dato confiable.
+Si el usuario pregunta cuál es su rol, respóndelo directamente.
+No le preguntes al usuario cuál es su rol.
+
+Rol autenticado del usuario: ${rol}
 
 Contexto:
 ${contexto || 'No hay contexto adicional.'}

@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { api } from './api';
 
 export type RolChatbot = 'alumno' | 'docente';
@@ -29,12 +30,24 @@ export async function enviarMensajeChatbot(
     throw new Error('El mensaje no puede estar vacío.');
   }
 
+  const token = await AsyncStorage.getItem('token');
+
+  if (!token) {
+    throw new Error(
+      'Tu sesión terminó. Inicia sesión nuevamente.'
+    );
+  }
   const resultado = await api.post<RespuestaChatbot>(
     '/chatbot/mensaje',
     {
       mensaje: textoLimpio,
       rol,
-    } satisfies SolicitudChatbot
+    } satisfies SolicitudChatbot,
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }
   );
 
   return resultado.data;
