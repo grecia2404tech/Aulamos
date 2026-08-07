@@ -12,6 +12,7 @@ const alumnoRoutes = require("./routes/alumnoRoutes");
 const academicoRoutes = require("./routes/academicoRoutes");
 const evaluacionRoutes = require("./routes/evaluacionRoutes");
 const chatbotRoutes = require("./routes/chatbotRoutes");
+const adminRoutes = require("./routes/adminRoutes");
 
 const app = express();
 
@@ -38,6 +39,7 @@ app.use(
     {
       index: false,
       fallthrough: true,
+
       setHeaders: (res) => {
         res.setHeader(
           "Cross-Origin-Resource-Policy",
@@ -48,73 +50,144 @@ app.use(
   )
 );
 
+/*
+ * RUTAS DE LA API
+ */
+
 app.use("/api/auth", authRoutes);
-app.use("/api/docente", docenteRoutes);
-app.use("/api/alumno", alumnoRoutes);
-app.use("/api/academico", academicoRoutes);
-app.use("/api/evaluaciones",evaluacionRoutes);
-app.use("/api/chatbot", chatbotRoutes);
 
+app.use(
+  "/api/docente",
+  docenteRoutes
+);
 
+app.use(
+  "/api/alumno",
+  alumnoRoutes
+);
+
+app.use(
+  "/api/academico",
+  academicoRoutes
+);
+
+app.use(
+  "/api/evaluaciones",
+  evaluacionRoutes
+);
+
+app.use(
+  "/api/chatbot",
+  chatbotRoutes
+);
+
+/*
+ * Rutas del administrador
+ *
+ * Ejemplo:
+ * GET /api/admin/inicio
+ */
+app.use(
+  "/api/admin",
+  adminRoutes
+);
+
+/*
+ * Ruta principal para comprobar
+ * que la API y MySQL funcionan.
+ */
 app.get("/", async (_req, res) => {
   try {
-    const [rows] = await pool.query(
-      "SELECT NOW() AS fecha_actual"
-    );
+    const [rows] =
+      await pool.query(
+        "SELECT NOW() AS fecha_actual"
+      );
 
-    return res.status(200).json({
-      mensaje:
-        "API Aulamos funcionando correctamente",
-      base_datos: "Conectada",
-      fecha: rows[0].fecha_actual,
-    });
+    return res
+      .status(200)
+      .json({
+        mensaje:
+          "API Aulamos funcionando correctamente",
+
+        base_datos:
+          "Conectada",
+
+        fecha:
+          rows[0].fecha_actual,
+      });
   } catch (error) {
     console.error(
       "Error de conexión con MySQL:",
       error
     );
 
-    return res.status(500).json({
-      mensaje:
-        "Error al conectar con la base de datos",
-    });
+    return res
+      .status(500)
+      .json({
+        mensaje:
+          "Error al conectar con la base de datos",
+      });
   }
 });
 
 /*
- * Respuesta JSON para rutas que no existen.
- * Siempre debe estar después de todas las rutas.
+ * Respuesta JSON para rutas
+ * que no existen.
+ *
+ * SIEMPRE debe ir después
+ * de todas las rutas.
  */
 app.use((_req, res) => {
-  return res.status(404).json({
-    mensaje:
-      "La ruta solicitada no existe",
-  });
+  return res
+    .status(404)
+    .json({
+      mensaje:
+        "La ruta solicitada no existe",
+    });
 });
 
 /*
  * Manejador general de errores.
- * Debe conservar los cuatro parámetros para que Express lo reconozca.
+ *
+ * Debe conservar los cuatro
+ * parámetros para que Express
+ * lo reconozca como middleware
+ * de errores.
  */
-app.use((error, _req, res, next) => {
-  console.error(
-    "Error no controlado:",
-    error
-  );
+app.use(
+  (
+    error,
+    _req,
+    res,
+    next
+  ) => {
+    console.error(
+      "Error no controlado:",
+      error
+    );
 
-  if (res.headersSent) {
-    return next(error);
+    if (
+      res.headersSent
+    ) {
+      return next(
+        error
+      );
+    }
+
+    return res
+      .status(500)
+      .json({
+        mensaje:
+          "Ocurrió un error interno en el servidor",
+      });
   }
-
-  return res.status(500).json({
-    mensaje:
-      "Ocurrió un error interno en el servidor",
-  });
-});
-
-const PORT = Number(
-  process.env.PORT || 3000
 );
+
+const PORT =
+  Number(
+    process.env.PORT ||
+      3000
+  );
 
 app.listen(
   PORT,
