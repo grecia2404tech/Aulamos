@@ -100,6 +100,197 @@ async function obtenerContextoAlumno(idUsuario) {
     [idUsuario]
   );
 
+  const [progresoResultados] = await pool.query(
+    `
+      SELECT
+        ROUND(
+          COALESCE(
+            AVG(
+              CASE
+                WHEN ae.estado IN (
+                  'Completada',
+                  'Calificada'
+                )
+                THEN 100
+                ELSE COALESCE(
+                  ae.porcentaje_avance,
+                  0
+                )
+              END
+            ),
+            0
+          ),
+          1
+        ) AS progreso_general
+
+      FROM actividad_estudiantes AS ae
+
+      INNER JOIN actividades AS a
+        ON a.id_actividad = ae.id_actividad
+
+      WHERE ae.id_alumno = ?
+        AND a.estado = 'Publicada'
+    `,
+    [idUsuario]
+  );
+
+  const [progresoMaterias] = await pool.query(
+    `
+      SELECT
+        m.nombre AS materia,
+
+        COUNT(
+          DISTINCT a.id_actividad
+        ) AS total_actividades,
+
+        SUM(
+          CASE
+            WHEN ae.estado IN (
+              'Completada',
+              'Calificada'
+            )
+            OR COALESCE(
+              ae.porcentaje_avance,
+              0
+            ) >= 100
+            THEN 1
+            ELSE 0
+          END
+        ) AS completadas,
+
+        ROUND(
+          COALESCE(
+            AVG(
+              CASE
+                WHEN ae.estado IN (
+                  'Completada',
+                  'Calificada'
+                )
+                THEN 100
+                ELSE COALESCE(
+                  ae.porcentaje_avance,
+                  0
+                )
+              END
+            ),
+            0
+          ),
+          1
+        ) AS porcentaje
+
+      FROM actividad_estudiantes AS ae
+
+      INNER JOIN actividades AS a
+        ON a.id_actividad = ae.id_actividad
+
+      INNER JOIN cursos AS c
+        ON c.id_curso = a.id_curso
+
+      INNER JOIN materias AS m
+        ON m.id_materia = c.id_materia
+
+      WHERE ae.id_alumno = ?
+        AND a.estado = 'Publicada'
+
+      GROUP BY
+        m.id_materia,
+        m.nombre
+
+      ORDER BY
+        m.nombre ASC
+    `,
+    [idUsuario]
+  );
+
+  const progresoGeneral = Number(
+    progresoResultados[0]?.progreso_general || 0
+  );
+
+  const [calificaciones] = await pool.query(
+    `
+      SELECT
+        a.titulo,
+        m.nombre AS materia,
+        e.calificacion,
+        a.puntaje_maximo
+
+      FROM actividad_estudiantes AS ae
+
+      INNER JOIN actividades AS a
+        ON a.id_actividad = ae.id_actividad
+
+      INNER JOIN cursos AS c
+        ON c.id_curso = a.id_curso
+
+      INNER JOIN materias AS m
+        ON m.id_materia = c.id_materia
+
+      INNER JOIN entregas AS e
+        ON e.id_entrega = (
+          SELECT MAX(e2.id_entrega)
+          FROM entregas AS e2
+          WHERE e2.id_actividad_estudiante =
+            ae.id_actividad_estudiante
+        )
+
+      WHERE ae.id_alumno = ?
+        AND e.calificacion IS NOT NULL
+
+      ORDER BY
+        e.calificado_en DESC,
+        e.id_entrega DESC
+
+      LIMIT 10
+    `,
+    [idUsuario]
+  );
+
+  const [promedioResultados] = await pool.query(
+    `
+      SELECT
+        ROUND(
+          AVG(
+            CASE
+              WHEN e.calificacion IS NOT NULL
+                AND a.puntaje_maximo > 0
+              THEN
+                (
+                  e.calificacion /
+                  a.puntaje_maximo
+                ) * 10
+              ELSE NULL
+            END
+          ),
+          2
+        ) AS promedio
+
+      FROM actividad_estudiantes AS ae
+
+      INNER JOIN actividades AS a
+        ON a.id_actividad = ae.id_actividad
+
+      INNER JOIN entregas AS e
+        ON e.id_entrega = (
+          SELECT MAX(e2.id_entrega)
+          FROM entregas AS e2
+          WHERE e2.id_actividad_estudiante =
+            ae.id_actividad_estudiante
+        )
+
+      WHERE ae.id_alumno = ?
+        AND e.calificacion IS NOT NULL
+    `,
+    [idUsuario]
+  );
+
+  const promedioCalificaciones =
+    promedioResultados[0]?.promedio === null ||
+    promedioResultados[0]?.promedio === undefined
+      ? null
+      : Number(
+          promedioResultados[0].promedio
+        );
+
   const [proximas] = await pool.query(
     `
       SELECT
@@ -217,6 +408,8 @@ async function obtenerContextoAlumno(idUsuario) {
   const lineas = [
     'Datos reales de Aulamos para el alumno autenticado:',
     `- Cursos activos inscritos: ${cursos.length}.`,
+    `- Progreso general: ${progresoGeneral}%.`,
+    `- Promedio de actividades calificadas: ${promedioCalificaciones === null ? 'sin calificaciones todavía' : `${promedioCalificaciones}/10`}.`,
     `- Actividades asignadas: ${total}.`,
     `- Actividades pendientes: ${pendientes}.`,
     `- Actividades en proceso: ${enProceso}.`,
@@ -237,6 +430,42 @@ async function obtenerContextoAlumno(idUsuario) {
   } else {
     lineas.push(
       '- Actualmente el alumno no tiene cursos activos inscritos.'
+    );
+  }
+
+  if (progresoMaterias.length > 0) {
+    lineas.push(
+      '- Progreso por materia:'
+    );
+
+    progresoMaterias.forEach((item) => {
+      lineas.push(
+        `  - ${item.materia}: ${Number(item.porcentaje || 0)}% | ${Number(item.completadas || 0)} de ${Number(item.total_actividades || 0)} actividades completadas.`
+      );
+    });
+  } else {
+    lineas.push(
+      '- No hay progreso por materia registrado actualmente.'
+    );
+  }
+
+  if (calificaciones.length > 0) {
+    lineas.push(
+      '- Calificaciones recientes:'
+    );
+
+    calificaciones.forEach((item) => {
+      lineas.push(
+        `  - "${item.titulo}" | ${item.materia} | ${Number(item.calificacion)} de ${Number(item.puntaje_maximo)} puntos.`
+      );
+    });
+
+    lineas.push(
+      '- El promedio mostrado se calcula únicamente con actividades que ya tienen calificación y se normaliza a escala de 0 a 10.'
+    );
+  } else {
+    lineas.push(
+      '- Actualmente no hay actividades calificadas para este alumno.'
     );
   }
 
