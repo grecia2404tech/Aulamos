@@ -352,26 +352,6 @@ export default function InicioAdminScreen() {
             ]}
           >
             <View style={styles.header}>
-              <TouchableOpacity
-                style={[
-                  styles.iconButton,
-                  {
-                    backgroundColor: colores.tarjeta,
-                    borderColor: colores.borde,
-                  },
-                ]}
-                onPress={() => router.back()}
-                activeOpacity={0.7}
-                accessibilityRole="button"
-                accessibilityLabel="Regresar"
-              >
-                <Ionicons
-                  name="arrow-back"
-                  size={23}
-                  color={colores.texto}
-                />
-              </TouchableOpacity>
-
               <Text
                 style={[
                   styles.logoText,

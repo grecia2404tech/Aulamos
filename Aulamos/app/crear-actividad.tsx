@@ -4,7 +4,10 @@ import DateTimePicker, {
 } from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
-import { router } from 'expo-router';
+import {
+  router,
+  useLocalSearchParams,
+} from 'expo-router';
 import {
   useEffect,
   useMemo,
@@ -35,8 +38,7 @@ type TipoActividad =
   | 'Tarea'
   | 'Ejercicio'
   | 'Lectura'
-  | 'Proyecto'
-  | 'Evaluacion';
+  | 'Proyecto';
 
 type Curso = {
   id_curso: number;
@@ -57,9 +59,22 @@ type Periodo = {
   estado?: string;
 };
 
+type Recurso = {
+  id_recurso: number;
+  id_actividad?: number | null;
+  id_curso?: number | null;
+  titulo: string;
+  tipo: string;
+  estado: string;
+};
+
 type RespuestaCatalogos = {
   cursos?: Curso[];
   periodos?: Periodo[];
+};
+
+type RespuestaRecursos = {
+  recursos?: Recurso[];
 };
 
 type RespuestaActividad = {
@@ -188,9 +203,36 @@ const obtenerNombrePeriodo = (
   periodo.nombre ||
   `Periodo ${periodo.id_periodo}`;
 
+const obtenerParametro = (
+  valor?: string | string[],
+) =>
+  Array.isArray(valor)
+    ? valor[0] ?? ''
+    : valor ?? '';
+
+const obtenerNombreRecurso = (
+  recurso: Recurso,
+) => `${recurso.titulo} · ${recurso.tipo}`;
+
 export default function CrearActividadScreen() {
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
+
+  const parametros =
+    useLocalSearchParams<{
+      id_recurso?: string | string[];
+      id_curso?: string | string[];
+    }>();
+
+  const idRecursoParametro =
+    obtenerParametro(
+      parametros.id_recurso,
+    );
+
+  const idCursoParametro =
+    obtenerParametro(
+      parametros.id_curso,
+    );
 
   const [cursos, setCursos] =
     useState<Curso[]>([]);
@@ -198,10 +240,16 @@ export default function CrearActividadScreen() {
   const [periodos, setPeriodos] =
     useState<Periodo[]>([]);
 
+  const [recursos, setRecursos] =
+    useState<Recurso[]>([]);
+
   const [idCurso, setIdCurso] =
     useState('');
 
   const [idPeriodo, setIdPeriodo] =
+    useState('');
+
+  const [idRecurso, setIdRecurso] =
     useState('');
 
   const [titulo, setTitulo] =
@@ -233,21 +281,6 @@ export default function CrearActividadScreen() {
   const [
     permiteEntregaArchivo,
     setPermiteEntregaArchivo,
-  ] = useState(true);
-
-  const [
-    duracionMinutos,
-    setDuracionMinutos,
-  ] = useState('60');
-
-  const [
-    intentosPermitidos,
-    setIntentosPermitidos,
-  ] = useState('1');
-
-  const [
-    mostrarResultado,
-    setMostrarResultado,
   ] = useState(true);
 
   const [
@@ -338,6 +371,37 @@ export default function CrearActividadScreen() {
       [periodosDisponibles],
     );
 
+  const recursosDisponibles =
+    useMemo(
+      () =>
+        recursos.filter(
+          (recurso) =>
+            !recurso.id_actividad &&
+            recurso.estado === 'Activo' &&
+            Boolean(idCurso) &&
+            String(recurso.id_curso) ===
+              idCurso,
+        ),
+      [recursos, idCurso],
+    );
+
+  const opcionesRecursos =
+    useMemo<OpcionSelector[]>(
+      () =>
+        recursosDisponibles.map(
+          (recurso) => ({
+            value: String(
+              recurso.id_recurso,
+            ),
+            label:
+              obtenerNombreRecurso(
+                recurso,
+              ),
+          }),
+        ),
+      [recursosDisponibles],
+    );
+
   const cargarCatalogos =
     async () => {
       try {
@@ -354,16 +418,27 @@ export default function CrearActividadScreen() {
           );
         }
 
-        const respuesta =
-          await api.get<RespuestaCatalogos>(
+        const configuracion = {
+          headers: {
+            Authorization:
+              `Bearer ${token}`,
+          },
+        };
+
+        const [
+          respuesta,
+          respuestaRecursos,
+        ] = await Promise.all([
+          api.get<RespuestaCatalogos>(
             '/academico/actividades/catalogos',
-            {
-              headers: {
-                Authorization:
-                  `Bearer ${token}`,
-              },
-            },
-          );
+            configuracion,
+          ),
+
+          api.get<RespuestaRecursos>(
+            '/academico/recursos/mis-recursos-docente',
+            configuracion,
+          ),
+        ]);
 
         setCursos(
           respuesta.data.cursos ?? [],
@@ -373,6 +448,42 @@ export default function CrearActividadScreen() {
           respuesta.data.periodos ??
             [],
         );
+
+        const listaRecursos =
+          respuestaRecursos.data
+            .recursos ?? [];
+
+        setRecursos(listaRecursos);
+
+        if (idCursoParametro) {
+          setIdCurso(
+            idCursoParametro,
+          );
+        }
+
+        const recursoInicial =
+          listaRecursos.find(
+            (recurso) =>
+              String(
+                recurso.id_recurso,
+              ) ===
+                idRecursoParametro &&
+              !recurso.id_actividad &&
+              recurso.estado ===
+                'Activo' &&
+              String(
+                recurso.id_curso,
+              ) ===
+                idCursoParametro,
+          );
+
+        if (recursoInicial) {
+          setIdRecurso(
+            String(
+              recursoInicial.id_recurso,
+            ),
+          );
+        }
       } catch (error) {
         Alert.alert(
           'No se pudieron cargar los datos',
@@ -392,6 +503,7 @@ export default function CrearActividadScreen() {
   ) => {
     setIdCurso(nuevoIdCurso);
     setIdPeriodo('');
+    setIdRecurso('');
   };
 
   const alSeleccionarFecha = (
@@ -486,6 +598,23 @@ export default function CrearActividadScreen() {
     }
 
     if (
+      idRecurso &&
+      !recursosDisponibles.some(
+        (recurso) =>
+          String(
+            recurso.id_recurso,
+          ) === idRecurso,
+      )
+    ) {
+      Alert.alert(
+        'Recurso no disponible',
+        'Selecciona un recurso disponible para el curso elegido.',
+      );
+
+      return false;
+    }
+
+    if (
       fechaLimite.getTime() <=
       Date.now()
     ) {
@@ -514,43 +643,6 @@ export default function CrearActividadScreen() {
       return false;
     }
 
-    if (
-      tipoActividad ===
-      'Evaluacion'
-    ) {
-      const duracion = Number(
-        duracionMinutos,
-      );
-
-      const intentos = Number(
-        intentosPermitidos,
-      );
-
-      if (
-        !Number.isInteger(duracion) ||
-        duracion <= 0
-      ) {
-        Alert.alert(
-          'Duración incorrecta',
-          'Escribe una duración válida en minutos.',
-        );
-
-        return false;
-      }
-
-      if (
-        !Number.isInteger(intentos) ||
-        intentos <= 0
-      ) {
-        Alert.alert(
-          'Intentos incorrectos',
-          'Escribe una cantidad válida de intentos.',
-        );
-
-        return false;
-      }
-    }
-
     return true;
   };
 
@@ -576,23 +668,6 @@ export default function CrearActividadScreen() {
         );
       }
 
-      const configuracionEvaluacion =
-        tipoActividad ===
-        'Evaluacion'
-          ? {
-              duracion_minutos:
-                Number(
-                  duracionMinutos,
-                ),
-              intentos_permitidos:
-                Number(
-                  intentosPermitidos,
-                ),
-              mostrar_resultado:
-                mostrarResultado,
-            }
-          : null;
-
       const respuesta =
         await api.post<RespuestaActividad>(
           '/academico/actividades',
@@ -602,6 +677,10 @@ export default function CrearActividadScreen() {
 
             id_periodo: idPeriodo
               ? Number(idPeriodo)
+              : null,
+
+            id_recurso: idRecurso
+              ? Number(idRecurso)
               : null,
 
             titulo: titulo.trim(),
@@ -615,9 +694,6 @@ export default function CrearActividadScreen() {
               null,
 
             tipo: tipoActividad,
-
-            configuracion_evaluacion:
-              configuracionEvaluacion,
 
             fecha_limite:
               convertirFechaMySQL(
@@ -844,23 +920,6 @@ export default function CrearActividadScreen() {
               }
             />
 
-            <ActivityOption
-              title="Evaluación"
-              description="Actividad con configuración de evaluación"
-              icon="document-text"
-              iconBackground="#FFE5E8"
-              iconColor="#FF5263"
-              selected={
-                tipoActividad ===
-                'Evaluacion'
-              }
-              onPress={() =>
-                setTipoActividad(
-                  'Evaluacion',
-                )
-              }
-            />
-
             <Text
               style={[
                 styles.sectionTitle,
@@ -882,8 +941,8 @@ export default function CrearActividadScreen() {
                 <Text
                   style={styles.loadingText}
                 >
-                  Cargando cursos y
-                  periodos...
+                  Cargando cursos,
+                  periodos y recursos...
                 </Text>
               </View>
             ) : (
@@ -913,6 +972,25 @@ export default function CrearActividadScreen() {
                   disabled={!idCurso}
                   allowEmpty
                   emptyLabel="Sin periodo"
+                />
+
+                <Selector
+                  label="Recurso de apoyo (opcional)"
+                  value={idRecurso}
+                  placeholder={
+                    !idCurso
+                      ? 'Primero selecciona un curso'
+                      : opcionesRecursos.length > 0
+                        ? 'Selecciona un recurso disponible'
+                        : 'No hay recursos disponibles para este curso'
+                  }
+                  options={
+                    opcionesRecursos
+                  }
+                  onChange={setIdRecurso}
+                  disabled={!idCurso}
+                  allowEmpty
+                  emptyLabel="Sin recurso"
                 />
               </>
             )}
@@ -1117,112 +1195,6 @@ export default function CrearActividadScreen() {
               />
             </View>
 
-            {tipoActividad ===
-              'Evaluacion' && (
-              <View
-                style={
-                  styles.evaluationBox
-                }
-              >
-                <Text
-                  style={
-                    styles.evaluationTitle
-                  }
-                >
-                  Configuración de la
-                  evaluación
-                </Text>
-
-                <Text
-                  style={styles.label}
-                >
-                  Duración en minutos
-                </Text>
-
-                <TextInput
-                  style={styles.input}
-                  placeholder="60"
-                  placeholderTextColor="#9CA3AF"
-                  value={duracionMinutos}
-                  onChangeText={
-                    setDuracionMinutos
-                  }
-                  keyboardType="number-pad"
-                  accessibilityLabel="Duración en minutos"
-                />
-
-                <Text
-                  style={styles.label}
-                >
-                  Intentos permitidos
-                </Text>
-
-                <TextInput
-                  style={styles.input}
-                  placeholder="1"
-                  placeholderTextColor="#9CA3AF"
-                  value={
-                    intentosPermitidos
-                  }
-                  onChangeText={
-                    setIntentosPermitidos
-                  }
-                  keyboardType="number-pad"
-                  accessibilityLabel="Intentos permitidos"
-                />
-
-                <View
-                  style={[
-                    styles.switchCard,
-                    styles.evaluationSwitch,
-                  ]}
-                >
-                  <View
-                    style={
-                      styles.switchTextContainer
-                    }
-                  >
-                    <Text
-                      style={
-                        styles.switchTitle
-                      }
-                    >
-                      Mostrar resultado
-                    </Text>
-
-                    <Text
-                      style={
-                        styles.switchDescription
-                      }
-                    >
-                      Mostrar el resultado
-                      al terminar
-                    </Text>
-                  </View>
-
-                  <Switch
-                    value={
-                      mostrarResultado
-                    }
-                    onValueChange={
-                      setMostrarResultado
-                    }
-                    trackColor={{
-                      false:
-                        '#CBD2DC',
-                      true: '#AFC5FF',
-                    }}
-                    thumbColor={
-                      mostrarResultado
-                        ? '#4A7CFF'
-                        : '#F4F4F5'
-                    }
-                    accessibilityLabel="Mostrar resultado al terminar"
-                  />
-                </View>
-              </View>
-            )}
-
             <View style={styles.infoBox}>
               <Ionicons
                 name="information-circle-outline"
@@ -1234,7 +1206,9 @@ export default function CrearActividadScreen() {
                 El docente se obtiene de
                 la sesión y la fecha de
                 publicación se registra
-                automáticamente.
+                automáticamente. Si eliges
+                un recurso, quedará asociado
+                a esta actividad.
               </Text>
             </View>
 
@@ -1977,28 +1951,6 @@ const styles = StyleSheet.create({
     fontSize: 9,
     lineHeight: 13,
     color: '#7C8798',
-  },
-
-  evaluationBox: {
-    width: '100%',
-    borderWidth: 1,
-    borderColor: '#D8D0FF',
-    borderRadius: 10,
-    paddingHorizontal: 13,
-    paddingTop: 13,
-    marginBottom: 13,
-    backgroundColor: '#F9F8FF',
-  },
-
-  evaluationTitle: {
-    marginBottom: 12,
-    color: '#7059F5',
-    fontSize: 12,
-    fontWeight: '800',
-  },
-
-  evaluationSwitch: {
-    marginBottom: 13,
   },
 
   infoBox: {

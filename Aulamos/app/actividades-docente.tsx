@@ -840,7 +840,7 @@ export default function ActividadesDocenteScreen() {
           onPress={() => {}}
         />
         <BottomItem
-          icon="book-outline"
+          icon="document-text-outline"
           label="Evaluaciones"
           onPress={() =>
             router.push('/crear-evaluacion' as any)

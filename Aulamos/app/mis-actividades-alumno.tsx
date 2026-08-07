@@ -11,6 +11,7 @@ import {
 import {
   ActivityIndicator,
   Alert,
+  Linking,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -22,7 +23,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import BotonAccesibilidad from '../components/BotonAccesibilidad';
-import { api } from '../services/api';
+import { API_URL, api } from '../services/api';
 
 type FiltroActividad =
   | 'Todas'
@@ -35,6 +36,14 @@ type TipoActividad =
   | 'Lectura'
   | 'Proyecto'
   | 'Evaluacion';
+
+type TipoRecurso =
+  | 'PDF'
+  | 'Video'
+  | 'Enlace'
+  | 'Documento'
+  | 'Audio'
+  | 'Otro';
 
 type ActividadAlumno = {
   id_actividad: number;
@@ -55,6 +64,11 @@ type ActividadAlumno = {
   grupo: string;
   periodo: string | null;
   vencida: boolean | number;
+  id_recurso: number | null;
+  recurso_titulo: string | null;
+  recurso_descripcion: string | null;
+  recurso_tipo: TipoRecurso | null;
+  recurso_url: string | null;
 };
 
 type ResumenActividades = {
@@ -158,6 +172,161 @@ const esActividadTerminada = (
 const esActividadVencida = (
   actividad: ActividadAlumno,
 ) => Number(actividad.vencida) === 1;
+
+const construirUrlPublica = (
+  direccion: string,
+) => {
+  const ruta = direccion.trim();
+
+  if (/^https?:\/\//i.test(ruta)) {
+    return ruta;
+  }
+
+  const servidor = API_URL.replace(
+    /\/api\/?$/,
+    '',
+  );
+
+  return `${servidor}${
+    ruta.startsWith('/') ? ruta : `/${ruta}`
+  }`;
+};
+
+const obtenerIconoRecurso = (
+  tipo: TipoRecurso | null,
+): IoniconName => {
+  switch (tipo?.toLowerCase()) {
+    case 'video':
+      return 'videocam-outline';
+
+    case 'pdf':
+      return 'document-text-outline';
+
+    case 'documento':
+      return 'document-outline';
+
+    case 'enlace':
+      return 'link-outline';
+
+    case 'audio':
+      return 'musical-notes-outline';
+
+    default:
+      return 'folder-open-outline';
+  }
+};
+
+const abrirRecursoAdjunto = async (
+  actividad: ActividadAlumno,
+) => {
+  const idRecurso = Number(
+    actividad.id_recurso,
+  );
+
+  if (!Number.isInteger(idRecurso) || idRecurso <= 0) {
+    Alert.alert(
+      'Recurso no disponible',
+      'Esta actividad no tiene un recurso adjunto.',
+    );
+
+    return;
+  }
+
+  const tipo =
+    actividad.recurso_tipo
+      ?.trim()
+      .toLowerCase() || '';
+
+  if (tipo === 'video') {
+    router.push({
+      pathname: '/reproductor-video',
+      params: {
+        idRecurso: String(idRecurso),
+      },
+    } as never);
+
+    return;
+  }
+
+  const direccion =
+    actividad.recurso_url?.trim();
+
+  if (!direccion) {
+    Alert.alert(
+      'Recurso no disponible',
+      'El recurso no tiene un archivo o enlace disponible.',
+    );
+
+    return;
+  }
+
+  const urlPublica =
+    construirUrlPublica(direccion);
+
+  const extension = direccion
+    .split('?')[0]
+    .split('#')[0]
+    .split('.')
+    .pop()
+    ?.toLowerCase();
+
+  const esDocumento =
+    tipo === 'pdf' ||
+    tipo === 'documento' ||
+    [
+      'pdf',
+      'doc',
+      'docx',
+      'xls',
+      'xlsx',
+      'ppt',
+      'pptx',
+      'txt',
+    ].includes(extension || '');
+
+  if (esDocumento) {
+    const nombreDesdeUrl = decodeURIComponent(
+      direccion
+        .split('?')[0]
+        .split('#')[0]
+        .split('/')
+        .pop() || 'Documento',
+    );
+
+    router.push({
+      pathname: '/visor-documento',
+      params: {
+        url_archivo: urlPublica,
+        nombre_archivo: nombreDesdeUrl,
+        titulo:
+          actividad.recurso_titulo ||
+          'Recurso de la actividad',
+      },
+    } as never);
+
+    return;
+  }
+
+  try {
+    const puedeAbrirse =
+      await Linking.canOpenURL(urlPublica);
+
+    if (!puedeAbrirse) {
+      throw new Error(
+        'Este dispositivo no puede abrir el recurso.',
+      );
+    }
+
+    await Linking.openURL(urlPublica);
+  } catch (error) {
+    Alert.alert(
+      'No se pudo abrir el recurso',
+      error instanceof Error
+        ? error.message
+        : 'Intenta nuevamente.',
+    );
+  }
+};
 
 const obtenerPresentacionTipo = (
   tipo: TipoActividad,
@@ -764,6 +933,69 @@ function ActividadCard({
           ? ` · ${actividad.periodo}`
           : ''}
       </Text>
+
+      {!!actividad.id_recurso && (
+        <View style={styles.resourceContainer}>
+          <View style={styles.resourceInformation}>
+            <View style={styles.resourceIconBox}>
+              <Ionicons
+                name={obtenerIconoRecurso(
+                  actividad.recurso_tipo,
+                )}
+                size={20}
+                color="#2563EB"
+              />
+            </View>
+
+            <View style={styles.resourceTextContainer}>
+              <Text style={styles.resourceLabel}>
+                Recurso adjunto
+              </Text>
+
+              <Text
+                style={styles.resourceTitle}
+                numberOfLines={2}
+              >
+                {actividad.recurso_titulo ||
+                  'Recurso de apoyo'}
+              </Text>
+
+              {!!actividad.recurso_tipo && (
+                <Text style={styles.resourceType}>
+                  {actividad.recurso_tipo}
+                </Text>
+              )}
+            </View>
+          </View>
+
+          <TouchableOpacity
+            style={styles.openResourceButton}
+            onPress={(evento) => {
+              evento.stopPropagation();
+              void abrirRecursoAdjunto(
+                actividad,
+              );
+            }}
+            activeOpacity={0.78}
+            accessibilityRole="button"
+            accessibilityLabel={`Abrir recurso ${
+              actividad.recurso_titulo ||
+              'de la actividad'
+            }`}
+            accessibilityHint="Abre el recurso en la pantalla correspondiente"
+          >
+            <Ionicons
+              name="open-outline"
+              size={18}
+              color="#FFFFFF"
+            />
+
+            <Text style={styles.openResourceText}>
+              Abrir recurso
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
     </TouchableOpacity>
   );
 }
@@ -1062,6 +1294,65 @@ const styles = StyleSheet.create({
     marginTop: 10,
     color: '#8A94A4',
     fontSize: 10,
+  },
+  resourceContainer: {
+    marginTop: 13,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#CFE0FF',
+    borderRadius: 12,
+    backgroundColor: '#F5F8FF',
+  },
+  resourceInformation: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  resourceIconBox: {
+    width: 40,
+    height: 40,
+    borderRadius: 11,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#E1EBFF',
+  },
+  resourceTextContainer: {
+    flex: 1,
+    minWidth: 0,
+    marginLeft: 10,
+  },
+  resourceLabel: {
+    color: '#2563EB',
+    fontSize: 10,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+  },
+  resourceTitle: {
+    marginTop: 2,
+    color: '#1F2A3A',
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: '700',
+  },
+  resourceType: {
+    marginTop: 2,
+    color: '#697589',
+    fontSize: 10,
+  },
+  openResourceButton: {
+    minHeight: 42,
+    marginTop: 11,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 7,
+    backgroundColor: '#2563EB',
+  },
+  openResourceText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '800',
   },
   bottomNavigation: {
     position: 'absolute',

@@ -231,12 +231,12 @@ export function AccessibilityProvider({
        */
       if (preferencias.altoContraste) {
         return {
-          fondo: '#000000',
+          fondo: '#6b6b6b',
           tarjeta: '#000000',
           texto: '#FFFFFF',
           textoSecundario: '#FFFFFF',
           borde: '#FFFFFF',
-          primario: '#FFD600',
+          primario: '#b3b0b0',
           fondoPrimario: '#1A1A1A',
           exito: '#00FF85',
           peligro: '#FF5252',

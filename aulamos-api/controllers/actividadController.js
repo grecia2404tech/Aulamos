@@ -5,7 +5,6 @@ const TIPOS_VALIDOS = [
   "Ejercicio",
   "Lectura",
   "Proyecto",
-  "Evaluacion",
 ];
 
 const ESTADOS_CREACION = [
@@ -179,11 +178,12 @@ const crearActividad = async (
       req.body.id_curso
     );
 
-   const idRecurso =
-  req.body.id_recurso == null ||
-  req.body.id_recurso === ''
-    ? null
-    : Number(req.body.id_recurso); 
+    const idRecurso =
+      req.body.id_recurso === null ||
+      req.body.id_recurso === undefined ||
+      req.body.id_recurso === ""
+        ? null
+        : Number(req.body.id_recurso);
 
     const idPeriodo =
       req.body.id_periodo === null ||
@@ -232,6 +232,16 @@ const crearActividad = async (
       return res.status(400).json({
         mensaje:
           "Selecciona un curso válido.",
+      });
+    }
+
+    if (
+      idRecurso !== null &&
+      !esIdValido(idRecurso)
+    ) {
+      return res.status(400).json({
+        mensaje:
+          "El recurso seleccionado no es válido.",
       });
     }
 
@@ -307,27 +317,6 @@ const crearActividad = async (
       });
     }
 
-    let configuracionEvaluacion = null;
-
-    if (tipo === "Evaluacion") {
-      const configuracion =
-        req.body.configuracion_evaluacion;
-
-      if (
-        !configuracion ||
-        typeof configuracion !== "object" ||
-        Array.isArray(configuracion)
-      ) {
-        return res.status(400).json({
-          mensaje:
-            "Completa la configuración de la evaluación.",
-        });
-      }
-
-      configuracionEvaluacion =
-        JSON.stringify(configuracion);
-    }
-
     /*
      * Comprueba que el curso pertenezca
      * al docente autenticado.
@@ -388,6 +377,45 @@ const crearActividad = async (
 
     await conexion.beginTransaction();
 
+    /*
+     * Si se seleccionó un recurso, lo bloquea durante
+     * la transacción y comprueba que:
+     * - pertenezca al docente autenticado;
+     * - corresponda al curso seleccionado;
+     * - esté activo;
+     * - todavía no esté ligado a otra actividad.
+     */
+    if (idRecurso !== null) {
+      const [recursos] =
+        await conexion.query(
+          `
+            SELECT id_recurso
+            FROM recursos_educativos
+            WHERE id_recurso = ?
+              AND id_docente = ?
+              AND id_curso = ?
+              AND id_actividad IS NULL
+              AND estado = 'Activo'
+            LIMIT 1
+            FOR UPDATE
+          `,
+          [
+            idRecurso,
+            idDocente,
+            idCurso,
+          ]
+        );
+
+      if (recursos.length === 0) {
+        await conexion.rollback();
+
+        return res.status(400).json({
+          mensaje:
+            "El recurso no está disponible, no pertenece a este curso o ya está asociado a otra actividad.",
+        });
+      }
+    }
+
     const [resultado] =
       await conexion.query(
         `
@@ -428,13 +456,44 @@ const crearActividad = async (
           descripcion || null,
           instrucciones || null,
           tipo,
-          configuracionEvaluacion,
+          null,
           fechaLimite,
           puntajeMaximo,
           permiteEntregaArchivo,
           estado,
         ]
       );
+
+    /*
+     * Relaciona el recurso con la actividad recién creada.
+     * La condición id_actividad IS NULL evita reutilizarlo.
+     */
+    if (idRecurso !== null) {
+      const [asociacionRecurso] =
+        await conexion.query(
+          `
+            UPDATE recursos_educativos
+            SET id_actividad = ?
+            WHERE id_recurso = ?
+              AND id_docente = ?
+              AND id_curso = ?
+              AND id_actividad IS NULL
+              AND estado = 'Activo'
+          `,
+          [
+            resultado.insertId,
+            idRecurso,
+            idDocente,
+            idCurso,
+          ]
+        );
+
+      if (asociacionRecurso.affectedRows !== 1) {
+        throw new Error(
+          "No se pudo asociar el recurso seleccionado."
+        );
+      }
+    }
 
     let alumnosAsignados = 0;
 
@@ -477,6 +536,7 @@ const crearActividad = async (
           ? "La actividad se publicó correctamente."
           : "La actividad se guardó como borrador.",
       id_actividad: resultado.insertId,
+      id_recurso: idRecurso,
       estado,
       alumnos_asignados: alumnosAsignados,
     });
@@ -542,6 +602,12 @@ const obtenerMisActividadesAlumno = async (
           a.permite_entrega_archivo,
           a.estado AS estado_actividad,
 
+          r.id_recurso,
+          r.titulo AS recurso_titulo,
+          r.descripcion AS recurso_descripcion,
+          r.tipo AS recurso_tipo,
+          r.url_recurso AS recurso_url,
+
           ae.estado AS estado_alumno,
 
           c.nombre AS nombre_curso,
@@ -582,6 +648,14 @@ const obtenerMisActividadesAlumno = async (
 
         LEFT JOIN periodos_evaluacion AS pe
           ON pe.id_periodo = a.id_periodo
+
+        LEFT JOIN recursos_educativos AS r
+          ON r.id_recurso = (
+            SELECT MAX(r2.id_recurso)
+            FROM recursos_educativos AS r2
+            WHERE r2.id_actividad = a.id_actividad
+              AND r2.estado = 'Activo'
+          )
 
         WHERE ae.id_alumno = ?
           AND a.estado IN (

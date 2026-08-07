@@ -122,7 +122,7 @@ export default function InicioDocenteScreen() {
   const separacionTarjetas =
     width < 360 ? 8 : 10;
 
-  const anchoTarjetaResumen =
+  const anchoColumnaResumen =
     unaTarjetaPorFila
       ? anchoContenido - 28
       : (
@@ -161,19 +161,14 @@ export default function InicioDocenteScreen() {
       ? colores.fondoPrimario
       : '#FAF7FF';
 
-  const textoBotonContraste =
-    altoContraste
-      ? '#000000'
-      : '#FFFFFF';
-
   const responsive = useMemo(
     () => ({
       contenido: {
         width: anchoContenido,
       } as ViewStyle,
 
-      tarjetaResumen: {
-        width: anchoTarjetaResumen,
+      columnaResumen: {
+        width: anchoColumnaResumen,
       } as ViewStyle,
 
       botonRapido: {
@@ -212,7 +207,7 @@ export default function InicioDocenteScreen() {
     [
       anchoBotonRapido,
       anchoContenido,
-      anchoTarjetaResumen,
+      anchoColumnaResumen,
       altoBarraInferior,
       insets.bottom,
       insets.top,
@@ -436,6 +431,13 @@ export default function InicioDocenteScreen() {
     }
   };
 
+  const abrirClases = () => {
+    navegar(
+      '/clases-docente',
+      'Mis clases'
+    );
+  };
+
   const capitalizar = (
     texto: string
   ) => {
@@ -630,30 +632,6 @@ export default function InicioDocenteScreen() {
             ]}
           >
             <View style={styles.header}>
-              <TouchableOpacity
-                style={[
-                  styles.iconButton,
-                  {
-                    backgroundColor:
-                      colores.tarjeta,
-                    borderColor:
-                      colores.borde,
-                  },
-                ]}
-                onPress={() =>
-                  router.back()
-                }
-                activeOpacity={0.7}
-                accessibilityRole="button"
-                accessibilityLabel="Regresar"
-              >
-                <Ionicons
-                  name="arrow-back"
-                  size={23}
-                  color={colores.texto}
-                />
-              </TouchableOpacity>
-
               <Text
                 style={[
                   styles.logoText,
@@ -914,6 +892,8 @@ export default function InicioDocenteScreen() {
               <View
                 style={[
                   styles.summaryGrid,
+                  unaTarjetaPorFila &&
+                    styles.summaryGridColumn,
                   {
                     columnGap:
                       separacionTarjetas,
@@ -922,66 +902,78 @@ export default function InicioDocenteScreen() {
                   },
                 ]}
               >
-                <SummaryCard
-                  style={
-                    responsive.tarjetaResumen
-                  }
-                  title="Clases"
-                  value={
-                    datos?.resumen
-                      .clases_activas ?? 0
-                  }
-                  subtitle="Activas"
-                  icon="document-text"
-                  iconColor="#7C3AED"
-                  iconBackground="#EFE8FF"
-                />
+                <View
+                  style={[
+                    styles.summaryColumn,
+                    responsive.columnaResumen,
+                    {
+                      rowGap:
+                        separacionTarjetas,
+                    },
+                  ]}
+                >
+                  <SummaryCard
+                    title="Clases"
+                    value={
+                      datos?.resumen
+                        .clases_activas ?? 0
+                    }
+                    subtitle="Ver mis clases"
+                    icon="school"
+                    iconColor="#7C3AED"
+                    iconBackground="#EFE8FF"
+                    onPress={abrirClases}
+                    accessibilityHint="Abre la pantalla con los detalles de las clases que impartes"
+                  />
 
-                <SummaryCard
-                  style={
-                    responsive.tarjetaResumen
-                  }
-                  title="Actividades"
-                  value={
-                    datos?.resumen
-                      .actividades_pendientes ??
-                    0
-                  }
-                  subtitle="Pendientes"
-                  icon="clipboard"
-                  iconColor="#2563EB"
-                  iconBackground="#E6F0FF"
-                />
+                  <SummaryCard
+                    title="Actividades"
+                    value={
+                      datos?.resumen
+                        .actividades_pendientes ??
+                      0
+                    }
+                    subtitle="Pendientes"
+                    icon="clipboard"
+                    iconColor="#2563EB"
+                    iconBackground="#E6F0FF"
+                  />
+                </View>
 
-                <SummaryCard
-                  style={
-                    responsive.tarjetaResumen
-                  }
-                  title="Evaluaciones"
-                  value={
-                    datos?.resumen
-                      .evaluaciones ?? 0
-                  }
-                  subtitle="Publicadas"
-                  icon="documents"
-                  iconColor="#E11D48"
-                  iconBackground="#FFE7EC"
-                />
+                <View
+                  style={[
+                    styles.summaryColumn,
+                    responsive.columnaResumen,
+                    {
+                      rowGap:
+                        separacionTarjetas,
+                    },
+                  ]}
+                >
+                  <SummaryCard
+                    title="Evaluaciones"
+                    value={
+                      datos?.resumen
+                        .evaluaciones ?? 0
+                    }
+                    subtitle="Publicadas"
+                    icon="documents"
+                    iconColor="#E11D48"
+                    iconBackground="#FFE7EC"
+                  />
 
-                <SummaryCard
-                  style={
-                    responsive.tarjetaResumen
-                  }
-                  title="Estudiantes"
-                  value={
-                    datos?.resumen
-                      .estudiantes ?? 0
-                  }
-                  subtitle="Inscritos"
-                  icon="people"
-                  iconColor="#16A34A"
-                  iconBackground="#E2F8E9"
-                />
+                  <SummaryCard
+                    title="Estudiantes"
+                    value={
+                      datos?.resumen
+                        .estudiantes ?? 0
+                    }
+                    subtitle="Inscritos"
+                    icon="people"
+                    iconColor="#16A34A"
+                    iconBackground="#E2F8E9"
+                  />
+                </View>
               </View>
             </View>
 
@@ -1090,8 +1082,8 @@ export default function InicioDocenteScreen() {
                 backgroundColor="#2563EB"
                 onPress={() =>
                   navegar(
-                    '/ver-estudiantes',
-                    'Ver estudiantes'
+                    '/estudiantes-docente',
+                    'Estudiantes'
                   )
                 }
               />
@@ -1106,8 +1098,24 @@ export default function InicioDocenteScreen() {
                 backgroundColor="#9F3A38"
                 onPress={() =>
                   navegar(
-                    '/reportes-docente',
+                    '/reportes',
                     'Reportes'
+                  )
+                }
+              />
+
+              <QuickAction
+                style={
+                  responsive.botonRapido
+                }
+                text="Pasar lista"
+                subtitle="Registra la asistencia"
+                icon="checkbox-outline"
+                backgroundColor="#0F766E"
+                onPress={() =>
+                  navegar(
+                    '/pasar-lista',
+                    'Pasar lista'
                   )
                 }
               />
@@ -1433,7 +1441,7 @@ export default function InicioDocenteScreen() {
               label="Recursos"
               onPress={() =>
                 navegar(
-                  '/crear-recurso',
+                  '/recursos-docente',
                   'Recursos'
                 )
               }
@@ -1445,8 +1453,8 @@ export default function InicioDocenteScreen() {
               label="Actividades"
               onPress={() =>
                 navegar(
-                   '/crear-actividad',
-                   'Crear actividad'
+                   '/actividades-docente',
+                   'Actividades'
                 )
               }
             />
@@ -1457,7 +1465,7 @@ export default function InicioDocenteScreen() {
               label="Evaluaciones"
               onPress={() =>
                 navegar(
-                  '/evaluaciones-docente',
+                  '/crear-evaluacion',
                   'Evaluaciones'
                 )
               }
@@ -1489,6 +1497,8 @@ type SummaryCardProps = {
   iconColor: string;
   iconBackground: string;
   style?: StyleProp<ViewStyle>;
+  onPress?: () => void;
+  accessibilityHint?: string;
 };
 
 function SummaryCard({
@@ -1499,6 +1509,8 @@ function SummaryCard({
   iconColor,
   iconBackground,
   style,
+  onPress,
+  accessibilityHint,
 }: SummaryCardProps) {
   const {
     colores,
@@ -1523,20 +1535,8 @@ function SummaryCard({
       ? colores.fondoPrimario
       : iconBackground;
 
-  return (
-    <View
-      style={[
-        styles.summaryCard,
-        style,
-        {
-          backgroundColor:
-            colores.tarjeta,
-          borderColor: colores.borde,
-        },
-      ]}
-      accessible
-      accessibilityLabel={`${title}: ${value} ${subtitle}`}
-    >
+  const contenido = (
+    <>
       <View
         style={[
           styles.summaryIconBox,
@@ -1589,20 +1589,72 @@ function SummaryCard({
           {value}
         </Text>
 
-        <Text
-          style={[
-            styles.summarySubtitle,
-            {
-              color:
-                colores.textoSecundario,
-              fontSize:
-                9 * escalaTexto,
-            },
-          ]}
+        <View
+          style={
+            styles.summaryActionRow
+          }
         >
-          {subtitle}
-        </Text>
+          <Text
+            style={[
+              styles.summarySubtitle,
+              {
+                color: onPress
+                  ? colorIcono
+                  : colores.textoSecundario,
+                fontSize:
+                  9 * escalaTexto,
+              },
+            ]}
+          >
+            {subtitle}
+          </Text>
+
+          {onPress ? (
+            <Ionicons
+              name="chevron-forward"
+              size={14}
+              color={colorIcono}
+            />
+          ) : null}
+        </View>
       </View>
+    </>
+  );
+
+  const estiloTarjeta = [
+    styles.summaryCard,
+    style,
+    {
+      backgroundColor:
+        colores.tarjeta,
+      borderColor: colores.borde,
+    },
+  ];
+
+  if (onPress) {
+    return (
+      <TouchableOpacity
+        style={estiloTarjeta}
+        onPress={onPress}
+        activeOpacity={0.78}
+        accessibilityRole="button"
+        accessibilityLabel={`${title}: ${value}. ${subtitle}`}
+        accessibilityHint={
+          accessibilityHint
+        }
+      >
+        {contenido}
+      </TouchableOpacity>
+    );
+  }
+
+  return (
+    <View
+      style={estiloTarjeta}
+      accessible
+      accessibilityLabel={`${title}: ${value} ${subtitle}`}
+    >
+      {contenido}
     </View>
   );
 }
@@ -2003,10 +2055,19 @@ const styles = StyleSheet.create({
 
   summaryGrid: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    alignItems: 'stretch',
+  },
+
+  summaryGridColumn: {
+    flexDirection: 'column',
+  },
+
+  summaryColumn: {
+    minWidth: 0,
   },
 
   summaryCard: {
+    width: '100%',
     minHeight: 82,
     minWidth: 0,
     borderRadius: 16,
@@ -2061,8 +2122,15 @@ const styles = StyleSheet.create({
   },
 
   summarySubtitle: {
-    marginTop: 1,
     textAlign: 'center',
+  },
+
+  summaryActionRow: {
+    marginTop: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    columnGap: 2,
   },
 
   sectionHeader: {

@@ -197,6 +197,11 @@ export default function LoginScreen() {
       ? '#000000'
       : '#FFFFFF';
 
+  const colorTextoEjemplo =
+    preferencias.altoContraste
+      ? colores.textoSecundario
+      : '#A8B0BC';
+
   return (
     <KeyboardAvoidingView
       style={[
@@ -324,7 +329,7 @@ export default function LoginScreen() {
             ]}
             placeholder="correo@gmail.com"
             placeholderTextColor={
-              colores.textoSecundario
+              colorTextoEjemplo
             }
             value={correo}
             onChangeText={setCorreo}
@@ -380,7 +385,7 @@ export default function LoginScreen() {
             ]}
             placeholder="Tu contraseña"
             placeholderTextColor={
-              colores.textoSecundario
+              colorTextoEjemplo
             }
             secureTextEntry={
               !mostrarPassword

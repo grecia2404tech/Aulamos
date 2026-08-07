@@ -50,6 +50,27 @@ type RespuestaClases = {
 
 type IoniconName = keyof typeof Ionicons.glyphMap;
 
+const obtenerGradoVisible = (
+  grado?: string | null,
+  grupo?: string | null
+) => {
+  const gradoRecibido = grado?.trim();
+
+  if (gradoRecibido) {
+    return gradoRecibido;
+  }
+
+  /*
+   * Si el backend no envía el campo grado, se obtiene
+   * desde nombres de grupo como "1° A", "2° B" o "3 C".
+   */
+  const coincidencia = grupo
+    ?.trim()
+    .match(/^(\d+\s*[°º]?)/);
+
+  return coincidencia?.[1]?.replace(/\s+/g, '') || 'Sin grado';
+};
+
 export default function ClasesDocenteScreen() {
   const { width } = useWindowDimensions();
 
@@ -544,7 +565,10 @@ export default function ClasesDocenteScreen() {
                     <DetailItem
                       icon="ribbon-outline"
                       label="Grado"
-                      value={clase.grado || 'Sin grado'}
+                      value={obtenerGradoVisible(
+                        clase.grado,
+                        clase.grupo
+                      )}
                     />
                     <DetailItem
                       icon="time-outline"
