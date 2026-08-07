@@ -32,6 +32,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import BotonAccesibilidad from '../components/BotonAccesibilidad';
+import { useAccessibility } from '../contexts/AccessibilityContext';
 import { api } from '../services/api';
 
 type TipoActividad =
@@ -100,31 +101,47 @@ type IoniconName =
 const crearFechaInicial = () => {
   const fecha = new Date();
 
-  fecha.setDate(fecha.getDate() + 1);
-  fecha.setHours(23, 59, 0, 0);
+  fecha.setDate(
+    fecha.getDate() + 1
+  );
+
+  fecha.setHours(
+    23,
+    59,
+    0,
+    0
+  );
 
   return fecha;
 };
 
 const completarNumero = (
-  numero: number,
-) => String(numero).padStart(2, '0');
+  numero: number
+) =>
+  String(numero).padStart(
+    2,
+    '0'
+  );
 
 const convertirFechaMySQL = (
-  fecha: Date,
+  fecha: Date
 ) => {
   const parteFecha = [
     fecha.getFullYear(),
     completarNumero(
-      fecha.getMonth() + 1,
+      fecha.getMonth() + 1
     ),
-    completarNumero(fecha.getDate()),
+    completarNumero(
+      fecha.getDate()
+    ),
   ].join('-');
 
   const parteHora = [
-    completarNumero(fecha.getHours()),
     completarNumero(
-      fecha.getMinutes(),
+      fecha.getHours()
+    ),
+    completarNumero(
+      fecha.getMinutes()
     ),
     '00',
   ].join(':');
@@ -132,31 +149,41 @@ const convertirFechaMySQL = (
   return `${parteFecha} ${parteHora}`;
 };
 
-const mostrarFecha = (fecha: Date) =>
-  fecha.toLocaleString('es-MX', {
-    day: '2-digit',
-    month: 'long',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+const mostrarFecha = (
+  fecha: Date
+) =>
+  fecha.toLocaleString(
+    'es-MX',
+    {
+      day: '2-digit',
+      month: 'long',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    }
+  );
 
 const obtenerMensajeError = (
-  error: unknown,
+  error: unknown
 ) => {
   if (
     axios.isAxiosError<RespuestaError>(
-      error,
+      error
     )
   ) {
     if (
-      error.response?.data?.mensaje
+      error.response?.data
+        ?.mensaje
     ) {
-      return error.response.data.mensaje;
+      return error.response
+        .data.mensaje;
     }
 
-    if (error.response?.data?.error) {
-      return error.response.data.error;
+    if (
+      error.response?.data?.error
+    ) {
+      return error.response
+        .data.error;
     }
 
     if (!error.response) {
@@ -164,7 +191,9 @@ const obtenerMensajeError = (
     }
   }
 
-  if (error instanceof Error) {
+  if (
+    error instanceof Error
+  ) {
     return error.message;
   }
 
@@ -172,7 +201,7 @@ const obtenerMensajeError = (
 };
 
 const obtenerNombreCurso = (
-  curso: Curso,
+  curso: Curso
 ) => {
   const nombre =
     curso.nombre_curso ||
@@ -197,41 +226,71 @@ const obtenerNombreCurso = (
 };
 
 const obtenerNombrePeriodo = (
-  periodo: Periodo,
+  periodo: Periodo
 ) =>
   periodo.nombre_periodo ||
   periodo.nombre ||
   `Periodo ${periodo.id_periodo}`;
 
 const obtenerParametro = (
-  valor?: string | string[],
+  valor?: string | string[]
 ) =>
   Array.isArray(valor)
     ? valor[0] ?? ''
     : valor ?? '';
 
 const obtenerNombreRecurso = (
-  recurso: Recurso,
-) => `${recurso.titulo} · ${recurso.tipo}`;
+  recurso: Recurso
+) =>
+  `${recurso.titulo} · ${recurso.tipo}`;
 
 export default function CrearActividadScreen() {
-  const { width } = useWindowDimensions();
-  const insets = useSafeAreaInsets();
+  const { width } =
+    useWindowDimensions();
+
+  const insets =
+    useSafeAreaInsets();
+
+  const {
+    colores,
+    escalaTexto,
+    preferencias,
+  } = useAccessibility();
+
+  /*
+   * Cuando el usuario selecciona blanco
+   * como color de alto contraste,
+   * los botones blancos necesitan
+   * texto e iconos negros.
+   */
+  const altoContrasteBlanco =
+    preferencias.altoContraste &&
+    preferencias.colorContraste ===
+      'Blanco';
+
+  const colorSobrePrimario =
+    altoContrasteBlanco
+      ? '#000000'
+      : '#FFFFFF';
 
   const parametros =
     useLocalSearchParams<{
-      id_recurso?: string | string[];
-      id_curso?: string | string[];
+      id_recurso?:
+        | string
+        | string[];
+      id_curso?:
+        | string
+        | string[];
     }>();
 
   const idRecursoParametro =
     obtenerParametro(
-      parametros.id_recurso,
+      parametros.id_recurso
     );
 
   const idCursoParametro =
     obtenerParametro(
-      parametros.id_curso,
+      parametros.id_curso
     );
 
   const [cursos, setCursos] =
@@ -246,17 +305,23 @@ export default function CrearActividadScreen() {
   const [idCurso, setIdCurso] =
     useState('');
 
-  const [idPeriodo, setIdPeriodo] =
-    useState('');
+  const [
+    idPeriodo,
+    setIdPeriodo,
+  ] = useState('');
 
-  const [idRecurso, setIdRecurso] =
-    useState('');
+  const [
+    idRecurso,
+    setIdRecurso,
+  ] = useState('');
 
   const [titulo, setTitulo] =
     useState('');
 
-  const [descripcion, setDescripcion] =
-    useState('');
+  const [
+    descripcion,
+    setDescripcion,
+  ] = useState('');
 
   const [
     instrucciones,
@@ -266,12 +331,18 @@ export default function CrearActividadScreen() {
   const [
     tipoActividad,
     setTipoActividad,
-  ] = useState<TipoActividad>('Tarea');
+  ] =
+    useState<TipoActividad>(
+      'Tarea'
+    );
 
   const [
     fechaLimite,
     setFechaLimite,
-  ] = useState(crearFechaInicial);
+  ] =
+    useState(
+      crearFechaInicial
+    );
 
   const [
     puntajeMaximo,
@@ -288,8 +359,10 @@ export default function CrearActividadScreen() {
     setCargandoCatalogos,
   ] = useState(true);
 
-  const [guardando, setGuardando] =
-    useState(false);
+  const [
+    guardando,
+    setGuardando,
+  ] = useState(false);
 
   const [
     selectorFechaVisible,
@@ -308,22 +381,26 @@ export default function CrearActividadScreen() {
         ? 18
         : 22;
 
-  const anchoContenido = Math.min(
-    width - margenHorizontal * 2,
-    520,
-  );
+  const anchoContenido =
+    Math.min(
+      width -
+        margenHorizontal * 2,
+      520
+    );
 
   const cursoSeleccionado =
     cursos.find(
       (curso) =>
-        String(curso.id_curso) ===
-        idCurso,
+        String(
+          curso.id_curso
+        ) === idCurso
     );
 
   const periodosDisponibles =
     useMemo(() => {
       if (
-        !cursoSeleccionado?.id_ciclo
+        !cursoSeleccionado
+          ?.id_ciclo
       ) {
         return periodos;
       }
@@ -331,10 +408,12 @@ export default function CrearActividadScreen() {
       return periodos.filter(
         (periodo) =>
           !periodo.id_ciclo ||
-          Number(periodo.id_ciclo) ===
+          Number(
+            periodo.id_ciclo
+          ) ===
             Number(
-              cursoSeleccionado.id_ciclo,
-            ),
+              cursoSeleccionado.id_ciclo
+            )
       );
     }, [
       cursoSeleccionado,
@@ -342,33 +421,47 @@ export default function CrearActividadScreen() {
     ]);
 
   const opcionesCursos =
-    useMemo<OpcionSelector[]>(
+    useMemo<
+      OpcionSelector[]
+    >(
       () =>
-        cursos.map((curso) => ({
-          value: String(
-            curso.id_curso,
-          ),
-          label:
-            obtenerNombreCurso(curso),
-        })),
-      [cursos],
+        cursos.map(
+          (curso) => ({
+            value:
+              String(
+                curso.id_curso
+              ),
+
+            label:
+              obtenerNombreCurso(
+                curso
+              ),
+          })
+        ),
+      [cursos]
     );
 
   const opcionesPeriodos =
-    useMemo<OpcionSelector[]>(
+    useMemo<
+      OpcionSelector[]
+    >(
       () =>
         periodosDisponibles.map(
           (periodo) => ({
-            value: String(
-              periodo.id_periodo,
-            ),
+            value:
+              String(
+                periodo.id_periodo
+              ),
+
             label:
               obtenerNombrePeriodo(
-                periodo,
+                periodo
               ),
-          }),
+          })
         ),
-      [periodosDisponibles],
+      [
+        periodosDisponibles,
+      ]
     );
 
   const recursosDisponibles =
@@ -377,44 +470,57 @@ export default function CrearActividadScreen() {
         recursos.filter(
           (recurso) =>
             !recurso.id_actividad &&
-            recurso.estado === 'Activo' &&
+            recurso.estado ===
+              'Activo' &&
             Boolean(idCurso) &&
-            String(recurso.id_curso) ===
-              idCurso,
+            String(
+              recurso.id_curso
+            ) === idCurso
         ),
-      [recursos, idCurso],
+      [
+        recursos,
+        idCurso,
+      ]
     );
 
   const opcionesRecursos =
-    useMemo<OpcionSelector[]>(
+    useMemo<
+      OpcionSelector[]
+    >(
       () =>
         recursosDisponibles.map(
           (recurso) => ({
-            value: String(
-              recurso.id_recurso,
-            ),
+            value:
+              String(
+                recurso.id_recurso
+              ),
+
             label:
               obtenerNombreRecurso(
-                recurso,
+                recurso
               ),
-          }),
+          })
         ),
-      [recursosDisponibles],
+      [
+        recursosDisponibles,
+      ]
     );
 
   const cargarCatalogos =
     async () => {
       try {
-        setCargandoCatalogos(true);
+        setCargandoCatalogos(
+          true
+        );
 
         const token =
           await AsyncStorage.getItem(
-            'token',
+            'token'
           );
 
         if (!token) {
           throw new Error(
-            'No se encontró la sesión del docente. Inicia sesión nuevamente.',
+            'No se encontró la sesión del docente. Inicia sesión nuevamente.'
           );
         }
 
@@ -428,36 +534,42 @@ export default function CrearActividadScreen() {
         const [
           respuesta,
           respuestaRecursos,
-        ] = await Promise.all([
-          api.get<RespuestaCatalogos>(
-            '/academico/actividades/catalogos',
-            configuracion,
-          ),
+        ] =
+          await Promise.all([
+            api.get<RespuestaCatalogos>(
+              '/academico/actividades/catalogos',
+              configuracion
+            ),
 
-          api.get<RespuestaRecursos>(
-            '/academico/recursos/mis-recursos-docente',
-            configuracion,
-          ),
-        ]);
+            api.get<RespuestaRecursos>(
+              '/academico/recursos/mis-recursos-docente',
+              configuracion
+            ),
+          ]);
 
         setCursos(
-          respuesta.data.cursos ?? [],
+          respuesta.data
+            .cursos ?? []
         );
 
         setPeriodos(
-          respuesta.data.periodos ??
-            [],
+          respuesta.data
+            .periodos ?? []
         );
 
         const listaRecursos =
-          respuestaRecursos.data
-            .recursos ?? [];
+          respuestaRecursos
+            .data.recursos ?? [];
 
-        setRecursos(listaRecursos);
+        setRecursos(
+          listaRecursos
+        );
 
-        if (idCursoParametro) {
+        if (
+          idCursoParametro
+        ) {
           setIdCurso(
-            idCursoParametro,
+            idCursoParametro
           );
         }
 
@@ -465,32 +577,38 @@ export default function CrearActividadScreen() {
           listaRecursos.find(
             (recurso) =>
               String(
-                recurso.id_recurso,
+                recurso.id_recurso
               ) ===
                 idRecursoParametro &&
               !recurso.id_actividad &&
               recurso.estado ===
                 'Activo' &&
               String(
-                recurso.id_curso,
+                recurso.id_curso
               ) ===
-                idCursoParametro,
+                idCursoParametro
           );
 
-        if (recursoInicial) {
+        if (
+          recursoInicial
+        ) {
           setIdRecurso(
             String(
-              recursoInicial.id_recurso,
-            ),
+              recursoInicial.id_recurso
+            )
           );
         }
       } catch (error) {
         Alert.alert(
           'No se pudieron cargar los datos',
-          obtenerMensajeError(error),
+          obtenerMensajeError(
+            error
+          )
         );
       } finally {
-        setCargandoCatalogos(false);
+        setCargandoCatalogos(
+          false
+        );
       }
     };
 
@@ -499,53 +617,73 @@ export default function CrearActividadScreen() {
   }, []);
 
   const cambiarCurso = (
-    nuevoIdCurso: string,
+    nuevoIdCurso: string
   ) => {
-    setIdCurso(nuevoIdCurso);
+    setIdCurso(
+      nuevoIdCurso
+    );
+
     setIdPeriodo('');
     setIdRecurso('');
   };
 
   const alSeleccionarFecha = (
     evento: DateTimePickerEvent,
-    fecha?: Date,
+    fecha?: Date
   ) => {
-    if (Platform.OS === 'android') {
-      setSelectorFechaVisible(false);
+    if (
+      Platform.OS ===
+      'android'
+    ) {
+      setSelectorFechaVisible(
+        false
+      );
     }
 
     if (
-      evento.type === 'dismissed' ||
+      evento.type ===
+        'dismissed' ||
       !fecha
     ) {
       return;
     }
 
-    const nuevaFecha = new Date(
-      fechaLimite,
-    );
+    const nuevaFecha =
+      new Date(
+        fechaLimite
+      );
 
     nuevaFecha.setFullYear(
       fecha.getFullYear(),
       fecha.getMonth(),
-      fecha.getDate(),
+      fecha.getDate()
     );
 
-    setFechaLimite(nuevaFecha);
+    setFechaLimite(
+      nuevaFecha
+    );
 
-    if (Platform.OS === 'android') {
-      setSelectorHoraVisible(true);
+    if (
+      Platform.OS ===
+      'android'
+    ) {
+      setSelectorHoraVisible(
+        true
+      );
     }
   };
 
   const alSeleccionarHora = (
     evento: DateTimePickerEvent,
-    fecha?: Date,
+    fecha?: Date
   ) => {
-    setSelectorHoraVisible(false);
+    setSelectorHoraVisible(
+      false
+    );
 
     if (
-      evento.type === 'dismissed' ||
+      evento.type ===
+        'dismissed' ||
       !fecha
     ) {
       return;
@@ -553,251 +691,307 @@ export default function CrearActividadScreen() {
 
     setFechaLimite(
       (fechaAnterior) => {
-        const nuevaFecha = new Date(
-          fechaAnterior,
-        );
+        const nuevaFecha =
+          new Date(
+            fechaAnterior
+          );
 
         nuevaFecha.setHours(
           fecha.getHours(),
           fecha.getMinutes(),
           0,
-          0,
+          0
         );
 
         return nuevaFecha;
-      },
+      }
     );
   };
 
-  const validarFormulario = () => {
-    if (!idCurso) {
-      Alert.alert(
-        'Curso requerido',
-        'Selecciona el curso al que pertenece la actividad.',
-      );
-
-      return false;
-    }
-
-    if (!titulo.trim()) {
-      Alert.alert(
-        'Título requerido',
-        'Escribe el título de la actividad.',
-      );
-
-      return false;
-    }
-
-    if (titulo.trim().length > 150) {
-      Alert.alert(
-        'Título demasiado largo',
-        'El título no puede tener más de 150 caracteres.',
-      );
-
-      return false;
-    }
-
-    if (
-      idRecurso &&
-      !recursosDisponibles.some(
-        (recurso) =>
-          String(
-            recurso.id_recurso,
-          ) === idRecurso,
-      )
-    ) {
-      Alert.alert(
-        'Recurso no disponible',
-        'Selecciona un recurso disponible para el curso elegido.',
-      );
-
-      return false;
-    }
-
-    if (
-      fechaLimite.getTime() <=
-      Date.now()
-    ) {
-      Alert.alert(
-        'Fecha límite incorrecta',
-        'La fecha límite debe ser posterior a la fecha y hora actual.',
-      );
-
-      return false;
-    }
-
-    const puntaje = Number(
-      puntajeMaximo,
-    );
-
-    if (
-      !Number.isFinite(puntaje) ||
-      puntaje < 0 ||
-      puntaje > 999.99
-    ) {
-      Alert.alert(
-        'Puntaje incorrecto',
-        'El puntaje máximo debe estar entre 0 y 999.99.',
-      );
-
-      return false;
-    }
-
-    return true;
-  };
-
-  const guardarActividad = async () => {
-    if (
-      guardando ||
-      !validarFormulario()
-    ) {
-      return;
-    }
-
-    try {
-      setGuardando(true);
-
-      const token =
-        await AsyncStorage.getItem(
-          'token',
+  const validarFormulario =
+    () => {
+      if (!idCurso) {
+        Alert.alert(
+          'Curso requerido',
+          'Selecciona el curso al que pertenece la actividad.'
         );
 
-      if (!token) {
-        throw new Error(
-          'Tu sesión terminó. Inicia sesión nuevamente.',
-        );
+        return false;
       }
 
-      const respuesta =
-        await api.post<RespuestaActividad>(
-          '/academico/actividades',
-          {
-            id_curso:
-              Number(idCurso),
-
-            id_periodo: idPeriodo
-              ? Number(idPeriodo)
-              : null,
-
-            id_recurso: idRecurso
-              ? Number(idRecurso)
-              : null,
-
-            titulo: titulo.trim(),
-
-            descripcion:
-              descripcion.trim() ||
-              null,
-
-            instrucciones:
-              instrucciones.trim() ||
-              null,
-
-            tipo: tipoActividad,
-
-            fecha_limite:
-              convertirFechaMySQL(
-                fechaLimite,
-              ),
-
-            puntaje_maximo:
-              Number(puntajeMaximo),
-
-            permite_entrega_archivo:
-              permiteEntregaArchivo,
-
-            estado: 'Publicada',
-          },
-          {
-            headers: {
-              Authorization:
-                `Bearer ${token}`,
-            },
-          },
+      if (
+        !titulo.trim()
+      ) {
+        Alert.alert(
+          'Título requerido',
+          'Escribe el título de la actividad.'
         );
 
-      const cantidadAsignada =
-        respuesta.data
-          .alumnos_asignados;
+        return false;
+      }
 
-      const textoAsignacion =
-        typeof cantidadAsignada ===
-        'number'
-          ? `\n\nEstudiantes asignados: ${cantidadAsignada}.`
-          : '';
+      if (
+        titulo.trim()
+          .length > 150
+      ) {
+        Alert.alert(
+          'Título demasiado largo',
+          'El título no puede tener más de 150 caracteres.'
+        );
 
-      const idActividadCreada =
+        return false;
+      }
+
+      if (
+        idRecurso &&
+        !recursosDisponibles.some(
+          (recurso) =>
+            String(
+              recurso.id_recurso
+            ) ===
+            idRecurso
+        )
+      ) {
+        Alert.alert(
+          'Recurso no disponible',
+          'Selecciona un recurso disponible para el curso elegido.'
+        );
+
+        return false;
+      }
+
+      if (
+        fechaLimite.getTime() <=
+        Date.now()
+      ) {
+        Alert.alert(
+          'Fecha límite incorrecta',
+          'La fecha límite debe ser posterior a la fecha y hora actual.'
+        );
+
+        return false;
+      }
+
+      const puntaje =
         Number(
-          respuesta.data.id_actividad,
+          puntajeMaximo
         );
 
-      Alert.alert(
-        'Actividad publicada',
-        (respuesta.data.mensaje ||
-          'La actividad se publicó correctamente.') +
-          textoAsignacion,
-        [
-          {
-            text: 'Aceptar',
-            onPress: () => {
-              if (
-                Number.isInteger(
-                  idActividadCreada,
-                ) &&
-                idActividadCreada > 0
-              ) {
-                router.replace({
-                  pathname:
-                    '/detalle-actividad',
-                  params: {
-                    id_actividad:
-                      String(
-                        idActividadCreada,
-                      ),
-                  },
-                } as any);
-                return;
-              }
+      if (
+        !Number.isFinite(
+          puntaje
+        ) ||
+        puntaje < 0 ||
+        puntaje > 999.99
+      ) {
+        Alert.alert(
+          'Puntaje incorrecto',
+          'El puntaje máximo debe estar entre 0 y 999.99.'
+        );
 
-              router.replace(
-                '/inicio-docente' as never,
-              );
+        return false;
+      }
+
+      return true;
+    };
+
+  const guardarActividad =
+    async () => {
+      if (
+        guardando ||
+        !validarFormulario()
+      ) {
+        return;
+      }
+
+      try {
+        setGuardando(
+          true
+        );
+
+        const token =
+          await AsyncStorage.getItem(
+            'token'
+          );
+
+        if (!token) {
+          throw new Error(
+            'Tu sesión terminó. Inicia sesión nuevamente.'
+          );
+        }
+
+        const respuesta =
+          await api.post<RespuestaActividad>(
+            '/academico/actividades',
+            {
+              id_curso:
+                Number(
+                  idCurso
+                ),
+
+              id_periodo:
+                idPeriodo
+                  ? Number(
+                      idPeriodo
+                    )
+                  : null,
+
+              id_recurso:
+                idRecurso
+                  ? Number(
+                      idRecurso
+                    )
+                  : null,
+
+              titulo:
+                titulo.trim(),
+
+              descripcion:
+                descripcion.trim() ||
+                null,
+
+              instrucciones:
+                instrucciones.trim() ||
+                null,
+
+              tipo:
+                tipoActividad,
+
+              fecha_limite:
+                convertirFechaMySQL(
+                  fechaLimite
+                ),
+
+              puntaje_maximo:
+                Number(
+                  puntajeMaximo
+                ),
+
+              permite_entrega_archivo:
+                permiteEntregaArchivo,
+
+              estado:
+                'Publicada',
             },
-          },
-        ],
-      );
-    } catch (error) {
-      Alert.alert(
-        'No se pudo crear la actividad',
-        obtenerMensajeError(error),
-      );
-    } finally {
-      setGuardando(false);
-    }
-  };
+            {
+              headers: {
+                Authorization:
+                  `Bearer ${token}`,
+              },
+            }
+          );
+
+        const cantidadAsignada =
+          respuesta.data
+            .alumnos_asignados;
+
+        const textoAsignacion =
+          typeof cantidadAsignada ===
+          'number'
+            ? `\n\nEstudiantes asignados: ${cantidadAsignada}.`
+            : '';
+
+        const idActividadCreada =
+          Number(
+            respuesta.data
+              .id_actividad
+          );
+
+        Alert.alert(
+          'Actividad publicada',
+          (respuesta.data
+            .mensaje ||
+            'La actividad se publicó correctamente.') +
+            textoAsignacion,
+          [
+            {
+              text:
+                'Aceptar',
+
+              onPress: () => {
+                if (
+                  Number.isInteger(
+                    idActividadCreada
+                  ) &&
+                  idActividadCreada >
+                    0
+                ) {
+                  router.replace({
+                    pathname:
+                      '/detalle-actividad',
+
+                    params: {
+                      id_actividad:
+                        String(
+                          idActividadCreada
+                        ),
+                    },
+                  } as any);
+
+                  return;
+                }
+
+                router.replace(
+                  '/inicio-docente' as never
+                );
+              },
+            },
+          ]
+        );
+      } catch (error) {
+        Alert.alert(
+          'No se pudo crear la actividad',
+          obtenerMensajeError(
+            error
+          )
+        );
+      } finally {
+        setGuardando(
+          false
+        );
+      }
+    };
 
   return (
     <KeyboardAvoidingView
-      style={styles.screen}
+      style={[
+        styles.screen,
+        {
+          backgroundColor:
+            colores.fondo,
+        },
+      ]}
       behavior={
-        Platform.OS === 'ios'
+        Platform.OS ===
+        'ios'
           ? 'padding'
           : undefined
       }
     >
-      <View style={styles.screen}>
+      <View
+        style={[
+          styles.screen,
+          {
+            backgroundColor:
+              colores.fondo,
+          },
+        ]}
+      >
         <ScrollView
-          style={styles.scroll}
+          style={
+            styles.scroll
+          }
           contentContainerStyle={[
             styles.scrollContent,
             {
               paddingTop:
                 insets.top + 8,
+
               paddingBottom:
                 100 +
                 Math.max(
                   insets.bottom,
-                  8,
+                  8
                 ),
             },
           ]}
@@ -809,45 +1003,102 @@ export default function CrearActividadScreen() {
             style={[
               styles.contentContainer,
               {
-                width: anchoContenido,
+                width:
+                  anchoContenido,
               },
             ]}
           >
-            <View style={styles.header}>
+            {/* HEADER */}
+            <View
+              style={
+                styles.header
+              }
+            >
               <TouchableOpacity
-                style={styles.headerButton}
+                style={[
+                  styles.headerButton,
+                  {
+                    backgroundColor:
+                      colores.tarjeta,
+
+                    borderColor:
+                      colores.borde,
+                  },
+                ]}
                 onPress={() =>
                   router.back()
                 }
-                activeOpacity={0.7}
+                activeOpacity={
+                  0.7
+                }
                 accessibilityRole="button"
                 accessibilityLabel="Regresar"
               >
                 <Ionicons
                   name="arrow-back"
                   size={23}
-                  color="#273449"
+                  color={
+                    colores.texto
+                  }
                 />
               </TouchableOpacity>
 
-              <View style={styles.headerText}>
-                <Text style={styles.title}>
+              <View
+                style={
+                  styles.headerText
+                }
+              >
+                <Text
+                  style={[
+                    styles.title,
+                    {
+                      color:
+                        colores.texto,
+
+                      fontSize:
+                        20 *
+                        escalaTexto,
+                    },
+                  ]}
+                  accessibilityRole="header"
+                >
                   Crear Actividad
                 </Text>
 
                 <Text
-                  style={styles.subtitle}
+                  style={[
+                    styles.subtitle,
+                    {
+                      color:
+                        colores.textoSecundario,
+
+                      fontSize:
+                        11 *
+                        escalaTexto,
+                    },
+                  ]}
                 >
-                  Diseña actividades para
-                  tus estudiantes
+                  Diseña actividades
+                  para tus estudiantes
                 </Text>
               </View>
 
               <BotonAccesibilidad />
             </View>
 
+            {/* TIPO */}
             <Text
-              style={styles.sectionTitle}
+              style={[
+                styles.sectionTitle,
+                {
+                  color:
+                    colores.texto,
+
+                  fontSize:
+                    12 *
+                    escalaTexto,
+                },
+              ]}
             >
               Tipo de actividad
             </Text>
@@ -856,15 +1107,13 @@ export default function CrearActividadScreen() {
               title="Tarea"
               description="Actividad para entregar"
               icon="clipboard"
-              iconBackground="#EAF1FF"
-              iconColor="#4A7CFF"
               selected={
                 tipoActividad ===
                 'Tarea'
               }
               onPress={() =>
                 setTipoActividad(
-                  'Tarea',
+                  'Tarea'
                 )
               }
             />
@@ -873,15 +1122,13 @@ export default function CrearActividadScreen() {
               title="Ejercicio"
               description="Práctica para reforzar un tema"
               icon="create"
-              iconBackground="#DDF8F4"
-              iconColor="#34C8BA"
               selected={
                 tipoActividad ===
                 'Ejercicio'
               }
               onPress={() =>
                 setTipoActividad(
-                  'Ejercicio',
+                  'Ejercicio'
                 )
               }
             />
@@ -890,15 +1137,13 @@ export default function CrearActividadScreen() {
               title="Lectura"
               description="Lectura o material de consulta"
               icon="book"
-              iconBackground="#FFF3D7"
-              iconColor="#F2A900"
               selected={
                 tipoActividad ===
                 'Lectura'
               }
               onPress={() =>
                 setTipoActividad(
-                  'Lectura',
+                  'Lectura'
                 )
               }
             />
@@ -907,57 +1152,95 @@ export default function CrearActividadScreen() {
               title="Proyecto"
               description="Trabajo individual o en equipo"
               icon="folder-open"
-              iconBackground="#ECE8FF"
-              iconColor="#7059F5"
               selected={
                 tipoActividad ===
                 'Proyecto'
               }
               onPress={() =>
                 setTipoActividad(
-                  'Proyecto',
+                  'Proyecto'
                 )
               }
             />
 
+            {/* INFORMACIÓN */}
             <Text
               style={[
                 styles.sectionTitle,
                 styles.informationTitle,
+                {
+                  color:
+                    colores.texto,
+
+                  fontSize:
+                    12 *
+                    escalaTexto,
+                },
               ]}
             >
-              Información de la actividad
+              Información de la
+              actividad
             </Text>
 
             {cargandoCatalogos ? (
               <View
-                style={styles.loadingBox}
+                style={[
+                  styles.loadingBox,
+                  {
+                    backgroundColor:
+                      colores.tarjeta,
+
+                    borderColor:
+                      colores.borde,
+                  },
+                ]}
               >
                 <ActivityIndicator
-                  color="#4A7CFF"
+                  color={
+                    colores.primario
+                  }
                   size="small"
                 />
 
                 <Text
-                  style={styles.loadingText}
+                  style={[
+                    styles.loadingText,
+                    {
+                      color:
+                        colores.textoSecundario,
+
+                      fontSize:
+                        9 *
+                        escalaTexto,
+                    },
+                  ]}
                 >
                   Cargando cursos,
-                  periodos y recursos...
+                  periodos y
+                  recursos...
                 </Text>
               </View>
             ) : (
               <>
                 <Selector
                   label="Curso"
-                  value={idCurso}
+                  value={
+                    idCurso
+                  }
                   placeholder="Selecciona un curso"
-                  options={opcionesCursos}
-                  onChange={cambiarCurso}
+                  options={
+                    opcionesCursos
+                  }
+                  onChange={
+                    cambiarCurso
+                  }
                 />
 
                 <Selector
                   label="Periodo de evaluación (opcional)"
-                  value={idPeriodo}
+                  value={
+                    idPeriodo
+                  }
                   placeholder={
                     idCurso
                       ? 'Selecciona un periodo'
@@ -969,77 +1252,187 @@ export default function CrearActividadScreen() {
                   onChange={
                     setIdPeriodo
                   }
-                  disabled={!idCurso}
+                  disabled={
+                    !idCurso
+                  }
                   allowEmpty
                   emptyLabel="Sin periodo"
                 />
 
                 <Selector
                   label="Recurso de apoyo (opcional)"
-                  value={idRecurso}
+                  value={
+                    idRecurso
+                  }
                   placeholder={
                     !idCurso
                       ? 'Primero selecciona un curso'
-                      : opcionesRecursos.length > 0
+                      : opcionesRecursos.length >
+                          0
                         ? 'Selecciona un recurso disponible'
                         : 'No hay recursos disponibles para este curso'
                   }
                   options={
                     opcionesRecursos
                   }
-                  onChange={setIdRecurso}
-                  disabled={!idCurso}
+                  onChange={
+                    setIdRecurso
+                  }
+                  disabled={
+                    !idCurso
+                  }
                   allowEmpty
                   emptyLabel="Sin recurso"
                 />
               </>
             )}
 
-            <Text style={styles.label}>
-              Título de la actividad
+            <Text
+              style={[
+                styles.label,
+                {
+                  color:
+                    colores.texto,
+
+                  fontSize:
+                    11 *
+                    escalaTexto,
+                },
+              ]}
+            >
+              Título de la
+              actividad
             </Text>
 
             <TextInput
-              style={styles.input}
+              style={[
+                styles.input,
+                {
+                  backgroundColor:
+                    colores.tarjeta,
+
+                  borderColor:
+                    colores.borde,
+
+                  color:
+                    colores.texto,
+
+                  fontSize:
+                    12 *
+                    escalaTexto,
+                },
+              ]}
               placeholder="Ej. Ejercicios de fracciones"
-              placeholderTextColor="#9CA3AF"
-              value={titulo}
-              onChangeText={setTitulo}
-              maxLength={150}
+              placeholderTextColor={
+                colores.textoSecundario
+              }
+              value={
+                titulo
+              }
+              onChangeText={
+                setTitulo
+              }
+              maxLength={
+                150
+              }
               returnKeyType="next"
               accessibilityLabel="Título de la actividad"
             />
 
-            <Text style={styles.label}>
-              Descripción (opcional)
+            <Text
+              style={[
+                styles.label,
+                {
+                  color:
+                    colores.texto,
+
+                  fontSize:
+                    11 *
+                    escalaTexto,
+                },
+              ]}
+            >
+              Descripción
+              (opcional)
             </Text>
 
             <TextInput
               style={[
                 styles.input,
                 styles.descriptionInput,
+                {
+                  backgroundColor:
+                    colores.tarjeta,
+
+                  borderColor:
+                    colores.borde,
+
+                  color:
+                    colores.texto,
+
+                  fontSize:
+                    12 *
+                    escalaTexto,
+                },
               ]}
               placeholder="Describe brevemente la actividad"
-              placeholderTextColor="#9CA3AF"
-              value={descripcion}
-              onChangeText={setDescripcion}
+              placeholderTextColor={
+                colores.textoSecundario
+              }
+              value={
+                descripcion
+              }
+              onChangeText={
+                setDescripcion
+              }
               multiline
               textAlignVertical="top"
               accessibilityLabel="Descripción de la actividad"
             />
 
-            <Text style={styles.label}>
-              Instrucciones (opcional)
+            <Text
+              style={[
+                styles.label,
+                {
+                  color:
+                    colores.texto,
+
+                  fontSize:
+                    11 *
+                    escalaTexto,
+                },
+              ]}
+            >
+              Instrucciones
+              (opcional)
             </Text>
 
             <TextInput
               style={[
                 styles.input,
                 styles.instructionsInput,
+                {
+                  backgroundColor:
+                    colores.tarjeta,
+
+                  borderColor:
+                    colores.borde,
+
+                  color:
+                    colores.texto,
+
+                  fontSize:
+                    12 *
+                    escalaTexto,
+                },
               ]}
               placeholder="Escribe las instrucciones para los estudiantes"
-              placeholderTextColor="#9CA3AF"
-              value={instrucciones}
+              placeholderTextColor={
+                colores.textoSecundario
+              }
+              value={
+                instrucciones
+              }
               onChangeText={
                 setInstrucciones
               }
@@ -1048,75 +1441,134 @@ export default function CrearActividadScreen() {
               accessibilityLabel="Instrucciones de la actividad"
             />
 
-            <Text style={styles.label}>
-              Fecha y hora límite
+            {/* FECHA */}
+            <Text
+              style={[
+                styles.label,
+                {
+                  color:
+                    colores.texto,
+
+                  fontSize:
+                    11 *
+                    escalaTexto,
+                },
+              ]}
+            >
+              Fecha y hora
+              límite
             </Text>
 
             <TouchableOpacity
-              style={styles.dateButton}
+              style={[
+                styles.dateButton,
+                {
+                  backgroundColor:
+                    colores.tarjeta,
+
+                  borderColor:
+                    colores.borde,
+                },
+              ]}
               onPress={() =>
                 setSelectorFechaVisible(
-                  true,
+                  true
                 )
               }
-              activeOpacity={0.8}
+              activeOpacity={
+                0.8
+              }
               accessibilityRole="button"
               accessibilityLabel="Seleccionar fecha y hora límite"
             >
               <Text
-                style={styles.dateText}
+                style={[
+                  styles.dateText,
+                  {
+                    color:
+                      colores.texto,
+
+                    fontSize:
+                      12 *
+                      escalaTexto,
+                  },
+                ]}
               >
                 {mostrarFecha(
-                  fechaLimite,
+                  fechaLimite
                 )}
               </Text>
 
               <Ionicons
                 name="calendar-outline"
                 size={20}
-                color="#4A7CFF"
+                color={
+                  colores.primario
+                }
               />
             </TouchableOpacity>
 
             {selectorFechaVisible && (
               <View
-                style={
-                  styles.pickerContainer
-                }
+                style={[
+                  styles.pickerContainer,
+                  {
+                    backgroundColor:
+                      colores.tarjeta,
+
+                    borderColor:
+                      colores.borde,
+                  },
+                ]}
               >
                 <DateTimePicker
-                  value={fechaLimite}
+                  value={
+                    fechaLimite
+                  }
                   mode={
-                    Platform.OS === 'ios'
+                    Platform.OS ===
+                    'ios'
                       ? 'datetime'
                       : 'date'
                   }
                   display={
-                    Platform.OS === 'ios'
+                    Platform.OS ===
+                    'ios'
                       ? 'spinner'
                       : 'default'
                   }
-                  minimumDate={new Date()}
+                  minimumDate={
+                    new Date()
+                  }
                   onChange={
                     alSeleccionarFecha
                   }
                 />
 
-                {Platform.OS === 'ios' && (
+                {Platform.OS ===
+                  'ios' && (
                   <TouchableOpacity
-                    style={
-                      styles.pickerDoneButton
-                    }
+                    style={[
+                      styles.pickerDoneButton,
+                      {
+                        backgroundColor:
+                          colores.primario,
+                      },
+                    ]}
                     onPress={() =>
                       setSelectorFechaVisible(
-                        false,
+                        false
                       )
                     }
                   >
                     <Text
-                      style={
-                        styles.pickerDoneText
-                      }
+                      style={[
+                        styles.pickerDoneText,
+                        {
+                          color:
+                            colorSobrePrimario,
+                        },
+                      ]}
                     >
                       Listo
                     </Text>
@@ -1127,7 +1579,9 @@ export default function CrearActividadScreen() {
 
             {selectorHoraVisible && (
               <DateTimePicker
-                value={fechaLimite}
+                value={
+                  fechaLimite
+                }
                 mode="time"
                 display="default"
                 onChange={
@@ -1136,15 +1590,48 @@ export default function CrearActividadScreen() {
               />
             )}
 
-            <Text style={styles.label}>
+            {/* PUNTAJE */}
+            <Text
+              style={[
+                styles.label,
+                {
+                  color:
+                    colores.texto,
+
+                  fontSize:
+                    11 *
+                    escalaTexto,
+                },
+              ]}
+            >
               Puntaje máximo
             </Text>
 
             <TextInput
-              style={styles.input}
+              style={[
+                styles.input,
+                {
+                  backgroundColor:
+                    colores.tarjeta,
+
+                  borderColor:
+                    colores.borde,
+
+                  color:
+                    colores.texto,
+
+                  fontSize:
+                    12 *
+                    escalaTexto,
+                },
+              ]}
               placeholder="100"
-              placeholderTextColor="#9CA3AF"
-              value={puntajeMaximo}
+              placeholderTextColor={
+                colores.textoSecundario
+              }
+              value={
+                puntajeMaximo
+              }
               onChangeText={
                 setPuntajeMaximo
               }
@@ -1152,23 +1639,53 @@ export default function CrearActividadScreen() {
               accessibilityLabel="Puntaje máximo"
             />
 
-            <View style={styles.switchCard}>
+            {/* SWITCH */}
+            <View
+              style={[
+                styles.switchCard,
+                {
+                  backgroundColor:
+                    colores.tarjeta,
+
+                  borderColor:
+                    colores.borde,
+                },
+              ]}
+            >
               <View
                 style={
                   styles.switchTextContainer
                 }
               >
                 <Text
-                  style={styles.switchTitle}
+                  style={[
+                    styles.switchTitle,
+                    {
+                      color:
+                        colores.texto,
+
+                      fontSize:
+                        11 *
+                        escalaTexto,
+                    },
+                  ]}
                 >
-                  Permitir entrega de
-                  archivo
+                  Permitir entrega
+                  de archivo
                 </Text>
 
                 <Text
-                  style={
-                    styles.switchDescription
-                  }
+                  style={[
+                    styles.switchDescription,
+                    {
+                      color:
+                        colores.textoSecundario,
+
+                      fontSize:
+                        9 *
+                        escalaTexto,
+                    },
+                  ]}
                 >
                   El estudiante podrá
                   adjuntar un archivo
@@ -1183,52 +1700,114 @@ export default function CrearActividadScreen() {
                   setPermiteEntregaArchivo
                 }
                 trackColor={{
-                  false: '#CBD2DC',
-                  true: '#AFC5FF',
+                  false:
+                    preferencias.altoContraste
+                      ? '#FFFFFF'
+                      : '#CBD2DC',
+
+                  true:
+                    colores.primario,
                 }}
                 thumbColor={
-                  permiteEntregaArchivo
-                    ? '#4A7CFF'
-                    : '#F4F4F5'
+                  preferencias.altoContraste
+                    ? '#000000'
+                    : '#FFFFFF'
                 }
                 accessibilityLabel="Permitir entrega de archivo"
+                accessibilityRole="switch"
+                accessibilityState={{
+                  checked:
+                    permiteEntregaArchivo,
+                }}
               />
             </View>
 
-            <View style={styles.infoBox}>
+            {/* INFORMACIÓN */}
+            <View
+              style={[
+                styles.infoBox,
+                {
+                  backgroundColor:
+                    colores.fondoPrimario,
+
+                  borderColor:
+                    colores.borde,
+                },
+              ]}
+            >
               <Ionicons
                 name="information-circle-outline"
                 size={19}
-                color="#4A7CFF"
+                color={
+                  colores.primario
+                }
               />
 
-              <Text style={styles.infoText}>
-                El docente se obtiene de
-                la sesión y la fecha de
-                publicación se registra
-                automáticamente. Si eliges
-                un recurso, quedará asociado
-                a esta actividad.
+              <Text
+                style={[
+                  styles.infoText,
+                  {
+                    color:
+                      colores.textoSecundario,
+
+                    fontSize:
+                      9 *
+                      escalaTexto,
+                  },
+                ]}
+              >
+                El docente se obtiene
+                de la sesión y la
+                fecha de publicación
+                se registra
+                automáticamente. Si
+                eliges un recurso,
+                quedará asociado a
+                esta actividad.
               </Text>
             </View>
 
-            <View style={styles.actions}>
+            {/* ACCIONES */}
+            <View
+              style={
+                styles.actions
+              }
+            >
               <TouchableOpacity
-                style={
-                  styles.cancelButton
-                }
+                style={[
+                  styles.cancelButton,
+                  {
+                    backgroundColor:
+                      colores.tarjeta,
+
+                    borderColor:
+                      colores.borde,
+                  },
+                ]}
                 onPress={() =>
                   router.back()
                 }
-                disabled={guardando}
-                activeOpacity={0.8}
+                disabled={
+                  guardando
+                }
+                activeOpacity={
+                  0.8
+                }
                 accessibilityRole="button"
                 accessibilityLabel="Cancelar"
               >
                 <Text
-                  style={
-                    styles.cancelButtonText
-                  }
+                  style={[
+                    styles.cancelButtonText,
+                    {
+                      color:
+                        colores.texto,
+
+                      fontSize:
+                        11 *
+                        escalaTexto,
+                    },
+                  ]}
                 >
                   Cancelar
                 </Text>
@@ -1237,36 +1816,77 @@ export default function CrearActividadScreen() {
               <TouchableOpacity
                 style={[
                   styles.publishButton,
+                  {
+                    backgroundColor:
+                      colores.primario,
+
+                    borderColor:
+                      colores.primario,
+                  },
+
                   guardando &&
                     styles.disabledButton,
                 ]}
                 onPress={
                   guardarActividad
                 }
-                disabled={guardando}
-                activeOpacity={0.8}
+                disabled={
+                  guardando
+                }
+                activeOpacity={
+                  0.8
+                }
                 accessibilityRole="button"
                 accessibilityLabel="Publicar actividad"
+                accessibilityState={{
+                  disabled:
+                    guardando,
+
+                  busy:
+                    guardando,
+                }}
               >
                 {guardando ? (
                   <ActivityIndicator
                     size="small"
-                    color="#FFFFFF"
+                    color={
+                      colorSobrePrimario
+                    }
                   />
                 ) : (
-                  <Text
-                    style={
-                      styles.publishButtonText
-                    }
-                  >
-                    Publicar actividad
-                  </Text>
+                  <>
+                    <Ionicons
+                      name="send-outline"
+                      size={18}
+                      color={
+                        colorSobrePrimario
+                      }
+                    />
+
+                    <Text
+                      style={[
+                        styles.publishButtonText,
+                        {
+                          color:
+                            colorSobrePrimario,
+
+                          fontSize:
+                            11 *
+                            escalaTexto,
+                        },
+                      ]}
+                    >
+                      Publicar
+                      actividad
+                    </Text>
+                  </>
                 )}
               </TouchableOpacity>
             </View>
           </View>
         </ScrollView>
 
+        {/* NAVEGACIÓN INFERIOR */}
         <View
           style={[
             styles.bottomNavigation,
@@ -1275,14 +1895,20 @@ export default function CrearActividadScreen() {
                 66 +
                 Math.max(
                   insets.bottom,
-                  5,
+                  5
                 ),
 
               paddingBottom:
                 Math.max(
                   insets.bottom,
-                  5,
+                  5
                 ),
+
+              backgroundColor:
+                colores.tarjeta,
+
+              borderTopColor:
+                colores.borde,
             },
           ]}
         >
@@ -1290,7 +1916,8 @@ export default function CrearActividadScreen() {
             style={[
               styles.bottomContent,
               {
-                width: anchoContenido,
+                width:
+                  anchoContenido,
               },
             ]}
           >
@@ -1300,7 +1927,7 @@ export default function CrearActividadScreen() {
               label="Inicio"
               onPress={() =>
                 router.replace(
-                  '/inicio-docente' as never,
+                  '/inicio-docente' as never
                 )
               }
             />
@@ -1311,7 +1938,7 @@ export default function CrearActividadScreen() {
               label="Recursos"
               onPress={() =>
                 router.push(
-                  '/crear-recurso' as never,
+                  '/crear-recurso' as never
                 )
               }
             />
@@ -1322,7 +1949,7 @@ export default function CrearActividadScreen() {
               label="Actividades"
               active
               onPress={() => {
-                // Ya se encuentra en Actividades.
+                // Ya estamos aquí.
               }}
             />
 
@@ -1332,7 +1959,7 @@ export default function CrearActividadScreen() {
               label="Evaluaciones"
               onPress={() =>
                 router.push(
-                  '/crear-evaluacion' as never,
+                  '/crear-evaluacion' as never
                 )
               }
             />
@@ -1343,7 +1970,7 @@ export default function CrearActividadScreen() {
               label="Más"
               onPress={() =>
                 router.push(
-                  '/menu-docente' as never,
+                  '/menu-docente' as never
                 )
               }
             />
@@ -1354,12 +1981,14 @@ export default function CrearActividadScreen() {
   );
 }
 
+/* =====================================================
+   TIPO DE ACTIVIDAD
+===================================================== */
+
 type ActivityOptionProps = {
   title: string;
   description: string;
   icon: IoniconName;
-  iconBackground: string;
-  iconColor: string;
   selected: boolean;
   onPress: () => void;
 };
@@ -1368,22 +1997,35 @@ function ActivityOption({
   title,
   description,
   icon,
-  iconBackground,
-  iconColor,
   selected,
   onPress,
 }: ActivityOptionProps) {
+  const {
+    colores,
+    escalaTexto,
+  } = useAccessibility();
+
   return (
     <TouchableOpacity
       style={[
         styles.activityCard,
-        selected &&
-          styles.activityCardSelected,
+        {
+          backgroundColor:
+            selected
+              ? colores.fondoPrimario
+              : colores.tarjeta,
+
+          borderColor:
+            selected
+              ? colores.primario
+              : colores.borde,
+        },
       ]}
       onPress={onPress}
       activeOpacity={0.8}
-      accessibilityRole="button"
+      accessibilityRole="radio"
       accessibilityState={{
+        checked: selected,
         selected,
       }}
       accessibilityLabel={`${title}. ${description}`}
@@ -1393,14 +2035,21 @@ function ActivityOption({
           styles.activityIconBox,
           {
             backgroundColor:
-              iconBackground,
+              colores.fondoPrimario,
+
+            borderColor:
+              selected
+                ? colores.primario
+                : colores.borde,
           },
         ]}
       >
         <Ionicons
           name={icon}
           size={22}
-          color={iconColor}
+          color={
+            colores.primario
+          }
         />
       </View>
 
@@ -1410,37 +2059,67 @@ function ActivityOption({
         }
       >
         <Text
-          style={styles.activityTitle}
+          style={[
+            styles.activityTitle,
+            {
+              color:
+                colores.texto,
+
+              fontSize:
+                12 *
+                escalaTexto,
+            },
+          ]}
         >
           {title}
         </Text>
 
         <Text
-          style={
-            styles.activityDescription
-          }
+          style={[
+            styles.activityDescription,
+            {
+              color:
+                colores.textoSecundario,
+
+              fontSize:
+                9 *
+                escalaTexto,
+            },
+          ]}
         >
           {description}
         </Text>
       </View>
 
-      {selected && (
-        <Ionicons
-          name="checkmark-circle"
-          size={21}
-          color="#4A7CFF"
-        />
-      )}
+      <Ionicons
+        name={
+          selected
+            ? 'checkmark-circle'
+            : 'ellipse-outline'
+        }
+        size={21}
+        color={
+          selected
+            ? colores.primario
+            : colores.textoSecundario
+        }
+      />
     </TouchableOpacity>
   );
 }
+
+/* =====================================================
+   SELECTOR
+===================================================== */
 
 type SelectorProps = {
   label: string;
   value: string;
   placeholder: string;
   options: OpcionSelector[];
-  onChange: (value: string) => void;
+  onChange: (
+    value: string
+  ) => void;
   disabled?: boolean;
   allowEmpty?: boolean;
   emptyLabel?: string;
@@ -1456,41 +2135,83 @@ function Selector({
   allowEmpty = false,
   emptyLabel = 'Ninguno',
 }: SelectorProps) {
+  const {
+    colores,
+    escalaTexto,
+  } = useAccessibility();
+
   const [visible, setVisible] =
     useState(false);
 
   const selectedOption =
     options.find(
       (option) =>
-        option.value === value,
+        option.value === value
     );
 
   const seleccionar = (
-    nuevoValor: string,
+    nuevoValor: string
   ) => {
-    onChange(nuevoValor);
-    setVisible(false);
+    onChange(
+      nuevoValor
+    );
+
+    setVisible(
+      false
+    );
   };
 
   return (
-    <View style={styles.selectorGroup}>
-      <Text style={styles.label}>
+    <View
+      style={
+        styles.selectorGroup
+      }
+    >
+      <Text
+        style={[
+          styles.label,
+          {
+            color:
+              colores.texto,
+
+            fontSize:
+              11 *
+              escalaTexto,
+          },
+        ]}
+      >
         {label}
       </Text>
 
       <TouchableOpacity
         style={[
           styles.selector,
+          {
+            backgroundColor:
+              colores.tarjeta,
+
+            borderColor:
+              colores.borde,
+          },
+
           disabled &&
             styles.selectorDisabled,
         ]}
         onPress={() =>
-          setVisible(true)
+          setVisible(
+            true
+          )
         }
-        disabled={disabled}
-        activeOpacity={0.8}
+        disabled={
+          disabled
+        }
+        activeOpacity={
+          0.8
+        }
         accessibilityRole="button"
-        accessibilityLabel={label}
+        accessibilityLabel={
+          label
+        }
         accessibilityState={{
           disabled,
         }}
@@ -1498,125 +2219,243 @@ function Selector({
         <Text
           style={[
             styles.selectorText,
-            !selectedOption &&
-              styles.selectorPlaceholder,
+            {
+              color:
+                selectedOption
+                  ? colores.texto
+                  : colores.textoSecundario,
+
+              fontSize:
+                12 *
+                escalaTexto,
+            },
           ]}
-          numberOfLines={1}
+          numberOfLines={
+            1
+          }
         >
-          {selectedOption?.label ||
+          {selectedOption
+            ?.label ||
             placeholder}
         </Text>
 
         <Ionicons
           name="chevron-down"
           size={18}
-          color="#7C8798"
+          color={
+            colores.primario
+          }
         />
       </TouchableOpacity>
 
       <Modal
-        visible={visible}
+        visible={
+          visible
+        }
         transparent
         animationType="fade"
         onRequestClose={() =>
-          setVisible(false)
+          setVisible(
+            false
+          )
         }
       >
-        <View style={styles.modalOverlay}>
+        <View
+          style={
+            styles.modalOverlay
+          }
+        >
           <Pressable
             style={
               StyleSheet.absoluteFill
             }
             onPress={() =>
-              setVisible(false)
+              setVisible(
+                false
+              )
             }
           />
 
-          <View style={styles.modalContent}>
+          <View
+            style={[
+              styles.modalContent,
+              {
+                backgroundColor:
+                  colores.tarjeta,
+
+                borderColor:
+                  colores.borde,
+              },
+            ]}
+          >
             <Text
-              style={styles.modalTitle}
+              style={[
+                styles.modalTitle,
+                {
+                  color:
+                    colores.texto,
+
+                  fontSize:
+                    16 *
+                    escalaTexto,
+                },
+              ]}
             >
               {label}
             </Text>
 
             <ScrollView
-              style={styles.modalList}
+              style={
+                styles.modalList
+              }
             >
               {allowEmpty && (
                 <TouchableOpacity
                   style={[
                     styles.modalOption,
-                    value === '' &&
-                      styles.modalOptionSelected,
+                    {
+                      borderBottomColor:
+                        colores.borde,
+
+                      backgroundColor:
+                        value === ''
+                          ? colores.fondoPrimario
+                          : colores.tarjeta,
+                    },
                   ]}
                   onPress={() =>
                     seleccionar('')
                   }
+                  accessibilityRole="radio"
+                  accessibilityState={{
+                    checked:
+                      value === '',
+                  }}
                 >
                   <Text
                     style={[
                       styles.modalOptionText,
-                      value === '' &&
-                        styles.modalOptionTextSelected,
+                      {
+                        color:
+                          value === ''
+                            ? colores.primario
+                            : colores.texto,
+
+                        fontWeight:
+                          value === ''
+                            ? '800'
+                            : '600',
+
+                        fontSize:
+                          12 *
+                          escalaTexto,
+                      },
                     ]}
                   >
                     {emptyLabel}
                   </Text>
 
-                  {value === '' && (
+                  {value ===
+                    '' && (
                     <Ionicons
                       name="checkmark-circle"
                       size={20}
-                      color="#4A7CFF"
+                      color={
+                        colores.primario
+                      }
                     />
                   )}
                 </TouchableOpacity>
               )}
 
-              {options.map((option) => {
-                const selected =
-                  value ===
-                  option.value;
+              {options.map(
+                (option) => {
+                  const selected =
+                    value ===
+                    option.value;
 
-                return (
-                  <TouchableOpacity
-                    key={option.value}
-                    style={[
-                      styles.modalOption,
-                      selected &&
-                        styles.modalOptionSelected,
-                    ]}
-                    onPress={() =>
-                      seleccionar(
-                        option.value,
-                      )
-                    }
-                  >
-                    <Text
+                  return (
+                    <TouchableOpacity
+                      key={
+                        option.value
+                      }
                       style={[
-                        styles.modalOptionText,
-                        selected &&
-                          styles.modalOptionTextSelected,
+                        styles.modalOption,
+                        {
+                          borderBottomColor:
+                            colores.borde,
+
+                          backgroundColor:
+                            selected
+                              ? colores.fondoPrimario
+                              : colores.tarjeta,
+                        },
                       ]}
+                      onPress={() =>
+                        seleccionar(
+                          option.value
+                        )
+                      }
+                      accessibilityRole="radio"
+                      accessibilityState={{
+                        checked:
+                          selected,
+                      }}
                     >
-                      {option.label}
-                    </Text>
+                      <Text
+                        style={[
+                          styles.modalOptionText,
+                          {
+                            color:
+                              selected
+                                ? colores.primario
+                                : colores.texto,
 
-                    {selected && (
-                      <Ionicons
-                        name="checkmark-circle"
-                        size={20}
-                        color="#4A7CFF"
-                      />
-                    )}
-                  </TouchableOpacity>
-                );
-              })}
+                            fontWeight:
+                              selected
+                                ? '800'
+                                : '600',
 
-              {options.length === 0 &&
+                            fontSize:
+                              12 *
+                              escalaTexto,
+                          },
+                        ]}
+                      >
+                        {
+                          option.label
+                        }
+                      </Text>
+
+                      {selected && (
+                        <Ionicons
+                          name="checkmark-circle"
+                          size={20}
+                          color={
+                            colores.primario
+                          }
+                        />
+                      )}
+                    </TouchableOpacity>
+                  );
+                }
+              )}
+
+              {options.length ===
+                0 &&
                 !allowEmpty && (
                   <Text
-                    style={styles.emptyText}
+                    style={[
+                      styles.emptyText,
+                      {
+                        color:
+                          colores.textoSecundario,
+
+                        fontSize:
+                          11 *
+                          escalaTexto,
+                      },
+                    ]}
                   >
                     No hay opciones
                     disponibles.
@@ -1625,15 +2464,34 @@ function Selector({
             </ScrollView>
 
             <TouchableOpacity
-              style={styles.modalCloseButton}
+              style={[
+                styles.modalCloseButton,
+                {
+                  backgroundColor:
+                    colores.fondoPrimario,
+
+                  borderColor:
+                    colores.borde,
+                },
+              ]}
               onPress={() =>
-                setVisible(false)
+                setVisible(
+                  false
+                )
               }
             >
               <Text
-                style={
-                  styles.modalCloseText
-                }
+                style={[
+                  styles.modalCloseText,
+                  {
+                    color:
+                      colores.texto,
+
+                    fontSize:
+                      11 *
+                      escalaTexto,
+                  },
+                ]}
               >
                 Cancelar
               </Text>
@@ -1644,6 +2502,10 @@ function Selector({
     </View>
   );
 }
+
+/* =====================================================
+   NAVEGACIÓN INFERIOR
+===================================================== */
 
 type BottomItemProps = {
   icon: IoniconName;
@@ -1660,22 +2522,38 @@ function BottomItem({
   active = false,
   onPress,
 }: BottomItemProps) {
+  const {
+    colores,
+    escalaTexto,
+  } = useAccessibility();
+
   return (
     <TouchableOpacity
-      style={styles.bottomItem}
-      onPress={onPress}
-      activeOpacity={0.7}
-      accessibilityRole="button"
+      style={
+        styles.bottomItem
+      }
+      onPress={
+        onPress
+      }
+      activeOpacity={
+        0.7
+      }
+      accessibilityRole="tab"
       accessibilityState={{
-        selected: active,
+        selected:
+          active,
       }}
-      accessibilityLabel={label}
+      accessibilityLabel={
+        label
+      }
     >
       <View
         style={[
           styles.bottomIconContainer,
-          active &&
-            styles.bottomIconContainerActive,
+          active && {
+            backgroundColor:
+              colores.fondoPrimario,
+          },
         ]}
       >
         <Ionicons
@@ -1687,8 +2565,8 @@ function BottomItem({
           size={21}
           color={
             active
-              ? '#2563EB'
-              : '#8B98AA'
+              ? colores.primario
+              : colores.textoSecundario
           }
         />
       </View>
@@ -1696,10 +2574,25 @@ function BottomItem({
       <Text
         style={[
           styles.bottomLabel,
-          active &&
-            styles.bottomLabelActive,
+          {
+            color:
+              active
+                ? colores.primario
+                : colores.textoSecundario,
+
+            fontSize:
+              8 *
+              escalaTexto,
+
+            fontWeight:
+              active
+                ? '900'
+                : '700',
+          },
         ]}
-        numberOfLines={1}
+        numberOfLines={
+          1
+        }
       >
         {label}
       </Text>
@@ -1707,469 +2600,462 @@ function BottomItem({
   );
 }
 
-const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-  },
+const styles =
+  StyleSheet.create({
+    screen: {
+      flex: 1,
+    },
 
-  scroll: {
-    flex: 1,
-  },
+    scroll: {
+      flex: 1,
+    },
 
-  scrollContent: {
-    alignItems: 'center',
-  },
+    scrollContent: {
+      alignItems:
+        'center',
+    },
 
-  contentContainer: {
-    alignSelf: 'center',
-  },
+    contentContainer: {
+      alignSelf:
+        'center',
+    },
 
-  header: {
-    minHeight: 58,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent:
-      'space-between',
-    marginBottom: 18,
-  },
+    header: {
+      minHeight: 58,
+      flexDirection:
+        'row',
+      alignItems:
+        'center',
+      justifyContent:
+        'space-between',
+      marginBottom:
+        18,
+    },
 
-  headerButton: {
-    width: 44,
-    height: 44,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
+    headerButton: {
+      width: 44,
+      height: 44,
+      borderWidth: 1,
+      borderRadius: 14,
+      justifyContent:
+        'center',
+      alignItems:
+        'center',
+    },
 
-  headerText: {
-    flex: 1,
-    paddingHorizontal: 8,
-  },
+    headerText: {
+      flex: 1,
+      paddingHorizontal:
+        8,
+    },
 
-  title: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: '#1F2937',
-  },
+    title: {
+      fontWeight:
+        '800',
+    },
 
-  subtitle: {
-    marginTop: 5,
-    fontSize: 11,
-    lineHeight: 16,
-    color: '#64748B',
-    fontWeight: '600',
-  },
+    subtitle: {
+      marginTop: 5,
+      lineHeight: 16,
+      fontWeight:
+        '600',
+    },
 
-  sectionTitle: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: '#1F2937',
-    marginBottom: 9,
-  },
+    sectionTitle: {
+      fontWeight:
+        '800',
+      marginBottom: 9,
+    },
 
-  activityCard: {
-    width: '100%',
-    minHeight: 62,
-    borderWidth: 1,
-    borderColor: '#C9CED7',
-    borderRadius: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 13,
-    paddingVertical: 10,
-    marginBottom: 10,
-    backgroundColor: '#FFFFFF',
-  },
+    activityCard: {
+      width: '100%',
+      minHeight: 62,
+      borderWidth: 1,
+      borderRadius: 10,
+      flexDirection:
+        'row',
+      alignItems:
+        'center',
+      paddingHorizontal:
+        13,
+      paddingVertical:
+        10,
+      marginBottom:
+        10,
+    },
 
-  activityCardSelected: {
-    borderColor: '#4A7CFF',
-    backgroundColor: '#F7F9FF',
-  },
+    activityIconBox: {
+      width: 36,
+      height: 36,
+      borderWidth: 1,
+      borderRadius: 7,
+      justifyContent:
+        'center',
+      alignItems:
+        'center',
+    },
 
-  activityIconBox: {
-    width: 36,
-    height: 36,
-    borderRadius: 7,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
+    activityTextContainer: {
+      flex: 1,
+      marginLeft: 12,
+    },
 
-  activityTextContainer: {
-    flex: 1,
-    marginLeft: 12,
-  },
+    activityTitle: {
+      fontWeight:
+        '800',
+    },
 
-  activityTitle: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: '#1F2937',
-  },
+    activityDescription: {
+      marginTop: 3,
+      lineHeight: 13,
+    },
 
-  activityDescription: {
-    marginTop: 3,
-    fontSize: 9,
-    lineHeight: 13,
-    color: '#7C8798',
-  },
+    informationTitle: {
+      marginTop: 13,
+    },
 
-  informationTitle: {
-    marginTop: 13,
-  },
+    label: {
+      fontWeight:
+        '800',
+      marginBottom: 7,
+    },
 
-  label: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: '#1F2937',
-    marginBottom: 7,
-  },
+    input: {
+      width: '100%',
+      minHeight: 48,
+      borderWidth: 1,
+      borderRadius: 8,
+      paddingHorizontal:
+        13,
+      marginBottom: 13,
+    },
 
-  input: {
-    width: '100%',
-    minHeight: 48,
-    borderWidth: 1,
-    borderColor: '#D5DAE2',
-    borderRadius: 8,
-    paddingHorizontal: 13,
-    fontSize: 12,
-    color: '#1F2937',
-    marginBottom: 13,
-    backgroundColor: '#FFFFFF',
-  },
+    descriptionInput: {
+      minHeight: 82,
+      paddingTop: 12,
+    },
 
-  descriptionInput: {
-    minHeight: 82,
-    paddingTop: 12,
-  },
+    instructionsInput: {
+      minHeight: 105,
+      paddingTop: 12,
+    },
 
-  instructionsInput: {
-    minHeight: 105,
-    paddingTop: 12,
-  },
+    selectorGroup: {
+      width: '100%',
+    },
 
-  selectorGroup: {
-    width: '100%',
-  },
+    selector: {
+      width: '100%',
+      minHeight: 48,
+      borderWidth: 1,
+      borderRadius: 8,
+      paddingHorizontal:
+        13,
+      marginBottom: 13,
+      flexDirection:
+        'row',
+      alignItems:
+        'center',
+    },
 
-  selector: {
-    width: '100%',
-    minHeight: 48,
-    borderWidth: 1,
-    borderColor: '#D5DAE2',
-    borderRadius: 8,
-    paddingHorizontal: 13,
-    marginBottom: 13,
-    backgroundColor: '#FFFFFF',
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
+    selectorDisabled: {
+      opacity: 0.55,
+    },
 
-  selectorDisabled: {
-    backgroundColor: '#F1F5F9',
-    opacity: 0.65,
-  },
+    selectorText: {
+      flex: 1,
+      paddingRight: 8,
+    },
 
-  selectorText: {
-    flex: 1,
-    paddingRight: 8,
-    fontSize: 12,
-    color: '#1F2937',
-  },
+    dateButton: {
+      width: '100%',
+      minHeight: 48,
+      borderWidth: 1,
+      borderRadius: 8,
+      paddingHorizontal:
+        13,
+      marginBottom: 13,
+      flexDirection:
+        'row',
+      alignItems:
+        'center',
+    },
 
-  selectorPlaceholder: {
-    color: '#9CA3AF',
-  },
+    dateText: {
+      flex: 1,
+      paddingRight: 8,
+    },
 
-  dateButton: {
-    width: '100%',
-    minHeight: 48,
-    borderWidth: 1,
-    borderColor: '#D5DAE2',
-    borderRadius: 8,
-    paddingHorizontal: 13,
-    marginBottom: 13,
-    backgroundColor: '#FFFFFF',
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
+    pickerContainer: {
+      borderWidth: 1,
+      borderRadius: 8,
+      marginBottom: 13,
+      overflow: 'hidden',
+    },
 
-  dateText: {
-    flex: 1,
-    paddingRight: 8,
-    fontSize: 12,
-    color: '#1F2937',
-  },
+    pickerDoneButton: {
+      height: 38,
+      justifyContent:
+        'center',
+      alignItems:
+        'center',
+    },
 
-  pickerContainer: {
-    borderWidth: 1,
-    borderColor: '#D5DAE2',
-    borderRadius: 8,
-    marginBottom: 13,
-    overflow: 'hidden',
-    backgroundColor: '#FFFFFF',
-  },
+    pickerDoneText: {
+      fontSize: 11,
+      fontWeight:
+        '800',
+    },
 
-  pickerDoneButton: {
-    height: 38,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#EAF1FF',
-  },
+    switchCard: {
+      width: '100%',
+      minHeight: 64,
+      borderWidth: 1,
+      borderRadius: 8,
+      paddingHorizontal:
+        13,
+      paddingVertical:
+        10,
+      marginBottom: 13,
+      flexDirection:
+        'row',
+      alignItems:
+        'center',
+    },
 
-  pickerDoneText: {
-    color: '#2563EB',
-    fontSize: 11,
-    fontWeight: '800',
-  },
+    switchTextContainer: {
+      flex: 1,
+      paddingRight: 10,
+    },
 
-  switchCard: {
-    width: '100%',
-    minHeight: 64,
-    borderWidth: 1,
-    borderColor: '#D5DAE2',
-    borderRadius: 8,
-    paddingHorizontal: 13,
-    paddingVertical: 10,
-    marginBottom: 13,
-    backgroundColor: '#FFFFFF',
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
+    switchTitle: {
+      fontWeight:
+        '800',
+    },
 
-  switchTextContainer: {
-    flex: 1,
-    paddingRight: 10,
-  },
+    switchDescription: {
+      marginTop: 3,
+      lineHeight: 13,
+    },
 
-  switchTitle: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: '#1F2937',
-  },
+    infoBox: {
+      width: '100%',
+      borderWidth: 1,
+      borderRadius: 8,
+      paddingHorizontal:
+        12,
+      paddingVertical:
+        11,
+      marginTop: 3,
+      flexDirection:
+        'row',
+      alignItems:
+        'flex-start',
+    },
 
-  switchDescription: {
-    marginTop: 3,
-    fontSize: 9,
-    lineHeight: 13,
-    color: '#7C8798',
-  },
+    infoText: {
+      flex: 1,
+      marginLeft: 8,
+      lineHeight: 14,
+      fontWeight:
+        '600',
+    },
 
-  infoBox: {
-    width: '100%',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 11,
-    marginTop: 3,
-    backgroundColor: '#EEF4FF',
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-  },
+    loadingBox: {
+      width: '100%',
+      minHeight: 72,
+      borderWidth: 1,
+      borderRadius: 8,
+      marginBottom: 13,
+      alignItems:
+        'center',
+      justifyContent:
+        'center',
+    },
 
-  infoText: {
-    flex: 1,
-    marginLeft: 8,
-    fontSize: 9,
-    lineHeight: 14,
-    color: '#64748B',
-    fontWeight: '600',
-  },
+    loadingText: {
+      marginTop: 8,
+    },
 
-  loadingBox: {
-    width: '100%',
-    minHeight: 72,
-    borderWidth: 1,
-    borderColor: '#D5DAE2',
-    borderRadius: 8,
-    marginBottom: 13,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#FFFFFF',
-  },
+    actions: {
+      width: '100%',
+      flexDirection:
+        'row',
+      alignItems:
+        'center',
+      columnGap: 12,
+      marginTop: 14,
+    },
 
-  loadingText: {
-    marginTop: 8,
-    fontSize: 9,
-    color: '#7C8798',
-  },
+    cancelButton: {
+      flex: 1,
+      minHeight: 44,
+      borderWidth: 1,
+      borderRadius: 7,
+      justifyContent:
+        'center',
+      alignItems:
+        'center',
+    },
 
-  actions: {
-    width: '100%',
-    flexDirection: 'row',
-    alignItems: 'center',
-    columnGap: 12,
-    marginTop: 14,
-  },
+    cancelButtonText: {
+      fontWeight:
+        '600',
+    },
 
-  cancelButton: {
-    flex: 1,
-    minHeight: 44,
-    borderWidth: 1,
-    borderColor: '#4B5563',
-    borderRadius: 7,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-  },
+    publishButton: {
+      flex: 1.7,
+      minHeight: 44,
+      borderWidth: 1,
+      borderRadius: 7,
+      justifyContent:
+        'center',
+      alignItems:
+        'center',
+      flexDirection:
+        'row',
+      columnGap: 7,
+    },
 
-  cancelButtonText: {
-    fontSize: 11,
-    color: '#111827',
-    fontWeight: '600',
-  },
+    disabledButton: {
+      opacity: 0.6,
+    },
 
-  publishButton: {
-    flex: 1.7,
-    minHeight: 44,
-    borderRadius: 7,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#4A7CFF',
-  },
+    publishButtonText: {
+      fontWeight:
+        '700',
+    },
 
-  disabledButton: {
-    opacity: 0.6,
-  },
+    modalOverlay: {
+      flex: 1,
+      justifyContent:
+        'center',
+      paddingHorizontal:
+        22,
+      backgroundColor:
+        'rgba(0,0,0,0.65)',
+    },
 
-  publishButtonText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
+    modalContent: {
+      maxHeight: '70%',
+      borderWidth: 1,
+      borderRadius: 14,
+      padding: 17,
+    },
 
-  modalOverlay: {
-    flex: 1,
-    justifyContent: 'center',
-    paddingHorizontal: 22,
-    backgroundColor:
-      'rgba(15, 23, 42, 0.38)',
-  },
+    modalTitle: {
+      marginBottom:
+        12,
+      fontWeight:
+        '800',
+    },
 
-  modalContent: {
-    maxHeight: '70%',
-    borderRadius: 14,
-    padding: 17,
-    backgroundColor: '#FFFFFF',
-  },
+    modalList: {
+      maxHeight: 340,
+    },
 
-  modalTitle: {
-    marginBottom: 12,
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#1F2937',
-  },
+    modalOption: {
+      minHeight: 48,
+      borderBottomWidth:
+        1,
+      paddingHorizontal:
+        8,
+      flexDirection:
+        'row',
+      alignItems:
+        'center',
+    },
 
-  modalList: {
-    maxHeight: 340,
-  },
+    modalOptionText: {
+      flex: 1,
+      paddingRight: 8,
+    },
 
-  modalOption: {
-    minHeight: 48,
-    borderBottomWidth: 1,
-    borderBottomColor: '#EEF0F3',
-    paddingHorizontal: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
+    emptyText: {
+      paddingVertical:
+        24,
+      textAlign:
+        'center',
+    },
 
-  modalOptionSelected: {
-    backgroundColor: '#F7F9FF',
-  },
+    modalCloseButton: {
+      height: 42,
+      borderWidth: 1,
+      borderRadius: 7,
+      marginTop: 12,
+      alignItems:
+        'center',
+      justifyContent:
+        'center',
+    },
 
-  modalOptionText: {
-    flex: 1,
-    paddingRight: 8,
-    fontSize: 12,
-    color: '#1F2937',
-  },
+    modalCloseText: {
+      fontWeight:
+        '700',
+    },
 
-  modalOptionTextSelected: {
-    color: '#2563EB',
-    fontWeight: '800',
-  },
+    bottomNavigation: {
+      position:
+        'absolute',
+      left: 0,
+      right: 0,
+      bottom: 0,
+      borderTopWidth: 1,
+      alignItems:
+        'center',
 
-  emptyText: {
-    paddingVertical: 24,
-    textAlign: 'center',
-    fontSize: 11,
-    color: '#9CA3AF',
-  },
+      ...Platform.select({
+        ios: {
+          shadowColor:
+            '#111827',
 
-  modalCloseButton: {
-    height: 42,
-    borderRadius: 7,
-    marginTop: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#F1F5F9',
-  },
+          shadowOffset: {
+            width: 0,
+            height: -4,
+          },
 
-  modalCloseText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#475569',
-  },
+          shadowOpacity:
+            0.07,
 
-  bottomNavigation: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-
-    ...Platform.select({
-      ios: {
-        shadowColor: '#111827',
-        shadowOffset: {
-          width: 0,
-          height: -4,
+          shadowRadius:
+            10,
         },
-        shadowOpacity: 0.07,
-        shadowRadius: 10,
-      },
 
-      android: {
-        elevation: 10,
-      },
-    }),
-  },
+        android: {
+          elevation: 10,
+        },
+      }),
+    },
 
-  bottomContent: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
+    bottomContent: {
+      flex: 1,
+      flexDirection:
+        'row',
+      alignItems:
+        'center',
+    },
 
-  bottomItem: {
-    flex: 1,
-    minWidth: 54,
-    height: 58,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+    bottomItem: {
+      flex: 1,
+      minWidth: 54,
+      height: 58,
+      alignItems:
+        'center',
+      justifyContent:
+        'center',
+    },
 
-  bottomIconContainer: {
-    width: 36,
-    height: 29,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+    bottomIconContainer: {
+      width: 36,
+      height: 29,
+      borderRadius: 10,
+      alignItems:
+        'center',
+      justifyContent:
+        'center',
+    },
 
-  bottomIconContainerActive: {
-    backgroundColor: '#EAF1FF',
-  },
-
-  bottomLabel: {
-    marginTop: 2,
-    fontSize: 8,
-    color: '#8B98AA',
-    fontWeight: '700',
-  },
-
-  bottomLabelActive: {
-    color: '#2563EB',
-    fontWeight: '900',
-  },
-});
+    bottomLabel: {
+      marginTop: 2,
+    },
+  });

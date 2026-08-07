@@ -43,6 +43,7 @@ type ColoresAccesibilidad = {
   textoSecundario: string;
   borde: string;
   primario: string;
+  textoSobrePrimario: string;
   fondoPrimario: string;
   exito: string;
   peligro: string;
@@ -292,6 +293,8 @@ export function AccessibilityProvider({
           borde: colorDestacado,
           primario: colorDestacado,
 
+          textoSobrePrimario: '#000000', 
+
           // Mantiene fondos destacados oscuros
           fondoPrimario: '#1A1A1A',
 
@@ -309,6 +312,7 @@ export function AccessibilityProvider({
           textoSecundario: '#CBD5E1',
           borde: '#475569',
           primario: '#8B7CFF',
+          textoSobrePrimario: '#FFFFFF',
           fondoPrimario: '#312E81',
           exito: '#4ADE80',
           peligro: '#F87171',
@@ -322,6 +326,7 @@ export function AccessibilityProvider({
         textoSecundario: '#64748B',
         borde: '#CBD5E1',
         primario: '#6D5DFB',
+        textoSobrePrimario: '#FFFFFF',
         fondoPrimario: '#F3E8FF',
         exito: '#16A34A',
         peligro: '#DC2626',

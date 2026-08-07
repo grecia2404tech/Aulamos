@@ -148,6 +148,21 @@ export default function CrearRecursoScreen() {
     leerTexto,
   } = useAccessibility();
 
+  /*
+   * Si el usuario selecciona blanco como
+   * color destacado del alto contraste,
+   * los botones blancos necesitan texto negro.
+   */
+  const altoContrasteBlanco =
+    preferencias.altoContraste &&
+    preferencias.colorContraste ===
+      'Blanco';
+
+  const colorSobrePrimario =
+    altoContrasteBlanco
+      ? '#000000'
+      : '#FFFFFF';
+
   const [tipo, setTipo] =
     useState<TipoRecurso | null>(
       null
@@ -221,7 +236,9 @@ export default function CrearRecursoScreen() {
     const cargarCatalogos =
       async () => {
         try {
-          setCargandoCatalogos(true);
+          setCargandoCatalogos(
+            true
+          );
 
           const token =
             await AsyncStorage.getItem(
@@ -275,7 +292,8 @@ export default function CrearRecursoScreen() {
           if (
             respuesta.status ===
               401 ||
-            respuesta.status === 403
+            respuesta.status ===
+              403
           ) {
             await AsyncStorage.multiRemove(
               [
@@ -613,11 +631,6 @@ export default function CrearRecursoScreen() {
           String(idCurso)
         );
 
-        /*
-         * El recurso se crea sin actividad.
-         * Después se podrá relacionar desde
-         * la pantalla Crear actividad.
-         */
         formulario.append(
           'accesible',
           tipo !== 'Video' ||
@@ -701,7 +714,8 @@ export default function CrearRecursoScreen() {
         if (
           respuesta.status ===
             401 ||
-          respuesta.status === 403
+          respuesta.status ===
+            403
         ) {
           await AsyncStorage.multiRemove(
             [
@@ -820,6 +834,7 @@ export default function CrearRecursoScreen() {
                 anchoContenido,
             }}
           >
+            {/* HEADER */}
             <View
               style={
                 styles.header
@@ -884,15 +899,15 @@ export default function CrearRecursoScreen() {
                     },
                   ]}
                 >
-                  Comparte material
-                  con tus
-                  estudiantes
+                  Comparte material con
+                  tus estudiantes
                 </Text>
               </View>
 
               <BotonAccesibilidad />
             </View>
 
+            {/* INFORMACIÓN */}
             <View
               style={[
                 styles.infoBox,
@@ -926,15 +941,15 @@ export default function CrearRecursoScreen() {
                   },
                 ]}
               >
-                El recurso se
-                guardará como material
-                de apoyo del curso.
-                Después podrás
-                relacionarlo con una
-                actividad.
+                El recurso se guardará
+                como material de apoyo
+                del curso. Después
+                podrás relacionarlo con
+                una actividad.
               </Text>
             </View>
 
+            {/* TIPO */}
             <Text
               style={[
                 styles.sectionTitle,
@@ -990,7 +1005,9 @@ export default function CrearRecursoScreen() {
                         styles.optionIcon,
                         {
                           backgroundColor:
-                            opcion.fondo,
+                            preferencias.altoContraste
+                              ? colores.fondoPrimario
+                              : opcion.fondo,
                         },
                       ]}
                     >
@@ -1000,7 +1017,9 @@ export default function CrearRecursoScreen() {
                         }
                         size={24}
                         color={
-                          opcion.color
+                          preferencias.altoContraste
+                            ? colores.primario
+                            : opcion.color
                         }
                       />
                     </View>
@@ -1063,6 +1082,7 @@ export default function CrearRecursoScreen() {
               }
             )}
 
+            {/* INFORMACIÓN DEL RECURSO */}
             <Text
               style={[
                 styles.sectionTitle,
@@ -1074,7 +1094,6 @@ export default function CrearRecursoScreen() {
                     escalaTexto,
                 },
               ]}
-              accessibilityRole="header"
             >
               2. Información
             </Text>
@@ -1119,7 +1138,6 @@ export default function CrearRecursoScreen() {
               }
               maxLength={150}
               accessibilityLabel="Título del recurso"
-              accessibilityHint="Escribe el nombre del material de apoyo"
             />
 
             <View
@@ -1207,13 +1225,12 @@ export default function CrearRecursoScreen() {
                   },
                 ]}
               >
-                {
-                  descripcion.length
-                }
+                {descripcion.length}
                 /2000
               </Text>
             </View>
 
+            {/* CURSO */}
             <Text
               style={[
                 styles.sectionTitle,
@@ -1225,7 +1242,6 @@ export default function CrearRecursoScreen() {
                     escalaTexto,
                 },
               ]}
-              accessibilityRole="header"
             >
               3. Curso
             </Text>
@@ -1242,9 +1258,8 @@ export default function CrearRecursoScreen() {
                 },
               ]}
             >
-              Selecciona el curso
-              donde estará
-              disponible este
+              Selecciona el curso donde
+              estará disponible este
               material de apoyo.
             </Text>
 
@@ -1266,9 +1281,6 @@ export default function CrearRecursoScreen() {
                     {
                       color:
                         colores.textoSecundario,
-                      fontSize:
-                        11 *
-                        escalaTexto,
                     },
                   ]}
                 >
@@ -1302,14 +1314,10 @@ export default function CrearRecursoScreen() {
                     {
                       color:
                         colores.texto,
-                      fontSize:
-                        14 *
-                        escalaTexto,
                     },
                   ]}
                 >
-                  No tienes cursos
-                  activos
+                  No tienes cursos activos
                 </Text>
 
                 <Text
@@ -1318,16 +1326,12 @@ export default function CrearRecursoScreen() {
                     {
                       color:
                         colores.textoSecundario,
-                      fontSize:
-                        11 *
-                        escalaTexto,
                     },
                   ]}
                 >
-                  Un administrador
-                  debe asignarte un
-                  curso antes de
-                  publicar recursos.
+                  Un administrador debe
+                  asignarte un curso antes
+                  de publicar recursos.
                 </Text>
               </View>
             ) : (
@@ -1363,7 +1367,6 @@ export default function CrearRecursoScreen() {
                         );
                       }}
                       accessibilityRole="radio"
-                      accessibilityLabel={`${curso.materia}, ${curso.nombre}, grupo ${curso.grupo}`}
                       accessibilityState={{
                         checked:
                           seleccionado,
@@ -1394,9 +1397,6 @@ export default function CrearRecursoScreen() {
                             {
                               color:
                                 colores.texto,
-                              fontSize:
-                                13 *
-                                escalaTexto,
                             },
                           ]}
                         >
@@ -1411,9 +1411,6 @@ export default function CrearRecursoScreen() {
                             {
                               color:
                                 colores.textoSecundario,
-                              fontSize:
-                                11 *
-                                escalaTexto,
                             },
                           ]}
                         >
@@ -1432,6 +1429,7 @@ export default function CrearRecursoScreen() {
               )
             )}
 
+            {/* ARCHIVO */}
             <Text
               style={[
                 styles.sectionTitle,
@@ -1443,7 +1441,6 @@ export default function CrearRecursoScreen() {
                     escalaTexto,
                 },
               ]}
-              accessibilityRole="header"
             >
               4. Archivo
             </Text>
@@ -1466,12 +1463,6 @@ export default function CrearRecursoScreen() {
                 seleccionarArchivo
               }
               accessibilityRole="button"
-              accessibilityLabel={
-                archivo
-                  ? `Archivo seleccionado: ${archivo.name}`
-                  : 'Seleccionar archivo'
-              }
-              accessibilityHint="Abre el selector de archivos"
             >
               <Ionicons
                 name={
@@ -1493,9 +1484,6 @@ export default function CrearRecursoScreen() {
                   {
                     color:
                       colores.texto,
-                    fontSize:
-                      13 *
-                      escalaTexto,
                   },
                 ]}
               >
@@ -1509,9 +1497,6 @@ export default function CrearRecursoScreen() {
                   {
                     color:
                       colores.textoSecundario,
-                    fontSize:
-                      11 *
-                      escalaTexto,
                   },
                 ]}
               >
@@ -1523,6 +1508,7 @@ export default function CrearRecursoScreen() {
               </Text>
             </TouchableOpacity>
 
+            {/* SUBTÍTULOS */}
             {tipo === 'Video' ? (
               <View
                 style={[
@@ -1561,14 +1547,10 @@ export default function CrearRecursoScreen() {
                         {
                           color:
                             colores.texto,
-                          fontSize:
-                            13 *
-                            escalaTexto,
                         },
                       ]}
                     >
-                      Subtítulos del
-                      video
+                      Subtítulos del video
                     </Text>
 
                     <Text
@@ -1577,9 +1559,6 @@ export default function CrearRecursoScreen() {
                         {
                           color:
                             colores.textoSecundario,
-                          fontSize:
-                            11 *
-                            escalaTexto,
                         },
                       ]}
                     >
@@ -1592,14 +1571,24 @@ export default function CrearRecursoScreen() {
 
                 {archivoSubtitulos ? (
                   <View
-                    style={
-                      styles.selectedSubtitleRow
-                    }
+                    style={[
+                      styles.selectedSubtitleRow,
+                      {
+                        backgroundColor:
+                          preferencias.altoContraste
+                            ? colores.fondoPrimario
+                            : '#ECFDF5',
+                      },
+                    ]}
                   >
                     <Ionicons
                       name="checkmark-circle"
                       size={22}
-                      color="#15803D"
+                      color={
+                        preferencias.altoContraste
+                          ? colores.primario
+                          : '#15803D'
+                      }
                     />
 
                     <Text
@@ -1608,9 +1597,6 @@ export default function CrearRecursoScreen() {
                         {
                           color:
                             colores.texto,
-                          fontSize:
-                            12 *
-                            escalaTexto,
                         },
                       ]}
                       numberOfLines={2}
@@ -1636,7 +1622,9 @@ export default function CrearRecursoScreen() {
                       <Ionicons
                         name="close-circle"
                         size={25}
-                        color="#DC2626"
+                        color={
+                          colores.peligro
+                        }
                       />
                     </TouchableOpacity>
                   </View>
@@ -1654,22 +1642,21 @@ export default function CrearRecursoScreen() {
                     seleccionarArchivoSubtitulos
                   }
                   accessibilityRole="button"
-                  accessibilityLabel={
-                    archivoSubtitulos
-                      ? 'Cambiar subtítulos'
-                      : 'Seleccionar subtítulos'
-                  }
                 >
                   <Ionicons
                     name="folder-open-outline"
                     size={20}
-                    color="#FFFFFF"
+                    color={
+                      colorSobrePrimario
+                    }
                   />
 
                   <Text
                     style={[
                       styles.subtitleButtonText,
                       {
+                        color:
+                          colorSobrePrimario,
                         fontSize:
                           13 *
                           escalaTexto,
@@ -1684,6 +1671,7 @@ export default function CrearRecursoScreen() {
               </View>
             ) : null}
 
+            {/* ACCIONES */}
             <View
               style={
                 styles.actions
@@ -1730,6 +1718,8 @@ export default function CrearRecursoScreen() {
                   {
                     backgroundColor:
                       colores.primario,
+                    borderColor:
+                      colores.primario,
                   },
                   publicando &&
                     styles.buttonDisabled,
@@ -1751,20 +1741,26 @@ export default function CrearRecursoScreen() {
               >
                 {publicando ? (
                   <ActivityIndicator
-                    color="#FFFFFF"
+                    color={
+                      colorSobrePrimario
+                    }
                   />
                 ) : (
                   <>
                     <Ionicons
                       name="cloud-upload-outline"
                       size={21}
-                      color="#FFFFFF"
+                      color={
+                        colorSobrePrimario
+                      }
                     />
 
                     <Text
                       style={[
                         styles.primaryText,
                         {
+                          color:
+                            colorSobrePrimario,
                           fontSize:
                             14 *
                             escalaTexto,
@@ -1780,6 +1776,7 @@ export default function CrearRecursoScreen() {
           </View>
         </ScrollView>
 
+        {/* BARRA INFERIOR */}
         <View
           style={[
             styles.bottomBar,
@@ -1813,6 +1810,9 @@ export default function CrearRecursoScreen() {
             color={
               colores.textoSecundario
             }
+            activeColor={
+              colores.primario
+            }
           />
 
           <NavItem
@@ -1827,6 +1827,9 @@ export default function CrearRecursoScreen() {
             color={
               colores.textoSecundario
             }
+            activeColor={
+              colores.primario
+            }
           />
 
           <NavItem
@@ -1839,6 +1842,9 @@ export default function CrearRecursoScreen() {
             }
             color={
               colores.textoSecundario
+            }
+            activeColor={
+              colores.primario
             }
           />
 
@@ -1853,6 +1859,9 @@ export default function CrearRecursoScreen() {
             color={
               colores.textoSecundario
             }
+            activeColor={
+              colores.primario
+            }
           />
 
           <NavItem
@@ -1865,6 +1874,9 @@ export default function CrearRecursoScreen() {
             }
             color={
               colores.textoSecundario
+            }
+            activeColor={
+              colores.primario
             }
           />
         </View>
@@ -1879,24 +1891,21 @@ function NavItem({
   active = false,
   onPress,
   color,
+  activeColor,
 }: {
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
   active?: boolean;
   onPress: () => void;
   color: string;
+  activeColor: string;
 }) {
-  const activeColor =
-    '#2D5BFF';
-
   return (
     <TouchableOpacity
       style={styles.navItem}
       onPress={onPress}
       accessibilityRole="tab"
-      accessibilityLabel={
-        label
-      }
+      accessibilityLabel={label}
       accessibilityState={{
         selected: active,
       }}
@@ -2153,8 +2162,6 @@ const styles =
       marginTop: 13,
       padding: 10,
       borderRadius: 11,
-      backgroundColor:
-        '#ECFDF5',
     },
 
     selectedSubtitleName: {
@@ -2173,7 +2180,6 @@ const styles =
     },
 
     subtitleButtonText: {
-      color: '#FFFFFF',
       fontWeight: '800',
     },
 
@@ -2196,6 +2202,7 @@ const styles =
       flex: 1.4,
       minHeight: 52,
       borderRadius: 15,
+      borderWidth: 1,
       alignItems: 'center',
       justifyContent: 'center',
       flexDirection: 'row',
@@ -2211,7 +2218,6 @@ const styles =
     },
 
     primaryText: {
-      color: '#FFFFFF',
       fontWeight: '800',
     },
 
