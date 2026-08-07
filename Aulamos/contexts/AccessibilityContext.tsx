@@ -15,8 +15,20 @@ export type TamanoTexto =
   | 'Grande'
   | 'Muy Grande';
 
+// NUEVO:
+// Colores que podrá seleccionar el usuario
+// cuando active el alto contraste.
+export type ColorContraste =
+  | 'Amarillo'
+  | 'Verde'
+  | 'Blanco';
+
 export type PreferenciasAccesibilidad = {
   altoContraste: boolean;
+
+  // NUEVO
+  colorContraste: ColorContraste;
+
   modoOscuro: boolean;
   tamanoTexto: TamanoTexto;
   lectorPantalla: boolean;
@@ -60,6 +72,12 @@ const STORAGE_KEY =
 export const PREFERENCIAS_PREDETERMINADAS: PreferenciasAccesibilidad =
   {
     altoContraste: false,
+
+    // NUEVO:
+    // Este será el color inicial cuando
+    // el usuario active alto contraste.
+    colorContraste: 'Amarillo',
+
     modoOscuro: false,
     tamanoTexto: 'Normal',
     lectorPantalla: false,
@@ -111,15 +129,24 @@ export function AccessibilityProvider({
         preferenciasGuardadas
       ) as Partial<PreferenciasAccesibilidad>;
 
-      const preferenciasCompletas = {
-        ...PREFERENCIAS_PREDETERMINADAS,
-        ...datos,
-      };
+      /*
+       * Si el usuario ya tenía preferencias
+       * guardadas antes de agregar colorContraste,
+       * se combinarán con las nuevas preferencias
+       * predeterminadas.
+       */
+      const preferenciasCompletas: PreferenciasAccesibilidad =
+        {
+          ...PREFERENCIAS_PREDETERMINADAS,
+          ...datos,
+        };
 
       preferenciasRef.current =
         preferenciasCompletas;
 
-      setPreferencias(preferenciasCompletas);
+      setPreferencias(
+        preferenciasCompletas
+      );
     } catch (error) {
       console.error(
         'Error al cargar las preferencias:',
@@ -223,21 +250,52 @@ export function AccessibilityProvider({
     }
   }, [preferencias.tamanoTexto]);
 
-  const colores = useMemo<ColoresAccesibilidad>(
+  /*
+   * NUEVO:
+   * Obtiene el color seleccionado
+   * para los elementos destacados.
+   */
+  const colorDestacado =
+    useMemo(() => {
+      switch (
+        preferencias.colorContraste
+      ) {
+        case 'Verde':
+          return '#00FF66';
+
+        case 'Blanco':
+          return '#FFFFFF';
+
+        case 'Amarillo':
+        default:
+          return '#FFD600';
+      }
+    }, [preferencias.colorContraste]);
+
+  const colores = useMemo(
     () => {
       /*
-       * El alto contraste tiene prioridad sobre
-       * el modo oscuro.
+       * El alto contraste tiene prioridad
+       * sobre el modo oscuro.
        */
       if (preferencias.altoContraste) {
         return {
-          fondo: '#6b6b6b',
+          // Siempre negro
+          fondo: '#000000',
           tarjeta: '#000000',
+
+          // Siempre blanco
           texto: '#FFFFFF',
           textoSecundario: '#FFFFFF',
-          borde: '#FFFFFF',
-          primario: '#b3b0b0',
+
+          // Cambia según la elección
+          borde: colorDestacado,
+          primario: colorDestacado,
+
+          // Mantiene fondos destacados oscuros
           fondoPrimario: '#1A1A1A',
+
+          // Estados
           exito: '#00FF85',
           peligro: '#FF5252',
         };
@@ -272,6 +330,7 @@ export function AccessibilityProvider({
     [
       preferencias.altoContraste,
       preferencias.modoOscuro,
+      colorDestacado,
     ]
   );
 

@@ -13,6 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import {
+  ColorContraste,
   TamanoTexto,
   useAccessibility,
 } from '../contexts/AccessibilityContext';
@@ -138,20 +139,26 @@ export default function AccesibilidadScreen() {
         </View>
 
         <Switch
-          value={valor}
-          onValueChange={onChange}
-          trackColor={{
-            false: '#94A3B8',
-            true: colores.primario,
-          }}
-          thumbColor="#FFFFFF"
-          accessibilityLabel={titulo}
-          accessibilityHint={descripcion}
-          accessibilityRole="switch"
-          accessibilityState={{
-            checked: valor,
-          }}
-        />
+  value={valor}
+  onValueChange={onChange}
+  trackColor={{
+    false: preferencias.altoContraste
+      ? '#FFFFFF'
+      : '#94A3B8',
+    true: colores.primario,
+  }}
+  thumbColor={
+    preferencias.altoContraste
+      ? '#000000'
+      : '#FFFFFF'
+  }
+  accessibilityLabel={titulo}
+  accessibilityHint={descripcion}
+  accessibilityRole="switch"
+  accessibilityState={{
+    checked: valor,
+  }}
+/>
       </View>
     );
   };
@@ -245,6 +252,129 @@ export default function AccesibilidadScreen() {
             )
           }
         />
+        
+        {preferencias.altoContraste && (
+  <View
+    style={[
+      styles.colorContrastCard,
+      {
+        backgroundColor: colores.tarjeta,
+        borderColor: colores.borde,
+      },
+    ]}
+  >
+    <Text
+      style={[
+        styles.colorContrastTitle,
+        {
+          color: colores.texto,
+          fontSize: 15 * escalaTexto,
+        },
+      ]}
+    >
+      Color de elementos destacados
+    </Text>
+
+    <Text
+      style={[
+        styles.colorContrastDescription,
+        {
+          color: colores.textoSecundario,
+          fontSize: 12 * escalaTexto,
+        },
+      ]}
+    >
+      Elige el color que te resulte más
+      cómodo para identificar botones,
+      iconos y elementos importantes.
+    </Text>
+
+    <View style={styles.colorOptions}>
+      {(
+        [
+          {
+            nombre: 'Amarillo',
+            color: '#FFD600',
+          },
+          {
+            nombre: 'Verde',
+            color: '#00FF66',
+          },
+          {
+            nombre: 'Blanco',
+            color: '#FFFFFF',
+          },
+        ] as {
+          nombre: ColorContraste;
+          color: string;
+        }[]
+      ).map((opcion) => {
+        const seleccionado =
+          preferencias.colorContraste ===
+          opcion.nombre;
+
+        return (
+          <TouchableOpacity
+            key={opcion.nombre}
+            style={[
+              styles.colorButton,
+              {
+                borderColor:
+                  seleccionado
+                    ? opcion.color
+                    : '#FFFFFF',
+                borderWidth:
+                  seleccionado ? 3 : 1,
+              },
+            ]}
+            onPress={() =>
+              actualizarPreferencia(
+                'colorContraste',
+                opcion.nombre
+              )
+            }
+            accessibilityRole="radio"
+            accessibilityLabel={`Color de contraste ${opcion.nombre}`}
+            accessibilityState={{
+              selected: seleccionado,
+            }}
+          >
+            <View
+              style={[
+                styles.colorCircle,
+                {
+                  backgroundColor:
+                    opcion.color,
+                },
+              ]}
+            />
+
+            <Text
+              style={[
+                styles.colorButtonText,
+                {
+                  color: '#FFFFFF',
+                  fontSize:
+                    13 * escalaTexto,
+                },
+              ]}
+            >
+              {opcion.nombre}
+            </Text>
+
+            {seleccionado && (
+              <Ionicons
+                name="checkmark-circle"
+                size={20}
+                color={opcion.color}
+              />
+            )}
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  </View>
+)}
 
         <Opcion
           titulo="Modo oscuro"
@@ -640,4 +770,50 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 18,
   },
+
+  colorContrastCard: {
+  borderWidth: 1,
+  borderRadius: 15,
+  padding: 14,
+  marginTop: -2,
+  marginBottom: 12,
+},
+
+colorContrastTitle: {
+  fontWeight: '800',
+  marginBottom: 5,
+},
+
+colorContrastDescription: {
+  lineHeight: 17,
+  marginBottom: 14,
+},
+
+colorOptions: {
+  flexDirection: 'row',
+  flexWrap: 'wrap',
+  gap: 10,
+},
+
+colorButton: {
+  minHeight: 48,
+  flexDirection: 'row',
+  alignItems: 'center',
+  gap: 7,
+  borderRadius: 12,
+  paddingHorizontal: 11,
+  paddingVertical: 8,
+},
+
+colorCircle: {
+  width: 21,
+  height: 21,
+  borderRadius: 11,
+  borderWidth: 1,
+  borderColor: '#FFFFFF',
+},
+
+colorButtonText: {
+  fontWeight: '700',
+},
 });
