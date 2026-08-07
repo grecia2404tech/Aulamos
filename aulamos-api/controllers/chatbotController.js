@@ -2,6 +2,10 @@ const {
   generarRespuestaIA,
 } = require('../services/geminiService');
 
+const {
+  obtenerContextoChatbot,
+} = require('../services/chatbotContextService');
+
 async function enviarMensaje(req, res) {
   try {
     const mensaje = String(
@@ -30,9 +34,16 @@ async function enviarMensaje(req, res) {
       });
     }
 
+    const contexto =
+      await obtenerContextoChatbot({
+        idUsuario,
+        rol,
+      });
+
     const respuesta = await generarRespuestaIA({
       mensaje,
       rol,
+      contexto,
     });
 
     if (!respuesta) {
