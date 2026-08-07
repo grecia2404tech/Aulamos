@@ -73,6 +73,33 @@ async function obtenerContextoAlumno(idUsuario) {
 
   const resumen = resumenResultados[0] || {};
 
+  const [cursos] = await pool.query(
+    `
+      SELECT DISTINCT
+        c.id_curso,
+        c.nombre AS curso,
+        m.nombre AS materia
+
+      FROM inscripciones AS i
+
+      INNER JOIN cursos AS c
+        ON c.id_curso = i.id_curso
+
+      INNER JOIN materias AS m
+        ON m.id_materia = c.id_materia
+
+      WHERE i.id_alumno = ?
+        AND i.estado = 'Activo'
+        AND c.estado = 'Activo'
+        AND m.estado = 'Activa'
+
+      ORDER BY
+        m.nombre ASC,
+        c.nombre ASC
+    `,
+    [idUsuario]
+  );
+
   const [proximas] = await pool.query(
     `
       SELECT
@@ -189,12 +216,29 @@ async function obtenerContextoAlumno(idUsuario) {
 
   const lineas = [
     'Datos reales de Aulamos para el alumno autenticado:',
+    `- Cursos activos inscritos: ${cursos.length}.`,
     `- Actividades asignadas: ${total}.`,
     `- Actividades pendientes: ${pendientes}.`,
     `- Actividades en proceso: ${enProceso}.`,
     `- Actividades atrasadas: ${atrasadas}.`,
     `- Actividades terminadas o calificadas: ${terminadas}.`,
   ];
+
+  if (cursos.length > 0) {
+    lineas.push(
+      '- Materias y cursos activos:'
+    );
+
+    cursos.forEach((item) => {
+      lineas.push(
+        `  - ${item.materia} | curso: ${item.curso}.`
+      );
+    });
+  } else {
+    lineas.push(
+      '- Actualmente el alumno no tiene cursos activos inscritos.'
+    );
+  }
 
   if (proximas.length > 0) {
     const actividad = proximas[0];
