@@ -23,7 +23,8 @@ import { API_URL } from '../services/api';
 type RutaInicio =
   | '/inicio-alumno'
   | '/inicio-docente'
-  | '/inicio-admin';
+  | '/inicio-admin'
+  | '/investigador';
 
 type UsuarioRespuesta = {
   id_usuario: number;
@@ -137,6 +138,7 @@ export default function LoginScreen() {
         Alumno: '/inicio-alumno',
         Docente: '/inicio-docente',
         Admin: '/inicio-admin',
+        Investigador: '/investigador'
       };
 
       const rutaInicio =
