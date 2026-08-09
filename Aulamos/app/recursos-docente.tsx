@@ -370,6 +370,7 @@ export default function RecursosDocenteScreen() {
       return;
     }
 
+ 
     try {
       anunciar(
         `Abriendo recurso ${recurso.titulo}.`
