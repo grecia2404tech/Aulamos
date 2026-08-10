@@ -41,7 +41,7 @@ export default function MenuInvestigador() {
       <TouchableOpacity
         style={styles.item}
         onPress={() =>
-          router.replace('/investigador')
+          router.replace('/investigador/index')
         }
         accessibilityRole="button"
         accessibilityLabel="Inicio"
@@ -125,7 +125,7 @@ export default function MenuInvestigador() {
         </Text>
       </TouchableOpacity>
 
-      {/* MÁS */}
+      {/* MÃS */}
       <TouchableOpacity
         style={styles.item}
         onPress={() =>
@@ -134,7 +134,7 @@ export default function MenuInvestigador() {
           )
         }
         accessibilityRole="button"
-        accessibilityLabel="Más opciones"
+        accessibilityLabel="MÃ¡s opciones"
         accessibilityState={{
           selected: esMas,
         }}
@@ -166,7 +166,39 @@ export default function MenuInvestigador() {
             },
           ]}
         >
-          Más
+          MÃ¡s
+        </Text>
+      </TouchableOpacity>
+
+      {/* AULABOT */}
+      <TouchableOpacity
+        style={styles.item}
+        onPress={() =>
+          router.push('/chatbot')
+        }
+        accessibilityRole="button"
+        accessibilityLabel="AulaBot"
+        accessibilityHint="Abre el asistente de investigaciÃ³n de AulaMos"
+      >
+        <Ionicons
+          name="chatbubble-ellipses-outline"
+          size={24}
+          color={colores.textoSecundario}
+        />
+
+        <Text
+          style={[
+            styles.texto,
+            {
+              color:
+                colores.textoSecundario,
+
+              fontSize:
+                11 * escalaTexto,
+            },
+          ]}
+        >
+          AulaBot
         </Text>
       </TouchableOpacity>
     </View>

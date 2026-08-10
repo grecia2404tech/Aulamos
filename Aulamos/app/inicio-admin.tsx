@@ -1211,6 +1211,14 @@ export default function InicioAdminScreen() {
                   )
                 }
               />
+              <QuickAction
+                style={responsive.botonRapido}
+                text="AulaBot"
+                subtitle="Asistente administrativo"
+                icon="chatbubble-ellipses-outline"
+                backgroundColor="#4F46E5"
+                onPress={() => navegar('/chatbot')}
+              />
             </View>
 
             <View

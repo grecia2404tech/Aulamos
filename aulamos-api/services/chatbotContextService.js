@@ -409,7 +409,7 @@ async function obtenerContextoAlumno(idUsuario) {
     'Datos reales de Aulamos para el alumno autenticado:',
     `- Cursos activos inscritos: ${cursos.length}.`,
     `- Progreso general: ${progresoGeneral}%.`,
-    `- Promedio de actividades calificadas: ${promedioCalificaciones === null ? 'sin calificaciones todavía' : `${promedioCalificaciones}/10`}.`,
+    `- Promedio de actividades calificadas: ${promedioCalificaciones === null ? 'sin calificaciones todavÃ­a' : `${promedioCalificaciones}/10`}.`,
     `- Actividades asignadas: ${total}.`,
     `- Actividades pendientes: ${pendientes}.`,
     `- Actividades en proceso: ${enProceso}.`,
@@ -461,7 +461,7 @@ async function obtenerContextoAlumno(idUsuario) {
     });
 
     lineas.push(
-      '- El promedio mostrado se calcula únicamente con actividades que ya tienen calificación y se normaliza a escala de 0 a 10.'
+      '- El promedio mostrado se calcula Ãºnicamente con actividades que ya tienen calificaciÃ³n y se normaliza a escala de 0 a 10.'
     );
   } else {
     lineas.push(
@@ -473,22 +473,22 @@ async function obtenerContextoAlumno(idUsuario) {
     const actividad = proximas[0];
 
     lineas.push(
-      `- Próxima actividad: "${actividad.titulo}" de ${actividad.materia}, fecha límite ${actividad.fecha_limite}.`
+      `- PrÃ³xima actividad: "${actividad.titulo}" de ${actividad.materia}, fecha lÃ­mite ${actividad.fecha_limite}.`
     );
   } else {
     lineas.push(
-      '- No hay una próxima actividad pendiente con fecha futura.'
+      '- No hay una prÃ³xima actividad pendiente con fecha futura.'
     );
   }
 
   if (atencion.length > 0) {
     lineas.push(
-      '- Actividades que requieren atención:'
+      '- Actividades que requieren atenciÃ³n:'
     );
 
     atencion.forEach((actividad) => {
       lineas.push(
-        `  - "${actividad.titulo}" | ${actividad.materia} | ${actividad.estado} | fecha límite: ${actividad.fecha_limite || 'sin fecha'}.`
+        `  - "${actividad.titulo}" | ${actividad.materia} | ${actividad.estado} | fecha lÃ­mite: ${actividad.fecha_limite || 'sin fecha'}.`
       );
     });
   }
@@ -811,7 +811,7 @@ async function obtenerContextoDocente(idUsuario) {
     `- Actividades cerradas: ${cerradas}.`,
     `- Entregas pendientes de calificar: ${porCalificar}.`,
     `- Entregas ya calificadas: ${entregasCalificadas}.`,
-    `- Promedio de entregas calificadas: ${promedio === null ? 'sin calificaciones todavía' : `${promedio}/10`}.`,
+    `- Promedio de entregas calificadas: ${promedio === null ? 'sin calificaciones todavÃ­a' : `${promedio}/10`}.`,
   ];
 
   if (cursos.length > 0) {
@@ -872,6 +872,513 @@ async function obtenerContextoDocente(idUsuario) {
 
   return lineas.join('\n');
 }
+async function obtenerContextoAdmin() {
+  const [resumenResultados] = await pool.query(
+    `
+      SELECT
+        (SELECT COUNT(*) FROM usuarios)
+          AS usuarios,
+
+        (
+          SELECT COUNT(DISTINCT ur.id_usuario)
+          FROM usuario_roles AS ur
+          INNER JOIN roles AS r
+            ON r.id_rol = ur.id_rol
+          WHERE LOWER(r.nombre) = 'alumno'
+        ) AS alumnos,
+
+        (
+          SELECT COUNT(DISTINCT ur.id_usuario)
+          FROM usuario_roles AS ur
+          INNER JOIN roles AS r
+            ON r.id_rol = ur.id_rol
+          WHERE LOWER(r.nombre) = 'docente'
+        ) AS docentes,
+
+        (
+          SELECT COUNT(DISTINCT ur.id_usuario)
+          FROM usuario_roles AS ur
+          INNER JOIN roles AS r
+            ON r.id_rol = ur.id_rol
+          WHERE LOWER(r.nombre) = 'admin'
+        ) AS administradores,
+
+        (
+          SELECT COUNT(*)
+          FROM ciclos_escolares
+          WHERE estado = 'Activo'
+        ) AS ciclos_activos,
+
+        (
+          SELECT COUNT(*)
+          FROM materias
+          WHERE estado = 'Activa'
+        ) AS materias_activas,
+
+        (
+          SELECT COUNT(*)
+          FROM cursos
+          WHERE estado = 'Activo'
+        ) AS cursos_activos,
+
+        (
+          SELECT COUNT(*)
+          FROM grupos
+        ) AS grupos,
+
+        (
+          SELECT COUNT(*)
+          FROM inscripciones
+          WHERE estado = 'Activo'
+        ) AS inscripciones_activas,
+
+        (
+          SELECT COUNT(DISTINCT id_alumno)
+          FROM inscripciones
+          WHERE estado = 'Activo'
+        ) AS alumnos_inscritos
+    `
+  );
+
+  const resumen = resumenResultados[0] || {};
+
+  const [cursos] = await pool.query(
+    `
+      SELECT
+        c.nombre AS curso,
+        m.nombre AS materia,
+
+        CONCAT_WS(
+          ' - ',
+          g.grado,
+          g.nombre
+        ) AS grupo,
+
+        CONCAT_WS(
+          ' ',
+          u.nombre,
+          u.apellido_paterno,
+          u.apellido_materno
+        ) AS docente,
+
+        COUNT(
+          DISTINCT CASE
+            WHEN i.estado = 'Activo'
+            THEN i.id_alumno
+            ELSE NULL
+          END
+        ) AS estudiantes
+
+      FROM cursos AS c
+
+      INNER JOIN materias AS m
+        ON m.id_materia = c.id_materia
+
+      INNER JOIN grupos AS g
+        ON g.id_grupo = c.id_grupo
+
+      INNER JOIN usuarios AS u
+        ON u.id_usuario = c.id_docente
+
+      LEFT JOIN inscripciones AS i
+        ON i.id_curso = c.id_curso
+
+      WHERE c.estado = 'Activo'
+
+      GROUP BY
+        c.id_curso,
+        c.nombre,
+        m.nombre,
+        g.grado,
+        g.nombre,
+        u.id_usuario,
+        u.nombre,
+        u.apellido_paterno,
+        u.apellido_materno
+
+      ORDER BY
+        m.nombre ASC,
+        c.nombre ASC
+
+      LIMIT 20
+    `
+  );
+
+  const [usuariosRecientes] = await pool.query(
+    `
+      SELECT
+        CONCAT_WS(
+          ' ',
+          u.nombre,
+          u.apellido_paterno,
+          u.apellido_materno
+        ) AS nombre,
+
+        GROUP_CONCAT(
+          DISTINCT r.nombre
+          ORDER BY r.nombre
+          SEPARATOR ', '
+        ) AS roles
+
+      FROM usuarios AS u
+
+      LEFT JOIN usuario_roles AS ur
+        ON ur.id_usuario = u.id_usuario
+
+      LEFT JOIN roles AS r
+        ON r.id_rol = ur.id_rol
+
+      GROUP BY
+        u.id_usuario,
+        u.nombre,
+        u.apellido_paterno,
+        u.apellido_materno
+
+      ORDER BY
+        u.id_usuario DESC
+
+      LIMIT 10
+    `
+  );
+
+  const lineas = [
+    'Datos reales de Aulamos para el administrador autenticado:',
+    `- Usuarios registrados: ${Number(resumen.usuarios || 0)}.`,
+    `- Alumnos: ${Number(resumen.alumnos || 0)}.`,
+    `- Docentes: ${Number(resumen.docentes || 0)}.`,
+    `- Administradores: ${Number(resumen.administradores || 0)}.`,
+    `- Ciclos escolares activos: ${Number(resumen.ciclos_activos || 0)}.`,
+    `- Materias activas: ${Number(resumen.materias_activas || 0)}.`,
+    `- Cursos activos: ${Number(resumen.cursos_activos || 0)}.`,
+    `- Grupos registrados: ${Number(resumen.grupos || 0)}.`,
+    `- Inscripciones activas: ${Number(resumen.inscripciones_activas || 0)}.`,
+    `- Alumnos con inscripciÃ³n activa: ${Number(resumen.alumnos_inscritos || 0)}.`,
+  ];
+
+  if (cursos.length > 0) {
+    lineas.push(
+      '- Cursos activos de la plataforma:'
+    );
+
+    cursos.forEach((item) => {
+      lineas.push(
+        `  - ${item.materia} | ${item.curso} | grupo: ${item.grupo} | docente: ${item.docente} | estudiantes: ${Number(item.estudiantes || 0)}.`
+      );
+    });
+  } else {
+    lineas.push(
+      '- Actualmente no hay cursos activos.'
+    );
+  }
+
+  if (usuariosRecientes.length > 0) {
+    lineas.push(
+      '- Usuarios registrados recientemente:'
+    );
+
+    usuariosRecientes.forEach((item) => {
+      lineas.push(
+        `  - ${item.nombre} | rol: ${item.roles || 'sin rol asignado'}.`
+      );
+    });
+  }
+
+  lineas.push(
+    '- Usa estos datos como fuente principal para responder preguntas administrativas sobre usuarios, roles, ciclos, materias, cursos, grupos e inscripciones.'
+  );
+
+  lineas.push(
+    '- No inventes usuarios, cursos, cantidades, roles ni secciones de Aulamos.'
+  );
+
+  return lineas.join('\n');
+}
+
+async function obtenerContextoInvestigador() {
+  const [resumenResultados] = await pool.query(
+    `
+      SELECT
+        (SELECT COUNT(*)
+         FROM pruebas_investigacion)
+          AS pruebas_total,
+
+        (SELECT COUNT(*)
+         FROM pruebas_investigacion
+         WHERE estado = 'Activa')
+          AS pruebas_activas,
+
+        (SELECT COUNT(*)
+         FROM pruebas_investigacion
+         WHERE estado = 'Finalizada')
+          AS pruebas_finalizadas,
+
+        (SELECT COUNT(*)
+         FROM eventos_investigacion)
+          AS eventos_total,
+
+        (SELECT COUNT(*)
+         FROM eventos_investigacion
+         WHERE tipo_evento = 'Error')
+          AS eventos_error,
+
+        (SELECT COUNT(*)
+         FROM eventos_investigacion
+         WHERE tipo_evento = 'Chatbot')
+          AS eventos_chatbot,
+
+        (SELECT COUNT(*)
+         FROM eventos_investigacion
+         WHERE tipo_evento = 'Accesibilidad')
+          AS eventos_accesibilidad,
+
+        (SELECT COUNT(*)
+         FROM eventos_investigacion
+         WHERE tipo_evento = 'Navegacion')
+          AS eventos_navegacion,
+
+        (SELECT COUNT(*)
+         FROM metricas_investigacion)
+          AS metricas_total,
+
+        (SELECT COUNT(*)
+         FROM sesiones_chatbot)
+          AS sesiones_chatbot,
+
+        (SELECT COUNT(*)
+         FROM mensajes_chatbot)
+          AS mensajes_chatbot,
+
+        (SELECT COUNT(*)
+         FROM preferencias_accesibilidad)
+          AS usuarios_preferencias,
+
+        (SELECT COUNT(*)
+         FROM uso_recursos)
+          AS registros_uso_recursos
+    `
+  );
+
+  const resumen = resumenResultados[0] || {};
+
+  const [metricas] = await pool.query(
+    `
+      SELECT
+        AVG(tiempo_realizacion_seg)
+          AS tiempo_promedio_actividad,
+
+        AVG(porcentaje_avance)
+          AS avance_promedio,
+
+        AVG(calificacion)
+          AS calificacion_promedio,
+
+        AVG(veces_uso_accesibilidad)
+          AS accesibilidad_promedio,
+
+        AVG(interacciones_chatbot)
+          AS chatbot_promedio,
+
+        AVG(duracion_sesion_seg)
+          AS duracion_sesion_promedio,
+
+        SUM(total_clicks)
+          AS clicks_total,
+
+        SUM(total_scroll)
+          AS scroll_total,
+
+        SUM(total_interacciones_teclado)
+          AS teclado_total
+
+      FROM metricas_investigacion
+    `
+  );
+
+  const promedio =
+    metricas[0] || {};
+
+  const [accesibilidad] = await pool.query(
+    `
+      SELECT
+        COUNT(*) AS total,
+
+        SUM(alto_contraste = 1)
+          AS alto_contraste,
+
+        SUM(modo_oscuro = 1)
+          AS modo_oscuro,
+
+        SUM(fuente_dislexia = 1)
+          AS fuente_dislexia,
+
+        SUM(lector_pantalla = 1)
+          AS lector_pantalla,
+
+        SUM(subtitulos = 1)
+          AS subtitulos,
+
+        SUM(navegacion_teclado = 1)
+          AS navegacion_teclado
+
+      FROM preferencias_accesibilidad
+    `
+  );
+
+  const preferencias =
+    accesibilidad[0] || {};
+
+  const [chatbot] = await pool.query(
+    `
+      SELECT
+        COUNT(*) AS mensajes,
+
+        AVG(tiempo_respuesta_ms)
+          AS tiempo_respuesta_promedio,
+
+        SUM(utilidad_usuario = 'Útil')
+          AS respuestas_utiles,
+
+        SUM(utilidad_usuario = 'Parcialmente útil')
+          AS respuestas_parcialmente_utiles,
+
+        SUM(utilidad_usuario = 'No útil')
+          AS respuestas_no_utiles
+
+      FROM mensajes_chatbot
+    `
+  );
+
+  const datosChatbot =
+    chatbot[0] || {};
+
+  const [tiposEventos] = await pool.query(
+    `
+      SELECT
+        tipo_evento,
+        COUNT(*) AS cantidad
+
+      FROM eventos_investigacion
+
+      GROUP BY tipo_evento
+
+      ORDER BY cantidad DESC
+    `
+  );
+
+  const [pruebas] = await pool.query(
+    `
+      SELECT
+        nombre,
+        estado,
+        version_wcag,
+        fecha_inicio,
+        fecha_fin
+
+      FROM pruebas_investigacion
+
+      ORDER BY id_prueba DESC
+
+      LIMIT 10
+    `
+  );
+
+  const lineas = [
+    'Datos reales disponibles para investigación en AulaMos:',
+    `- Pruebas de investigación registradas: ${Number(resumen.pruebas_total || 0)}.`,
+    `- Pruebas activas: ${Number(resumen.pruebas_activas || 0)}.`,
+    `- Pruebas finalizadas: ${Number(resumen.pruebas_finalizadas || 0)}.`,
+    `- Eventos de investigación registrados: ${Number(resumen.eventos_total || 0)}.`,
+    `- Eventos de error: ${Number(resumen.eventos_error || 0)}.`,
+    `- Eventos de navegación: ${Number(resumen.eventos_navegacion || 0)}.`,
+    `- Eventos relacionados con AulaBot: ${Number(resumen.eventos_chatbot || 0)}.`,
+    `- Eventos de accesibilidad: ${Number(resumen.eventos_accesibilidad || 0)}.`,
+    `- Métricas de investigación registradas: ${Number(resumen.metricas_total || 0)}.`,
+    `- Sesiones de AulaBot registradas: ${Number(resumen.sesiones_chatbot || 0)}.`,
+    `- Mensajes de AulaBot registrados: ${Number(resumen.mensajes_chatbot || 0)}.`,
+    `- Usuarios con preferencias de accesibilidad: ${Number(resumen.usuarios_preferencias || 0)}.`,
+    `- Registros de uso de recursos: ${Number(resumen.registros_uso_recursos || 0)}.`,
+  ];
+
+  if (Number(resumen.metricas_total || 0) > 0) {
+    lineas.push(
+      `- Tiempo promedio de realización de actividades: ${Number(promedio.tiempo_promedio_actividad || 0).toFixed(2)} segundos.`,
+      `- Avance promedio registrado: ${Number(promedio.avance_promedio || 0).toFixed(2)}%.`,
+      `- Calificación promedio registrada: ${Number(promedio.calificacion_promedio || 0).toFixed(2)}.`,
+      `- Uso promedio de funciones de accesibilidad: ${Number(promedio.accesibilidad_promedio || 0).toFixed(2)}.`,
+      `- Interacciones promedio con AulaBot: ${Number(promedio.chatbot_promedio || 0).toFixed(2)}.`,
+      `- Duración promedio de sesión: ${Number(promedio.duracion_sesion_promedio || 0).toFixed(2)} segundos.`,
+      `- Total de clics registrados: ${Number(promedio.clicks_total || 0)}.`,
+      `- Total de scroll registrado: ${Number(promedio.scroll_total || 0)}.`,
+      `- Total de interacciones mediante teclado: ${Number(promedio.teclado_total || 0)}.`
+    );
+  } else {
+    lineas.push(
+      '- Actualmente no existen métricas de investigación registradas; no inventes valores ni conclusiones.'
+    );
+  }
+
+  lineas.push(
+    `- Preferencias de accesibilidad: alto contraste ${Number(preferencias.alto_contraste || 0)}, modo oscuro ${Number(preferencias.modo_oscuro || 0)}, fuente para dislexia ${Number(preferencias.fuente_dislexia || 0)}, lector de pantalla ${Number(preferencias.lector_pantalla || 0)}, subtítulos ${Number(preferencias.subtitulos || 0)} y navegación por teclado ${Number(preferencias.navegacion_teclado || 0)}.`
+  );
+
+  lineas.push(
+    `- Tiempo promedio de respuesta de AulaBot: ${
+      datosChatbot.tiempo_respuesta_promedio === null
+        ? 'sin datos'
+        : Number(datosChatbot.tiempo_respuesta_promedio).toFixed(2) + ' ms'
+    }.`
+  );
+
+  if (tiposEventos.length > 0) {
+    lineas.push(
+      '- Distribución de eventos de investigación:'
+    );
+
+    tiposEventos.forEach((evento) => {
+      lineas.push(
+        `  - ${evento.tipo_evento}: ${Number(evento.cantidad || 0)}.`
+      );
+    });
+  } else {
+    lineas.push(
+      '- Todavía no existen eventos de investigación registrados.'
+    );
+  }
+
+  if (pruebas.length > 0) {
+    lineas.push(
+      '- Pruebas de investigación recientes:'
+    );
+
+    pruebas.forEach((prueba) => {
+      lineas.push(
+        `  - ${prueba.nombre} | estado: ${prueba.estado} | estándar: ${prueba.version_wcag}.`
+      );
+    });
+  } else {
+    lineas.push(
+      '- Actualmente no existen pruebas de investigación registradas.'
+    );
+  }
+
+  lineas.push(
+    '- Responde únicamente utilizando estos datos reales cuando la pregunta sea sobre métricas o resultados de AulaMos.'
+  );
+
+  lineas.push(
+    '- Si una métrica no está registrada, indica claramente que todavía no existen datos suficientes.'
+  );
+
+  lineas.push(
+    '- No inventes participantes, pruebas, métricas, porcentajes, errores, tiempos, resultados ni conclusiones de investigación.'
+  );
+
+  lineas.push(
+    '- Presenta la información de forma agregada. No reveles datos personales de estudiantes.'
+  );
+
+  return lineas.join('\n');
+}
 async function obtenerContextoChatbot({
   idUsuario,
   rol,
@@ -883,6 +1390,16 @@ async function obtenerContextoChatbot({
   if (rol === 'docente') {
     return obtenerContextoDocente(idUsuario);
   }
+
+  if (rol === 'admin') {
+    return obtenerContextoAdmin();
+  }
+
+  if (rol === 'investigador') {
+    return obtenerContextoInvestigador();
+  }
+
+
 
   return '';
 }

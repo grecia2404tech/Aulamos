@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { api } from './api';
 
-export type RolChatbot = 'alumno' | 'docente';
+export type RolChatbot = 'alumno' | 'docente' | 'admin' | 'investigador';
 
 export type AccionChatbot = {
   texto: string;
@@ -27,14 +27,14 @@ export async function enviarMensajeChatbot(
   const textoLimpio = mensaje.trim();
 
   if (!textoLimpio) {
-    throw new Error('El mensaje no puede estar vacío.');
+    throw new Error('El mensaje no puede estar vacÃ­o.');
   }
 
   const token = await AsyncStorage.getItem('token');
 
   if (!token) {
     throw new Error(
-      'Tu sesión terminó. Inicia sesión nuevamente.'
+      'Tu sesiÃ³n terminÃ³. Inicia sesiÃ³n nuevamente.'
     );
   }
   const resultado = await api.post<RespuestaChatbot>(
