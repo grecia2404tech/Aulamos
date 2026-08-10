@@ -276,13 +276,9 @@ const registrarUsuario = async (
     // =========================
     // ROLES PERMITIDOS
     // =========================
-
     const rolesPermitidos = {
       alumno: 'Alumno',
       docente: 'Docente',
-      admin: 'Admin',
-      investigador:
-        'Investigador',
     };
 
     const rolRecibido =

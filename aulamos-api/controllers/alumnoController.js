@@ -166,7 +166,6 @@ const obtenerAvancesAlumno = async (req, res) => {
             CASE
               WHEN ae.estado IN (
                 'Completada',
-                'Entregada',
                 'Calificada'
               )
               OR COALESCE(
@@ -181,16 +180,10 @@ const obtenerAvancesAlumno = async (req, res) => {
           SUM(
             CASE
               WHEN ae.estado = 'En_proceso'
-              OR (
-                COALESCE(
-                  ae.porcentaje_avance,
-                  0
-                ) > 0
                 AND COALESCE(
                   ae.porcentaje_avance,
                   0
                 ) < 100
-              )
               THEN 1
               ELSE 0
             END
@@ -202,10 +195,10 @@ const obtenerAvancesAlumno = async (req, res) => {
                 'Pendiente',
                 'Atrasada'
               )
-              OR COALESCE(
-                ae.porcentaje_avance,
-                0
-              ) = 0
+                AND COALESCE(
+                  ae.porcentaje_avance,
+                  0
+                ) < 100
               THEN 1
               ELSE 0
             END
@@ -217,7 +210,6 @@ const obtenerAvancesAlumno = async (req, res) => {
                 CASE
                   WHEN ae.estado IN (
                     'Completada',
-                    'Entregada',
                     'Calificada'
                   )
                   THEN 100
@@ -260,7 +252,6 @@ const obtenerAvancesAlumno = async (req, res) => {
             CASE
               WHEN ae.estado IN (
                 'Completada',
-                'Entregada',
                 'Calificada'
               )
               OR COALESCE(
@@ -278,7 +269,6 @@ const obtenerAvancesAlumno = async (req, res) => {
                 CASE
                   WHEN ae.estado IN (
                     'Completada',
-                    'Entregada',
                     'Calificada'
                   )
                   THEN 100

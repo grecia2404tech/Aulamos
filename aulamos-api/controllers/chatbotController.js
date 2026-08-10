@@ -2,15 +2,35 @@ const {
   generarRespuestaIA,
 } = require('../services/geminiService');
 
+const {
+  obtenerContextoChatbot,
+} = require('../services/chatbotContextService');
+
+const {
+  registrarInteraccionChatbot,
+} = require('../services/chatbotHistoryService');
+
 async function enviarMensaje(req, res) {
   try {
     const mensaje = String(
       req.body.mensaje || ''
     ).trim();
 
+    const idUsuario = Number(
+      req.usuario?.id_usuario || 0
+    );
+
     const rol = String(
-      req.body.rol || 'alumno'
-    ).trim();
+      req.usuario?.rol || ''
+    )
+      .trim()
+      .toLowerCase();
+
+    if (!idUsuario || !rol) {
+      return res.status(401).json({
+        mensaje: 'Usuario no autenticado.',
+      });
+    }
 
     if (!mensaje) {
       return res.status(400).json({
@@ -18,10 +38,23 @@ async function enviarMensaje(req, res) {
       });
     }
 
-    const respuesta = await generarRespuestaIA({
-      mensaje,
-      rol,
-    });
+    const contexto =
+      await obtenerContextoChatbot({
+        idUsuario,
+        rol,
+      });
+
+    const inicio = Date.now();
+
+    const respuesta =
+      await generarRespuestaIA({
+        mensaje,
+        rol,
+        contexto,
+      });
+
+    const tiempoRespuestaMs =
+      Date.now() - inicio;
 
     if (!respuesta) {
       return res.status(503).json({
@@ -30,10 +63,38 @@ async function enviarMensaje(req, res) {
       });
     }
 
+    const origenConocimiento =
+      contexto
+        ? 'Mixto'
+        : 'IA Generativa';
+
+    let tipoConsulta = 'General';
+
+    try {
+      const historial =
+        await registrarInteraccionChatbot({
+          idUsuario,
+          rol,
+          mensaje,
+          respuesta,
+          tiempoRespuestaMs,
+          origenConocimiento,
+        });
+
+      tipoConsulta =
+        historial.tipoConsulta;
+    } catch (errorHistorial) {
+      console.error(
+        'AulaBot respondió, pero no se pudo guardar el historial:',
+        errorHistorial
+      );
+    }
+
     return res.status(200).json({
       respuesta,
-      tipoConsulta: 'Académica',
-      origenConocimiento: 'IA Generativa',
+      tipoConsulta,
+      origenConocimiento,
+      tiempoRespuestaMs,
       acciones: [],
     });
   } catch (error) {

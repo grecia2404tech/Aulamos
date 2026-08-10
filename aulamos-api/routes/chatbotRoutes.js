@@ -4,8 +4,10 @@ const {
   enviarMensaje,
 } = require('../controllers/chatbotController');
 
+const verificarToken = require('../middleware/authMiddleware');
+
 const router = express.Router();
 
-router.post('/mensaje', enviarMensaje);
+router.post('/mensaje', verificarToken, enviarMensaje);
 
 module.exports = router;

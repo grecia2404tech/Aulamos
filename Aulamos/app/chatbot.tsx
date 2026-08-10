@@ -1,8 +1,9 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
 import { router } from 'expo-router';
 import * as Speech from 'expo-speech';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
     ActivityIndicator,
     KeyboardAvoidingView,
@@ -16,7 +17,10 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { enviarMensajeChatbot } from '../services/chatbot';
+import {
+  enviarMensajeChatbot,
+  type RolChatbot,
+} from '../services/chatbot';
 
 type AutorMensaje = 'usuario' | 'bot';
 
@@ -26,12 +30,45 @@ type Mensaje = {
   texto: string;
 };
 
-const PREGUNTAS_RAPIDAS: string[] = [
-  '¿Cómo veo mis actividades?',
-  '¿Cómo entrego una tarea?',
-  'Explícame la fotosíntesis',
-  'Necesito ayuda con matemáticas',
+const ROLES_CHATBOT: RolChatbot[] = [
+  'alumno',
+  'docente',
+  'admin',
+  'investigador',
 ];
+
+const PREGUNTAS_RAPIDAS_POR_ROL: Record<
+  RolChatbot,
+  string[]
+> = {
+  alumno: [
+    '¿Qué actividades tengo pendientes?',
+    '¿Cómo voy en mis cursos?',
+    '¿Qué calificaciones tengo?',
+    'Necesito ayuda con una actividad',
+  ],
+
+  docente: [
+    '¿Qué funciones tengo como docente?',
+    '¿Cómo puedo crear una actividad?',
+    '¿Qué estudiantes tengo?',
+    '¿Cómo van mis cursos?',
+  ],
+
+  admin: [
+    '¿Cuántos usuarios hay registrados?',
+    '¿Cuántos alumnos y docentes hay?',
+    '¿Cuántos cursos están activos?',
+    '¿Cuántos grupos hay registrados?',
+  ],
+
+  investigador: [
+    '¿Cuántos mensajes de AulaBot se han registrado?',
+    '¿Cuántas pruebas de investigación existen?',
+    '¿Hay eventos de error registrados?',
+    '¿Qué datos de accesibilidad están disponibles?',
+  ],
+};
 
 function generarId(prefijo: string): string {
   return `${prefijo}-${Date.now()}-${Math.random()
@@ -72,6 +109,58 @@ function obtenerMensajeError(error: unknown): string {
 }
 
 export default function ChatbotScreen() {
+  const [rolChatbot, setRolChatbot] =
+    useState<RolChatbot>('alumno');
+
+  useEffect(() => {
+    let activo = true;
+
+    const cargarRol = async (): Promise<void> => {
+      try {
+        const usuarioGuardado =
+          await AsyncStorage.getItem('usuario');
+
+        if (!usuarioGuardado || !activo) {
+          return;
+        }
+
+        const usuario = JSON.parse(
+          usuarioGuardado
+        ) as {
+          rol?: string;
+        };
+
+        const rolGuardado = String(
+          usuario.rol || ''
+        )
+          .trim()
+          .toLowerCase() as RolChatbot;
+
+        if (
+          ROLES_CHATBOT.includes(
+            rolGuardado
+          )
+        ) {
+          setRolChatbot(rolGuardado);
+        }
+      } catch (error) {
+        console.error(
+          'No se pudo obtener el rol para AulaBot:',
+          error
+        );
+      }
+    };
+
+    cargarRol();
+
+    return () => {
+      activo = false;
+    };
+  }, []);
+
+  const preguntasRapidas =
+    PREGUNTAS_RAPIDAS_POR_ROL[rolChatbot];
+
   const [mensaje, setMensaje] = useState<string>('');
   const [cargando, setCargando] = useState<boolean>(false);
 
@@ -123,7 +212,7 @@ export default function ChatbotScreen() {
     try {
       const resultado = await enviarMensajeChatbot(
         texto,
-        'alumno'
+        rolChatbot
       );
 
       const mensajeBot: Mensaje = {
@@ -258,7 +347,7 @@ export default function ChatbotScreen() {
           </Text>
 
           <View style={styles.preguntasRapidas}>
-            {PREGUNTAS_RAPIDAS.map(
+            {preguntasRapidas.map(
               (pregunta: string) => (
                 <Pressable
                   key={pregunta}
