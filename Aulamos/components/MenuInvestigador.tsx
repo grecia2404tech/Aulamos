@@ -27,6 +27,9 @@ export default function MenuInvestigador() {
   const esMas =
     pathname === '/investigador/mas';
 
+  const esAulaBot =
+    pathname === '/chatbot';
+
   return (
     <View
       style={[
@@ -41,7 +44,7 @@ export default function MenuInvestigador() {
       <TouchableOpacity
         style={styles.item}
         onPress={() =>
-          router.replace('/investigador/index')
+          router.replace('/investigador')
         }
         accessibilityRole="button"
         accessibilityLabel="Inicio"
@@ -70,7 +73,6 @@ export default function MenuInvestigador() {
               color: esInicio
                 ? colores.primario
                 : colores.textoSecundario,
-
               fontSize:
                 11 * escalaTexto,
             },
@@ -115,7 +117,6 @@ export default function MenuInvestigador() {
               color: esReportes
                 ? colores.primario
                 : colores.textoSecundario,
-
               fontSize:
                 11 * escalaTexto,
             },
@@ -125,7 +126,7 @@ export default function MenuInvestigador() {
         </Text>
       </TouchableOpacity>
 
-      {/* MÃS */}
+      {/* MÁS */}
       <TouchableOpacity
         style={styles.item}
         onPress={() =>
@@ -134,7 +135,7 @@ export default function MenuInvestigador() {
           )
         }
         accessibilityRole="button"
-        accessibilityLabel="MÃ¡s opciones"
+        accessibilityLabel="Más opciones"
         accessibilityState={{
           selected: esMas,
         }}
@@ -160,13 +161,12 @@ export default function MenuInvestigador() {
               color: esMas
                 ? colores.primario
                 : colores.textoSecundario,
-
               fontSize:
                 11 * escalaTexto,
             },
           ]}
         >
-          MÃ¡s
+          Más
         </Text>
       </TouchableOpacity>
 
@@ -178,21 +178,32 @@ export default function MenuInvestigador() {
         }
         accessibilityRole="button"
         accessibilityLabel="AulaBot"
-        accessibilityHint="Abre el asistente de investigaciÃ³n de AulaMos"
+        accessibilityHint="Abre el asistente de investigación de AulaMos"
+        accessibilityState={{
+          selected: esAulaBot,
+        }}
       >
         <Ionicons
-          name="chatbubble-ellipses-outline"
+          name={
+            esAulaBot
+              ? 'chatbubble-ellipses'
+              : 'chatbubble-ellipses-outline'
+          }
           size={24}
-          color={colores.textoSecundario}
+          color={
+            esAulaBot
+              ? colores.primario
+              : colores.textoSecundario
+          }
         />
 
         <Text
           style={[
             styles.texto,
             {
-              color:
-                colores.textoSecundario,
-
+              color: esAulaBot
+                ? colores.primario
+                : colores.textoSecundario,
               fontSize:
                 11 * escalaTexto,
             },
@@ -209,21 +220,16 @@ const styles = StyleSheet.create({
   menu: {
     minHeight: 67,
     borderTopWidth: 1,
-
     flexDirection: 'row',
-
     alignItems: 'center',
     justifyContent: 'space-around',
-
     paddingBottom: 5,
     paddingTop: 5,
   },
 
   item: {
     flex: 1,
-
     minHeight: 52,
-
     alignItems: 'center',
     justifyContent: 'center',
   },

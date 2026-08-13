@@ -387,19 +387,17 @@ const crearRecurso = async (req, res) => {
           id_actividad,
           id_materia,
           id_docente,
-          id_curso,
           titulo,
           descripcion,
           tipo,
           url_recurso,
-          url_subtitulos,
           accesible,
           subtitulos_disponibles,
           compartido_tipo,
           estado
         )
         VALUES (
-          ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+          ?, ?, ?, ?, ?, ?, ?, ?, ?,
           'Curso', 'Activo'
         )
       `,
@@ -407,12 +405,10 @@ const crearRecurso = async (req, res) => {
         idActividad,
         idMateria,
         idDocente,
-        idCurso,
         titulo,
         descripcion || null,
         tipo,
         rutaArchivo,
-        rutaSubtitulos,
         recursoAccesible,
         subtitulosDisponibles,
       ]
@@ -527,12 +523,20 @@ const listarRecursosDocente = async (req, res) => {
           r.id_recurso,
           r.id_actividad,
           r.id_materia,
-          r.id_curso,
+          a.id_curso AS id_curso,
           r.titulo,
           r.descripcion,
           r.tipo,
           r.url_recurso,
-          r.url_subtitulos,
+          (
+            SELECT ad.url_archivo
+            FROM adjuntos AS ad
+            WHERE ad.entidad_tipo = 'Recurso'
+              AND ad.entidad_id = r.id_recurso
+              AND ad.url_archivo <> COALESCE(r.url_recurso, '')
+            ORDER BY ad.id_adjunto DESC
+            LIMIT 1
+          ) AS url_subtitulos,
           r.accesible,
           r.subtitulos_disponibles,
           r.compartido_tipo,
@@ -557,7 +561,7 @@ const listarRecursosDocente = async (req, res) => {
         LEFT JOIN actividades AS a
           ON a.id_actividad = r.id_actividad
         LEFT JOIN cursos AS c
-          ON c.id_curso = r.id_curso
+          ON c.id_curso = a.id_curso
         LEFT JOIN grupos AS g
           ON g.id_grupo = c.id_grupo
         WHERE r.id_docente = ?
@@ -614,12 +618,20 @@ const listarBibliotecaAlumno = async (req, res) => {
           r.id_recurso,
           r.id_actividad,
           r.id_materia,
-          r.id_curso,
+          a.id_curso AS id_curso,
           r.titulo,
           r.descripcion,
           r.tipo,
           r.url_recurso,
-          r.url_subtitulos,
+          (
+            SELECT ad.url_archivo
+            FROM adjuntos AS ad
+            WHERE ad.entidad_tipo = 'Recurso'
+              AND ad.entidad_id = r.id_recurso
+              AND ad.url_archivo <> COALESCE(r.url_recurso, '')
+            ORDER BY ad.id_adjunto DESC
+            LIMIT 1
+          ) AS url_subtitulos,
           r.accesible,
           r.subtitulos_disponibles,
           r.fecha_publicacion,
@@ -637,7 +649,7 @@ const listarBibliotecaAlumno = async (req, res) => {
         LEFT JOIN actividades AS a
           ON a.id_actividad = r.id_actividad
         LEFT JOIN cursos AS rc
-          ON rc.id_curso = r.id_curso
+          ON rc.id_curso = a.id_curso
         LEFT JOIN usuarios AS u
           ON u.id_usuario = r.id_docente
         WHERE r.estado = 'Activo'
@@ -663,7 +675,8 @@ const listarBibliotecaAlumno = async (req, res) => {
                   )
                   OR (
                     r.id_actividad IS NULL
-                    AND r.id_curso = c.id_curso
+                    AND r.id_materia = c.id_materia
+                    AND r.id_docente = c.id_docente
                   )
                 )
             )
@@ -750,7 +763,15 @@ const obtenerRecursoParaReproductor = async (req, res) => {
           r.descripcion,
           r.tipo,
           r.url_recurso,
-          r.url_subtitulos,
+          (
+            SELECT ad.url_archivo
+            FROM adjuntos AS ad
+            WHERE ad.entidad_tipo = 'Recurso'
+              AND ad.entidad_id = r.id_recurso
+              AND ad.url_archivo <> COALESCE(r.url_recurso, '')
+            ORDER BY ad.id_adjunto DESC
+            LIMIT 1
+          ) AS url_subtitulos,
           r.subtitulos_disponibles,
           m.nombre AS materia,
           c.nombre AS curso,
@@ -764,8 +785,11 @@ const obtenerRecursoParaReproductor = async (req, res) => {
         LEFT JOIN materias AS m
           ON m.id_materia = r.id_materia
 
+        LEFT JOIN actividades AS a
+          ON a.id_actividad = r.id_actividad
+
         LEFT JOIN cursos AS c
-          ON c.id_curso = r.id_curso
+          ON c.id_curso = a.id_curso
 
         LEFT JOIN usuarios AS u
           ON u.id_usuario = r.id_docente
@@ -808,8 +832,10 @@ const obtenerRecursoParaReproductor = async (req, res) => {
                       OR
                       (
                         r.id_actividad IS NULL
-                        AND r.id_curso =
-                          ci.id_curso
+                        AND r.id_materia =
+                          ci.id_materia
+                        AND r.id_docente =
+                          ci.id_docente
                       )
                     )
                 )
@@ -970,7 +996,8 @@ const registrarUsoRecurso = async (req, res) => {
                   )
                   OR (
                     r.id_actividad IS NULL
-                    AND r.id_curso = c.id_curso
+                    AND r.id_materia = c.id_materia
+                    AND r.id_docente = c.id_docente
                   )
                 )
             )

@@ -20,6 +20,7 @@ async function generarRespuestaIA({
   mensaje,
   rol = 'alumno',
   contexto = '',
+  historial = '',
 }) {
   const apiKey =
     process.env.GEMINI_API_KEY?.trim();
@@ -36,6 +37,7 @@ async function generarRespuestaIA({
 Eres AulaBot, el asistente educativo de Aulamos.
 
 Reglas:
+
 - Responde siempre en español.
 - Usa lenguaje claro y sencillo.
 - Da respuestas breves y útiles.
@@ -47,19 +49,27 @@ Reglas:
 - No superes las 250 palabras.
 - Cuando el contexto incluya datos reales de Aulamos, utilízalos como fuente principal.
 - No inventes ni recomiendes secciones, menús, rutas, botones o funciones de Aulamos que no aparezcan en el contexto.
-- Si los datos reales indican cero, ninguno o que no existe información, dilo directamente y no agregues pasos para buscar información inexistente.
+- Si los datos reales indican cero, ninguno o que no existe información, dilo directamente.
+- Utiliza el historial reciente para comprender referencias como "eso", "la anterior", "esa actividad", "lo que te dije" o expresiones similares.
+- El historial es solamente contexto conversacional.
+- Si el historial contradice datos actuales de Aulamos, tienen prioridad los datos actuales.
+- No inventes información que no aparezca en el contexto, historial o pregunta actual.
 
 El rol indicado a continuación proviene de una sesión autenticada de Aulamos.
 Debes considerarlo un dato confiable.
 Si el usuario pregunta cuál es su rol, respóndelo directamente.
 No le preguntes al usuario cuál es su rol.
 
-Rol autenticado del usuario: ${rol}
+Rol autenticado:
+${rol}
 
-Contexto:
+Datos actuales de Aulamos:
 ${contexto || 'No hay contexto adicional.'}
 
-Pregunta:
+Historial reciente de esta misma conversación:
+${historial || 'No hay mensajes anteriores.'}
+
+Pregunta actual:
 ${mensaje}
 `;
 
@@ -91,16 +101,19 @@ ${mensaje}
       },
       {
         headers: {
-          'Content-Type': 'application/json',
-          'x-goog-api-key': apiKey,
+          'Content-Type':
+            'application/json',
+          'x-goog-api-key':
+            apiKey,
         },
         timeout: 120000,
       }
     );
 
-    const texto = obtenerTextoRespuesta(
-      respuesta.data
-    );
+    const texto =
+      obtenerTextoRespuesta(
+        respuesta.data
+      );
 
     if (!texto) {
       throw new Error(
@@ -117,7 +130,8 @@ ${mensaje}
 
       console.error(
         'Error de Gemini:',
-        error.response?.status || 'sin estado',
+        error.response?.status ||
+          'sin estado',
         detalle
       );
 

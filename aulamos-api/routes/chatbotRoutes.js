@@ -1,13 +1,107 @@
-const express = require('express');
+"use strict";
+
+const express =
+  require("express");
 
 const {
   enviarMensaje,
-} = require('../controllers/chatbotController');
+  enviarMensajeWebInterno,
+  ejecutarAccionWebInterna,
+  obtenerHistorial,
+  nuevaConversacion,
+  listarConversaciones,
+  obtenerConversacion,
+  activarConversacion,
+  valorarRespuesta,
+  regenerarRespuesta,
+} = require(
+  "../controllers/chatbotController"
+);
 
-const verificarToken = require('../middleware/authMiddleware');
+const verificarToken =
+  require(
+    "../middleware/authMiddleware"
+  );
 
-const router = express.Router();
+const soloLocalhost =
+  require(
+    "../middleware/soloLocalhost"
+  );
 
-router.post('/mensaje', verificarToken, enviarMensaje);
+const router =
+  express.Router();
 
-module.exports = router;
+/*
+|--------------------------------------------------------------------------
+| PUENTE WEB
+|--------------------------------------------------------------------------
+*/
+
+router.post(
+  "/web/mensaje",
+  soloLocalhost,
+  enviarMensajeWebInterno
+);
+
+router.post(
+  "/web/accion",
+  soloLocalhost,
+  ejecutarAccionWebInterna
+);
+
+/*
+|--------------------------------------------------------------------------
+| MÓVIL
+|--------------------------------------------------------------------------
+*/
+
+router.get(
+  "/historial",
+  verificarToken,
+  obtenerHistorial
+);
+
+router.get(
+  "/conversaciones",
+  verificarToken,
+  listarConversaciones
+);
+
+router.get(
+  "/conversaciones/:idSesion",
+  verificarToken,
+  obtenerConversacion
+);
+
+router.post(
+  "/conversaciones/:idSesion/activar",
+  verificarToken,
+  activarConversacion
+);
+
+router.post(
+  "/mensajes/:idMensaje/utilidad",
+  verificarToken,
+  valorarRespuesta
+);
+
+router.post(
+  "/mensajes/:idMensaje/regenerar",
+  verificarToken,
+  regenerarRespuesta
+);
+
+router.post(
+  "/mensaje",
+  verificarToken,
+  enviarMensaje
+);
+
+router.post(
+  "/nueva-conversacion",
+  verificarToken,
+  nuevaConversacion
+);
+
+module.exports =
+  router;
